@@ -14,19 +14,18 @@ local UserInputService = game:GetService("UserInputService")
 local TweenService = game:GetService("TweenService")
 local RunService = game:GetService("RunService")
 local CoreGui = game:GetService("CoreGui")
-local Lighting = game:GetService("Lighting")
 local LocalPlayer = Players.LocalPlayer
 
 local DEFAULT_THEME = {
-    Main = Color3.fromRGB(18, 18, 18),
-    Panel = Color3.fromRGB(30, 30, 30),
-    Surface = Color3.fromRGB(45, 45, 45),
-    Accent = Color3.fromRGB(130, 0, 255),
-    AccentSoft = Color3.fromRGB(160, 75, 255),
-    Success = Color3.fromRGB(85, 220, 120),
-    Error = Color3.fromRGB(255, 100, 100),
-    Text = Color3.fromRGB(255, 255, 255),
-    Muted = Color3.fromRGB(190, 190, 190),
+    Main = Color3.fromRGB(13, 13, 16),
+    Panel = Color3.fromRGB(24, 24, 29),
+    Surface = Color3.fromRGB(40, 40, 48),
+    Accent = Color3.fromRGB(128, 54, 255),
+    AccentSoft = Color3.fromRGB(168, 110, 255),
+    Success = Color3.fromRGB(95, 225, 130),
+    Error = Color3.fromRGB(255, 110, 110),
+    Text = Color3.fromRGB(250, 250, 255),
+    Muted = Color3.fromRGB(185, 185, 200),
     Border = Color3.fromRGB(255, 255, 255),
 }
 
@@ -61,14 +60,6 @@ local function safeCall(fn)
         return result
     end
     return nil
-end
-
-local function createBlurEffect(size)
-    local blur = Instance.new("BlurEffect")
-    blur.Size = size or 12
-    blur.Enabled = true
-    blur.Parent = Lighting
-    return blur
 end
 
 local function getExecutor()
@@ -217,29 +208,23 @@ local function createKeySystem(self)
         ZIndexBehavior = Enum.ZIndexBehavior.Sibling,
     })
 
-    if self.keyBlur and self.keyBlur.Parent then
-        self.keyBlur:Destroy()
-    end
-
-    self.keyBlur = createBlurEffect(12)
-
     local overlay = create("Frame", keyGui, {
         Size = UDim2.new(1, 0, 1, 0),
-        BackgroundColor3 = Color3.fromRGB(0, 0, 0),
-        BackgroundTransparency = 0.55,
+        BackgroundColor3 = Color3.fromRGB(3, 3, 5),
+        BackgroundTransparency = 0.25,
         BorderSizePixel = 0,
     })
 
     local panel = create("Frame", overlay, {
         AnchorPoint = Vector2.new(0.5, 0.5),
         Position = UDim2.new(0.5, 0, 0.45, 0),
-        Size = UDim2.new(0, 400, 0, 360),
-        BackgroundColor3 = self.theme.Main,
+        Size = UDim2.new(0, 420, 0, 372),
+        BackgroundColor3 = self.theme.Panel,
         BorderSizePixel = 0,
     })
-    addCorner(panel, UDim.new(0, 12))
-    addStroke(panel, self.theme.AccentSoft, 1, 0.25)
-    createShadow(panel, 0.7)
+    addCorner(panel, UDim.new(0, 14))
+    addStroke(panel, self.theme.AccentSoft, 1, 0.22)
+    createShadow(panel, 0.78)
 
     local introTween = TweenService:Create(panel, TweenInfo.new(0.18, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
         Position = UDim2.new(0.5, 0, 0.5, 0),
@@ -247,11 +232,11 @@ local function createKeySystem(self)
     introTween:Play()
 
     local top = create("Frame", panel, {
-        Size = UDim2.new(1, 0, 0, 44),
+        Size = UDim2.new(1, 0, 0, 46),
         BackgroundColor3 = self.theme.Accent,
         BorderSizePixel = 0,
     })
-    addCorner(top, UDim.new(0, 12))
+    addCorner(top, UDim.new(0, 14))
 
     local title = create("TextLabel", top, {
         Size = UDim2.new(1, -10, 1, 0),
@@ -266,7 +251,7 @@ local function createKeySystem(self)
 
     local clock = create("TextLabel", panel, {
         Size = UDim2.new(1, -14, 0, 18),
-        Position = UDim2.new(0, 7, 0, 54),
+        Position = UDim2.new(0, 7, 0, 55),
         BackgroundTransparency = 1,
         Text = "00:00:00",
         TextColor3 = self.theme.Muted,
@@ -284,13 +269,13 @@ local function createKeySystem(self)
     end)
 
     local infoFrame = create("Frame", panel, {
-        Size = UDim2.new(1, -14, 0, 86),
+        Size = UDim2.new(1, -14, 0, 90),
         Position = UDim2.new(0, 7, 0, 78),
-        BackgroundColor3 = self.theme.Panel,
+        BackgroundColor3 = self.theme.Main,
         BorderSizePixel = 0,
     })
-    addCorner(infoFrame, UDim.new(0, 10))
-    addStroke(infoFrame, self.theme.Border, 1, 0.9)
+    addCorner(infoFrame, UDim.new(0, 12))
+    addStroke(infoFrame, self.theme.Border, 1, 0.88)
 
     local avatar = create("ImageLabel", infoFrame, {
         Size = UDim2.new(0, 60, 0, 60),
@@ -330,7 +315,7 @@ local function createKeySystem(self)
 
     local keyStatus = create("TextLabel", panel, {
         Size = UDim2.new(1, -14, 0, 18),
-        Position = UDim2.new(0, 7, 0, 176),
+        Position = UDim2.new(0, 7, 0, 182),
         BackgroundTransparency = 1,
         Text = "Key Status: Not verified",
         TextColor3 = self.theme.Error,
@@ -341,7 +326,7 @@ local function createKeySystem(self)
 
     local scriptStatus = create("TextLabel", panel, {
         Size = UDim2.new(1, -14, 0, 18),
-        Position = UDim2.new(0, 7, 0, 198),
+        Position = UDim2.new(0, 7, 0, 204),
         BackgroundTransparency = 1,
         Text = "Script Status: Waiting for key",
         TextColor3 = Color3.fromRGB(255, 200, 90),
@@ -351,9 +336,9 @@ local function createKeySystem(self)
     })
 
     local box = create("TextBox", panel, {
-        Size = UDim2.new(1, -14, 0, 30),
-        Position = UDim2.new(0, 7, 0, 224),
-        BackgroundColor3 = self.theme.Panel,
+        Size = UDim2.new(1, -14, 0, 32),
+        Position = UDim2.new(0, 7, 0, 230),
+        BackgroundColor3 = self.theme.Main,
         BorderSizePixel = 0,
         PlaceholderText = "Enter key...",
         Text = "",
@@ -367,7 +352,7 @@ local function createKeySystem(self)
 
     local errorLabel = create("TextLabel", panel, {
         Size = UDim2.new(1, -14, 0, 16),
-        Position = UDim2.new(0, 7, 0, 262),
+        Position = UDim2.new(0, 7, 0, 268),
         BackgroundTransparency = 1,
         Text = "",
         TextColor3 = self.theme.Error,
@@ -377,8 +362,8 @@ local function createKeySystem(self)
     })
 
     local submitBtn = create("TextButton", panel, {
-        Size = UDim2.new(1, -14, 0, 36),
-        Position = UDim2.new(0, 7, 0, 286),
+        Size = UDim2.new(1, -14, 0, 38),
+        Position = UDim2.new(0, 7, 0, 292),
         BackgroundColor3 = self.theme.Accent,
         Text = "Submit",
         TextColor3 = Color3.fromRGB(255, 255, 255),
@@ -390,8 +375,8 @@ local function createKeySystem(self)
     addStroke(submitBtn, self.theme.AccentSoft, 1, 0.25)
 
     local linkFrame = create("Frame", panel, {
-        Size = UDim2.new(1, -14, 0, 34),
-        Position = UDim2.new(0, 7, 0, 326),
+        Size = UDim2.new(1, -14, 0, 36),
+        Position = UDim2.new(0, 7, 0, 336),
         BackgroundTransparency = 1,
     })
 
@@ -460,9 +445,6 @@ local function createKeySystem(self)
             end
 
             task.delay(0.35, function()
-                if self.keyBlur and self.keyBlur.Parent then
-                    self.keyBlur:Destroy()
-                end
                 keyGui:Destroy()
                 self.keySystemShown = false
                 self:FlushQueuedWindows()
@@ -527,14 +509,14 @@ function xev0r:_CreateWindowInternal(title)
     })
 
     local window = create("Frame", screen, {
-        Size = UDim2.new(0.42, 0, 0.55, 0),
-        Position = UDim2.new(0.29, 0, 0.25, 0),
+        Size = UDim2.new(0.38, 0, 0.52, 0),
+        Position = UDim2.new(0.31, 0, 0.24, 0),
         BackgroundColor3 = self.theme.Main,
         BorderSizePixel = 0,
     })
-    addCorner(window, UDim.new(0, 10))
-    addStroke(window, self.theme.AccentSoft, 1, 0.3)
-    createShadow(window, 0.7)
+    addCorner(window, UDim.new(0, 12))
+    addStroke(window, self.theme.AccentSoft, 1, 0.2)
+    createShadow(window, 0.72)
 
     local titleBar = create("TextButton", window, {
         Size = UDim2.new(1, 0, 0, 36),
@@ -572,7 +554,7 @@ function xev0r:_CreateWindowInternal(title)
     applyDrag(titleBar, window)
 
     local tabStrip = create("Frame", window, {
-        Size = UDim2.new(1, 0, 0, 34),
+        Size = UDim2.new(1, 0, 0, 36),
         Position = UDim2.new(0, 0, 0, 36),
         BackgroundColor3 = self.theme.Panel,
         BorderSizePixel = 0,
@@ -593,8 +575,8 @@ function xev0r:_CreateWindowInternal(title)
     })
 
     local contentHolder = create("Frame", window, {
-        Size = UDim2.new(1, 0, 1, -70),
-        Position = UDim2.new(0, 0, 0, 70),
+        Size = UDim2.new(1, 0, 1, -72),
+        Position = UDim2.new(0, 0, 0, 72),
         BackgroundColor3 = self.theme.Main,
         BorderSizePixel = 0,
     })
