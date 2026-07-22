@@ -14,6 +14,7 @@ local UserInputService = game:GetService("UserInputService")
 local TweenService = game:GetService("TweenService")
 local RunService = game:GetService("RunService")
 local CoreGui = game:GetService("CoreGui")
+local Lighting = game:GetService("Lighting")
 local LocalPlayer = Players.LocalPlayer
 
 local DEFAULT_THEME = {
@@ -60,6 +61,14 @@ local function safeCall(fn)
         return result
     end
     return nil
+end
+
+local function createBlurEffect(size)
+    local blur = Instance.new("BlurEffect")
+    blur.Size = size or 12
+    blur.Enabled = true
+    blur.Parent = Lighting
+    return blur
 end
 
 local function getExecutor()
@@ -169,16 +178,23 @@ local function createWatermark(theme)
 
     local fps = 0
     local ping = 0
-    local lastPingUpdate = 0
+    local frameCounter = 0
 
     RunService.RenderStepped:Connect(function(_, dt)
-        if dt > 0 then
-            fps = math.floor(1 / dt)
+        frameCounter = frameCounter + 1
+        if type(dt) == "number" and dt > 0 then
+            fps = math.max(0, math.floor(1 / dt))
         end
     end)
 
     task.spawn(function()
         while gui and gui.Parent do
+            local sampledFrames = frameCounter
+            frameCounter = 0
+            if sampledFrames > 0 then
+                fps = math.max(0, math.floor(sampledFrames / 0.4))
+            end
+
             ping = math.floor(LocalPlayer:GetNetworkPing() * 1000)
             label.Text = string.format("xev0r • %s • %d FPS • %d ms", getExecutor(), fps, ping)
             task.wait(0.4)
@@ -201,17 +217,23 @@ local function createKeySystem(self)
         ZIndexBehavior = Enum.ZIndexBehavior.Sibling,
     })
 
+    if self.keyBlur and self.keyBlur.Parent then
+        self.keyBlur:Destroy()
+    end
+
+    self.keyBlur = createBlurEffect(12)
+
     local overlay = create("Frame", keyGui, {
         Size = UDim2.new(1, 0, 1, 0),
         BackgroundColor3 = Color3.fromRGB(0, 0, 0),
-        BackgroundTransparency = 0.52,
+        BackgroundTransparency = 0.42,
         BorderSizePixel = 0,
     })
 
     local panel = create("Frame", overlay, {
         AnchorPoint = Vector2.new(0.5, 0.5),
         Position = UDim2.new(0.5, 0, 0.5, 0),
-        Size = UDim2.new(0, 380, 0, 330),
+        Size = UDim2.new(0, 400, 0, 360),
         BackgroundColor3 = self.theme.Main,
         BorderSizePixel = 0,
     })
@@ -220,7 +242,7 @@ local function createKeySystem(self)
     createShadow(panel, 0.7)
 
     local top = create("Frame", panel, {
-        Size = UDim2.new(1, 0, 0, 42),
+        Size = UDim2.new(1, 0, 0, 44),
         BackgroundColor3 = self.theme.Accent,
         BorderSizePixel = 0,
     })
@@ -239,7 +261,7 @@ local function createKeySystem(self)
 
     local clock = create("TextLabel", panel, {
         Size = UDim2.new(1, -14, 0, 18),
-        Position = UDim2.new(0, 7, 0, 50),
+        Position = UDim2.new(0, 7, 0, 54),
         BackgroundTransparency = 1,
         Text = "00:00:00",
         TextColor3 = self.theme.Muted,
@@ -257,8 +279,8 @@ local function createKeySystem(self)
     end)
 
     local infoFrame = create("Frame", panel, {
-        Size = UDim2.new(1, -14, 0, 76),
-        Position = UDim2.new(0, 7, 0, 72),
+        Size = UDim2.new(1, -14, 0, 86),
+        Position = UDim2.new(0, 7, 0, 78),
         BackgroundColor3 = self.theme.Panel,
         BorderSizePixel = 0,
     })
@@ -303,7 +325,7 @@ local function createKeySystem(self)
 
     local keyStatus = create("TextLabel", panel, {
         Size = UDim2.new(1, -14, 0, 18),
-        Position = UDim2.new(0, 7, 0, 158),
+        Position = UDim2.new(0, 7, 0, 176),
         BackgroundTransparency = 1,
         Text = "Key Status: Not verified",
         TextColor3 = self.theme.Error,
@@ -314,7 +336,7 @@ local function createKeySystem(self)
 
     local scriptStatus = create("TextLabel", panel, {
         Size = UDim2.new(1, -14, 0, 18),
-        Position = UDim2.new(0, 7, 0, 177),
+        Position = UDim2.new(0, 7, 0, 198),
         BackgroundTransparency = 1,
         Text = "Script Status: Waiting for key",
         TextColor3 = Color3.fromRGB(255, 200, 90),
@@ -325,7 +347,7 @@ local function createKeySystem(self)
 
     local box = create("TextBox", panel, {
         Size = UDim2.new(1, -14, 0, 30),
-        Position = UDim2.new(0, 7, 0, 205),
+        Position = UDim2.new(0, 7, 0, 224),
         BackgroundColor3 = self.theme.Panel,
         BorderSizePixel = 0,
         PlaceholderText = "Enter key...",
@@ -340,7 +362,7 @@ local function createKeySystem(self)
 
     local errorLabel = create("TextLabel", panel, {
         Size = UDim2.new(1, -14, 0, 16),
-        Position = UDim2.new(0, 7, 0, 240),
+        Position = UDim2.new(0, 7, 0, 262),
         BackgroundTransparency = 1,
         Text = "",
         TextColor3 = self.theme.Error,
@@ -351,7 +373,7 @@ local function createKeySystem(self)
 
     local submitBtn = create("TextButton", panel, {
         Size = UDim2.new(1, -14, 0, 36),
-        Position = UDim2.new(0, 7, 0, 262),
+        Position = UDim2.new(0, 7, 0, 286),
         BackgroundColor3 = self.theme.Accent,
         Text = "Submit",
         TextColor3 = Color3.fromRGB(255, 255, 255),
@@ -363,8 +385,8 @@ local function createKeySystem(self)
     addStroke(submitBtn, self.theme.AccentSoft, 1, 0.25)
 
     local linkFrame = create("Frame", panel, {
-        Size = UDim2.new(1, -14, 0, 32),
-        Position = UDim2.new(0, 7, 0, 305),
+        Size = UDim2.new(1, -14, 0, 34),
+        Position = UDim2.new(0, 7, 0, 326),
         BackgroundTransparency = 1,
     })
 
@@ -427,7 +449,15 @@ local function createKeySystem(self)
             keyStatus.TextColor3 = self.theme.Success
             scriptStatus.Text = "Script Status: Verified"
             scriptStatus.TextColor3 = self.theme.Success
+
+            if not self.watermark or not self.watermark.Parent then
+                self.watermark = createWatermark(self.theme)
+            end
+
             task.delay(0.35, function()
+                if self.keyBlur and self.keyBlur.Parent then
+                    self.keyBlur:Destroy()
+                end
                 keyGui:Destroy()
                 self.keySystemShown = false
                 self:FlushQueuedWindows()
@@ -456,7 +486,6 @@ function xev0r.new(options)
         pendingWindows = {},
     }, xev0r)
 
-    self.watermark = createWatermark(self.theme)
     return self
 end
 
