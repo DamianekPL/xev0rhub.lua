@@ -226,13 +226,13 @@ local function createKeySystem(self)
     local overlay = create("Frame", keyGui, {
         Size = UDim2.new(1, 0, 1, 0),
         BackgroundColor3 = Color3.fromRGB(0, 0, 0),
-        BackgroundTransparency = 0.42,
+        BackgroundTransparency = 0.55,
         BorderSizePixel = 0,
     })
 
     local panel = create("Frame", overlay, {
         AnchorPoint = Vector2.new(0.5, 0.5),
-        Position = UDim2.new(0.5, 0, 0.5, 0),
+        Position = UDim2.new(0.5, 0, 0.45, 0),
         Size = UDim2.new(0, 400, 0, 360),
         BackgroundColor3 = self.theme.Main,
         BorderSizePixel = 0,
@@ -240,6 +240,11 @@ local function createKeySystem(self)
     addCorner(panel, UDim.new(0, 12))
     addStroke(panel, self.theme.AccentSoft, 1, 0.25)
     createShadow(panel, 0.7)
+
+    local introTween = TweenService:Create(panel, TweenInfo.new(0.18, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
+        Position = UDim2.new(0.5, 0, 0.5, 0),
+    })
+    introTween:Play()
 
     local top = create("Frame", panel, {
         Size = UDim2.new(1, 0, 0, 44),
@@ -818,6 +823,7 @@ function xev0r:_CreateWindowInternal(title)
 
             local label = createElement("TextLabel", {
                 Size = UDim2.new(0, 82, 1, 0),
+                Position = UDim2.new(0, 0, 0, 0),
                 BackgroundTransparency = 1,
                 Text = text,
                 TextColor3 = self.theme.Text,
