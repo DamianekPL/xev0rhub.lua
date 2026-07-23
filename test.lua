@@ -1235,6 +1235,400 @@ function Section:CreateColorPicker(options: {[string]: any})
 	end)
 	return self:_register(options.Flag, control)
 end
+
+function Section:CreateTextArea(options: {[string]: any})
+	options = options or {}
+	local frame = make("Frame", { Size = UDim2.new(1, 0, 0, options.Height or 96), BackgroundTransparency = 1 }, self.Body)
+	local title = make("TextLabel", {
+		Size = UDim2.new(1, 0, 0, 18), BackgroundTransparency = 1,
+		Text = options.Name or options.Title or "Text Area", Font = Enum.Font.GothamBold,
+		TextSize = 11, TextColor3 = self.Window.Theme.Text, TextXAlignment = Enum.TextXAlignment.Left,
+	}, frame)
+	local input = make("TextBox", {
+		Position = UDim2.fromOffset(0, 22), Size = UDim2.new(1, 0, 0, options.Height and options.Height - 22 or 74),
+		BackgroundColor3 = self.Window.Theme.Field, BorderSizePixel = 0, Text = options.Default or "",
+		ClearTextOnFocus = false, MultiLine = true, TextWrapped = true, Font = Enum.Font.Gotham,
+		TextSize = 11, TextColor3 = self.Window.Theme.Text, TextXAlignment = Enum.TextXAlignment.Left,
+		TextYAlignment = Enum.TextYAlignment.Top, PlaceholderText = options.Placeholder or "Enter text...",
+		PlaceholderColor3 = self.Window.Theme.Muted,
+	}, frame)
+	corner(input, 6); stroke(input, self.Window.Theme.Line); padding(input, 8)
+	local control: any = {}
+	function control:Set(value: string, silent: boolean?)
+		input.Text = tostring(value or "")
+		if not silent then safeCallback(options.Callback, input.Text) end
+	end
+	function control:Get() return input.Text end
+	function control:Destroy() frame:Destroy() end
+	input.FocusLost:Connect(function(enterPressed)
+		safeCallback(options.Callback, input.Text, enterPressed)
+	end)
+	return self:_register(options.Flag, control)
+end
+function Section:TextArea(text: string, default: string, callback: (string) -> ())
+	return self:CreateTextArea({ Name = text, Default = default, Callback = callback })
+end
+
+function Section:CreateProgressBar(options: {[string]: any})
+	options = options or {}
+	local frame = make("Frame", { Size = UDim2.new(1, 0, 0, 44), BackgroundTransparency = 1 }, self.Body)
+	make("TextLabel", {
+		Size = UDim2.new(1, 0, 0, 16), BackgroundTransparency = 1,
+		Text = options.Name or options.Title or "Progress", Font = Enum.Font.GothamBold,
+		TextSize = 11, TextColor3 = self.Window.Theme.Text, TextXAlignment = Enum.TextXAlignment.Left,
+	}, frame)
+	local valueLabel = make("TextLabel", {
+		AnchorPoint = Vector2.new(1, 0), Position = UDim2.new(1, 0, 0, 0), Size = UDim2.fromOffset(60, 16),
+		BackgroundTransparency = 1, Font = Enum.Font.Gotham, TextSize = 11, TextColor3 = self.Window.Theme.Muted,
+		TextXAlignment = Enum.TextXAlignment.Right,
+	}, frame)
+	local barBg = make("Frame", { Position = UDim2.fromOffset(0, 20), Size = UDim2.new(1, 0, 0, 10), BackgroundColor3 = self.Window.Theme.Field, BorderSizePixel = 0 }, frame)
+	corner(barBg, 5)
+	local fill = make("Frame", { Size = UDim2.fromScale(0, 1), BackgroundColor3 = options.Color or self.Window.Theme.Accent, BorderSizePixel = 0 }, barBg)
+	corner(fill, 5)
+	local percentLabel = make("TextLabel", { Position = UDim2.fromOffset(0, 34), Size = UDim2.new(1, 0, 0, 10), BackgroundTransparency = 1, Font = Enum.Font.Gotham, TextSize = 10, TextColor3 = self.Window.Theme.Muted, TextXAlignment = Enum.TextXAlignment.Left }, frame)
+	local current = tonumber(options.Current or options.Default or 0) or 0
+	local maximum = tonumber(options.Max or options.Maximum or 100) or 100
+	local control: any = {}
+	local function refresh()
+		local pct = maximum > 0 and math.clamp(current / maximum, 0, 1) or 0
+		fill.Size = UDim2.fromScale(pct, 1)
+		valueLabel.Text = string.format("%d/%d", current, maximum)
+		percentLabel.Text = options.ShowPercent and string.format("%d%%", math.floor(pct * 100)) or ""
+	end
+	function control:Set(value: number, max: number?, silent: boolean?)
+		current = tonumber(value) or 0
+		maximum = tonumber(max or maximum) or maximum
+		refresh()
+		if not silent then safeCallback(options.Callback, current, maximum) end
+	end
+	function control:Get() return current, maximum end
+	function control:Destroy() frame:Destroy() end
+	refresh()
+	return self:_register(options.Flag, control)
+end
+function Section:ProgressBar(text: string, current: number, maximum: number, callback: (number, number) -> ())
+	return self:CreateProgressBar({ Name = text, Current = current, Max = maximum, Callback = callback })
+end
+
+function Section:CreateThemePresets(options: {[string]: any})
+	options = options or {}
+	local presets = options.Presets or {
+		{ Name = "Default", Theme = DEFAULT_THEME },
+		{ Name = "Cyber", Theme = {
+			Background = Color3.fromRGB(18, 12, 28), Topbar = Color3.fromRGB(42, 11, 84), Sidebar = Color3.fromRGB(32, 16, 47), Panel = Color3.fromRGB(26, 13, 36), Field = Color3.fromRGB(32, 16, 45), Text = Color3.fromRGB(230, 230, 255), Muted = Color3.fromRGB(160, 150, 215), Accent = Color3.fromRGB(95, 255, 217), Line = Color3.fromRGB(79, 49, 121),
+		} },
+		{ Name = "Sunset", Theme = {
+			Background = Color3.fromRGB(35, 16, 28), Topbar = Color3.fromRGB(92, 28, 54), Sidebar = Color3.fromRGB(68, 24, 44), Panel = Color3.fromRGB(50, 21, 37), Field = Color3.fromRGB(58, 24, 44), Text = Color3.fromRGB(246, 223, 201), Muted = Color3.fromRGB(200, 170, 155), Accent = Color3.fromRGB(255, 137, 91), Line = Color3.fromRGB(99, 53, 64),
+		} },
+	}
+	local container = make("Frame", { Size = UDim2.new(1, 0, 0, 0), AutomaticSize = Enum.AutomaticSize.Y, BackgroundTransparency = 1 }, self.Body)
+	make("TextLabel", {
+		Size = UDim2.new(1, 0, 0, 16), BackgroundTransparency = 1,
+		Text = options.Name or options.Title or "Theme Presets", Font = Enum.Font.GothamBold,
+		TextSize = 11, TextColor3 = self.Window.Theme.Text, TextXAlignment = Enum.TextXAlignment.Left,
+	}, container)
+	local list = make("Frame", { Position = UDim2.fromOffset(0, 24), Size = UDim2.new(1, 0, 0, 0), AutomaticSize = Enum.AutomaticSize.Y, BackgroundTransparency = 1 }, container)
+	make("UIListLayout", { Padding = UDim.new(0, 4), SortOrder = Enum.SortOrder.LayoutOrder }, list)
+	local selected = options.Current or options.Default or presets[1].Name
+	local control: any = {}
+	local function refresh()
+		for _, child in ipairs(list:GetChildren()) do child:Destroy() end
+		for _, item in ipairs(presets) do
+			local button = make("TextButton", {
+				Size = UDim2.new(1, 0, 0, 28), BackgroundColor3 = item.Name == selected and self.Window.Theme.Accent or self.Window.Theme.Panel,
+				BorderSizePixel = 0, Text = item.Name, Font = Enum.Font.GothamBold, TextSize = 11,
+				TextColor3 = self.Window.Theme.Text, TextXAlignment = Enum.TextXAlignment.Left, AutoButtonColor = false,
+			}, list)
+			padding(button, 8)
+			corner(button, 4); stroke(button, self.Window.Theme.Line)
+			button.Activated:Connect(function()
+				selected = item.Name
+				safeCallback(options.Callback, item.Theme, item.Name)
+				refresh()
+			end)
+		end
+	end
+	function control:Set(value: string, silent: boolean?)
+		selected = tostring(value or selected)
+		refresh()
+		if not silent then safeCallback(options.Callback, value) end
+	end
+	function control:Get() return selected end
+	function control:Destroy() container:Destroy() end
+	refresh()
+	return self:_register(options.Flag, control)
+end
+function Section:ThemePresets(text: string, callback: (table, string) -> ())
+	return self:CreateThemePresets({ Name = text, Callback = callback })
+end
+
+function Section:CreateSearchBar(options: {[string]: any})
+	options = options or {}
+	local row = self:_row(28)
+	make("TextLabel", {
+		Size = UDim2.new(1, -120, 1, 0), BackgroundTransparency = 1,
+		Text = options.Name or options.Title or "Search", Font = Enum.Font.Gotham,
+		TextSize = 12, TextColor3 = self.Window.Theme.Text, TextXAlignment = Enum.TextXAlignment.Left,
+	}, row)
+	local input = make("TextBox", {
+		AnchorPoint = Vector2.new(1, 0.5), Position = UDim2.new(1, -0, 0.5, 0), Size = UDim2.fromOffset(120, 22),
+		BackgroundColor3 = self.Window.Theme.Field, BorderSizePixel = 0, Text = options.Default or "",
+		ClearTextOnFocus = false, Font = Enum.Font.Gotham, TextSize = 11, TextColor3 = self.Window.Theme.Text,
+		TextXAlignment = Enum.TextXAlignment.Left, PlaceholderText = options.Placeholder or "Search...",
+		PlaceholderColor3 = self.Window.Theme.Muted,
+	}, row)
+	corner(input, 4); stroke(input, self.Window.Theme.Line); padding(input, 6)
+	local control: any = {}
+	function control:Set(value: string, silent: boolean?)
+		input.Text = tostring(value or "")
+		if not silent then safeCallback(options.Callback, input.Text) end
+	end
+	function control:Get() return input.Text end
+	function control:Destroy() row:Destroy() end
+	input:GetPropertyChangedSignal("Text"):Connect(function()
+		safeCallback(options.Callback, input.Text)
+	end)
+	return self:_register(options.Flag, control)
+end
+function Section:SearchBar(text: string, callback: (string) -> ())
+	return self:CreateSearchBar({ Name = text, Callback = callback })
+end
+
+function Section:CreateScriptLibrary(options: {[string]: any})
+	options = options or {}
+	local container = make("Frame", { Size = UDim2.new(1, 0, 0, 0), AutomaticSize = Enum.AutomaticSize.Y, BackgroundTransparency = 1 }, self.Body)
+	make("TextLabel", {
+		Size = UDim2.new(1, 0, 0, 16), BackgroundTransparency = 1,
+		Text = options.Name or options.Title or "Script Library", Font = Enum.Font.GothamBold,
+		TextSize = 11, TextColor3 = self.Window.Theme.Text, TextXAlignment = Enum.TextXAlignment.Left,
+	}, container)
+	local searchRow = nil
+	local filterText = ""
+	local favoritesOnly = false
+	local function createSearchRow()
+		searchRow = make("Frame", { Position = UDim2.fromOffset(0, 24), Size = UDim2.new(1, 0, 0, 28), BackgroundTransparency = 1 }, container)
+		local searchBox = make("TextBox", {
+			Size = UDim2.new(1, -90, 0, 22), Position = UDim2.fromOffset(0, 0), BackgroundColor3 = self.Window.Theme.Field,
+			BorderSizePixel = 0, Text = "", ClearTextOnFocus = false, Font = Enum.Font.Gotham, TextSize = 11,
+			TextColor3 = self.Window.Theme.Text, TextXAlignment = Enum.TextXAlignment.Left,
+			PlaceholderText = options.SearchPlaceholder or "Search scripts...",
+			PlaceholderColor3 = self.Window.Theme.Muted,
+		}, searchRow)
+		corner(searchBox, 4); stroke(searchBox, self.Window.Theme.Line); padding(searchBox, 8)
+		local favToggle = make("TextButton", {
+			AnchorPoint = Vector2.new(1, 0), Position = UDim2.new(1, -0, 0, 0), Size = UDim2.fromOffset(82, 22),
+			BackgroundColor3 = self.Window.Theme.Field, BorderSizePixel = 0, Text = "★ Favorites", Font = Enum.Font.GothamBold,
+			TextSize = 10, TextColor3 = self.Window.Theme.Text, AutoButtonColor = false,
+		}, searchRow)
+		corner(favToggle, 4); stroke(favToggle, self.Window.Theme.Line)
+		local function refreshFavLabel()
+			favToggle.Text = favoritesOnly and "★ Favorites" or "☆ Favorites"
+		end
+		favToggle.Activated:Connect(function()
+			favoritesOnly = not favoritesOnly
+			refreshFavLabel()
+			rebuild()
+		end)
+		searchBox:GetPropertyChangedSignal("Text"):Connect(function()
+			filterText = string.lower(tostring(searchBox.Text or ""))
+			rebuild()
+		end)
+	end
+	local list = make("Frame", { Position = UDim2.fromOffset(0, 54), Size = UDim2.new(1, 0, 0, 0), AutomaticSize = Enum.AutomaticSize.Y, BackgroundTransparency = 1 }, container)
+	make("UIListLayout", { Padding = UDim.new(0, 4), SortOrder = Enum.SortOrder.LayoutOrder }, list)
+	local control: any = {}
+	local function shouldShow(entry)
+		if favoritesOnly and not entry.Favorite then return false end
+		if filterText == "" then return true end
+		local name = string.lower(tostring(entry.Name or ""))
+		local desc = string.lower(tostring(entry.Description or ""))
+		return string.find(name, filterText, 1, true) or string.find(desc, filterText, 1, true)
+	end
+	local function rebuild()
+		for _, child in ipairs(list:GetChildren()) do child:Destroy() end
+		for _, entry in ipairs(options.Scripts or {}) do
+			entry.Favorite = entry.Favorite == true
+			if not shouldShow(entry) then continue end
+			local height = entry.Description and 44 or 30
+			local row = make("Frame", {
+				Size = UDim2.new(1, 0, 0, height), BackgroundColor3 = self.Window.Theme.Field,
+				BorderSizePixel = 0,
+			}, list)
+			corner(row, 4); stroke(row, self.Window.Theme.Line)
+			local btn = make("TextButton", {
+				Size = UDim2.new(1, -28, 1, 0), BackgroundTransparency = 1, BorderSizePixel = 0,
+				Text = "  " .. tostring(entry.Name or "Script"), Font = Enum.Font.GothamBold,
+				TextSize = 11, TextColor3 = self.Window.Theme.Text, TextXAlignment = Enum.TextXAlignment.Left,
+				AutoButtonColor = false,
+			}, row)
+			padding(btn, 8)
+			if entry.Description then
+				local desc = make("TextLabel", {
+					Position = UDim2.new(0, 8, 0, 18), Size = UDim2.new(1, -36, 0, 20), BackgroundTransparency = 1,
+					Text = tostring(entry.Description), Font = Enum.Font.Gotham, TextSize = 10,
+					TextColor3 = self.Window.Theme.Muted, TextXAlignment = Enum.TextXAlignment.Left, TextWrapped = true,
+				}, row)
+			end
+			local favoriteButton = make("TextButton", {
+				AnchorPoint = Vector2.new(1, 0.5), Position = UDim2.new(1, -8, 0.5, 0), Size = UDim2.fromOffset(18, 18),
+				BackgroundColor3 = self.Window.Theme.Panel, BorderSizePixel = 0, Text = entry.Favorite and "★" or "☆",
+				Font = Enum.Font.GothamBold, TextSize = 14, TextColor3 = self.Window.Theme.Text,
+				AutoButtonColor = false,
+			}, row)
+			corner(favoriteButton, 4); stroke(favoriteButton, self.Window.Theme.Line)
+			favoriteButton.Activated:Connect(function()
+				entry.Favorite = not entry.Favorite
+				favoriteButton.Text = entry.Favorite and "★" or "☆"
+				safeCallback(options.FavoritesChanged, entry, entry.Favorite)
+			end)
+			btn.Activated:Connect(function()
+				safeCallback(entry.Callback, entry)
+			end)
+		end
+	end
+	function control:Refresh(items: {any})
+		options.Scripts = items or options.Scripts
+		rebuild()
+	end
+	function control:Get() return options.Scripts end
+	function control:SetFilter(query: string, silent: boolean?)
+		filterText = string.lower(tostring(query or ""))
+		rebuild()
+		if not silent then safeCallback(options.Callback, filterText) end
+	end
+	function control:SetFavoritesOnly(value: boolean, silent: boolean?)
+		favoritesOnly = value == true
+		rebuild()
+		if not silent then safeCallback(options.FavoritesChanged, nil, favoritesOnly) end
+	end
+	function control:Destroy() container:Destroy() end
+	createSearchRow()
+	rebuild()
+	return self:_register(options.Flag, control)
+end
+function Section:ScriptLibrary(text: string, scripts: {any}, callback: (any) -> ())
+	return self:CreateScriptLibrary({ Name = text, Scripts = scripts, Callback = callback, Searchable = true, FavoritesEnabled = true })
+end
+
+function Section:CreatePlayerList(options: {[string]: any})
+	options = options or {}
+	local container = make("Frame", { Size = UDim2.new(1, 0, 0, 0), AutomaticSize = Enum.AutomaticSize.Y, BackgroundTransparency = 1 }, self.Body)
+	local title = make("TextLabel", {
+		Size = UDim2.new(1, 0, 0, 16), BackgroundTransparency = 1,
+		Text = options.Name or options.Title or "Player List", Font = Enum.Font.GothamBold,
+		TextSize = 11, TextColor3 = self.Window.Theme.Text, TextXAlignment = Enum.TextXAlignment.Left,
+	}, container)
+	local list = make("ScrollingFrame", {
+		Position = UDim2.fromOffset(0, 24), Size = UDim2.new(1, 0, 0, options.Height or 140), BackgroundColor3 = self.Window.Theme.Panel,
+		BorderSizePixel = 0, ScrollBarThickness = 3, ScrollBarImageColor3 = self.Window.Theme.Line,
+		AutomaticCanvasSize = Enum.AutomaticSize.Y, CanvasSize = UDim2.new(), BackgroundTransparency = 0,
+	}, container)
+	corner(list, 6); stroke(list, self.Window.Theme.Line)
+	make("UIListLayout", { Padding = UDim.new(0, 2), SortOrder = Enum.SortOrder.LayoutOrder }, list)
+	local connections = {}
+	local function refresh()
+		for _, child in ipairs(list:GetChildren()) do
+			if child:IsA("Frame") and child.Name == "PlayerEntry" then child:Destroy() end
+		end
+		for _, player in ipairs(Players:GetPlayers()) do
+			local row = make("Frame", { Name = "PlayerEntry", Size = UDim2.new(1, 0, 0, 28), BackgroundColor3 = self.Window.Theme.Field, BorderSizePixel = 0 }, list)
+			corner(row, 4)
+			local nameLabel = make("TextLabel", {
+				Size = UDim2.new(0.6, 0, 1, 0), BackgroundTransparency = 1,
+				Text = player.DisplayName .. " (" .. player.Name .. ")", Font = Enum.Font.Gotham,
+				TextSize = 11, TextColor3 = self.Window.Theme.Text, TextXAlignment = Enum.TextXAlignment.Left,
+			}, row)
+			local info = make("TextLabel", {
+				AnchorPoint = Vector2.new(1, 0), Position = UDim2.new(1, -6, 0, 0), Size = UDim2.new(0.4, -6, 1, 0),
+				BackgroundTransparency = 1, Font = Enum.Font.Gotham, TextSize = 10, TextColor3 = self.Window.Theme.Muted,
+				TextXAlignment = Enum.TextXAlignment.Right,
+				Text = "ID: " .. tostring(player.UserId),
+			}, row)
+			if options.Callback then
+				row.InputBegan:Connect(function(input, gameProcessed)
+					if not gameProcessed and input.UserInputType == Enum.UserInputType.MouseButton1 then
+						safeCallback(options.Callback, player)
+					end
+				end)
+			end
+		end
+	end
+	function refreshPlayers()
+		refresh()
+	end
+	table.insert(connections, Players.PlayerAdded:Connect(refreshPlayers))
+	table.insert(connections, Players.PlayerRemoving:Connect(refreshPlayers))
+	local control: any = {}
+	function control:Refresh() refreshPlayers() end
+	function control:Get() return Players:GetPlayers() end
+	function control:Destroy()
+		disconnectAll(connections)
+		container:Destroy()
+	end
+	refreshPlayers()
+	return self:_register(options.Flag, control)
+end
+function Section:PlayerList(text: string, callback: (Player) -> ())
+	return self:CreatePlayerList({ Name = text, Callback = callback })
+end
+
+function Section:CreateServerInfo(options: {[string]: any})
+	options = options or {}
+	local startTime = os.time()
+	local container = make("Frame", { Size = UDim2.new(1, 0, 0, 0), AutomaticSize = Enum.AutomaticSize.Y, BackgroundTransparency = 1 }, self.Body)
+	make("TextLabel", {
+		Size = UDim2.new(1, 0, 0, 16), BackgroundTransparency = 1,
+		Text = options.Name or options.Title or "Server Info", Font = Enum.Font.GothamBold,
+		TextSize = 11, TextColor3 = self.Window.Theme.Text, TextXAlignment = Enum.TextXAlignment.Left,
+	}, container)
+	local infoFrame = make("Frame", { Position = UDim2.fromOffset(0, 24), Size = UDim2.new(1, 0, 0, 0), AutomaticSize = Enum.AutomaticSize.Y, BackgroundTransparency = 1 }, container)
+	make("UIListLayout", { Padding = UDim.new(0, 2), SortOrder = Enum.SortOrder.LayoutOrder }, infoFrame)
+	local function line(labelText: string, initial: string)
+		local row = make("Frame", { Size = UDim2.new(1, 0, 0, 18), BackgroundTransparency = 1 }, infoFrame)
+		local left = make("TextLabel", {
+			Size = UDim2.new(0.5, 0, 1, 0), BackgroundTransparency = 1, Text = labelText,
+			Font = Enum.Font.Gotham, TextSize = 10, TextColor3 = self.Window.Theme.Muted, TextXAlignment = Enum.TextXAlignment.Left,
+		}, row)
+		local right = make("TextLabel", {
+			AnchorPoint = Vector2.new(1, 0), Position = UDim2.new(1, 0, 0, 0), Size = UDim2.new(0.5, 0, 1, 0),
+			BackgroundTransparency = 1, Text = initial or "", Font = Enum.Font.Gotham,
+			TextSize = 10, TextColor3 = self.Window.Theme.Text, TextXAlignment = Enum.TextXAlignment.Right,
+		}, row)
+		return right
+	end
+	local placeLabel = line("Place ID", tostring(game.PlaceId))
+	local jobLabel = line("Job ID", tostring(game.JobId))
+	local playersLabel = line("Players", string.format("%d/%d", #Players:GetPlayers(), Players.MaxPlayers or 0))
+	local uptimeLabel = line("Uptime", "0s")
+	local serverLabel = line("Server Type", options.ServerType or "Roblox")
+	local connection = game:GetService("RunService").Heartbeat:Connect(function(delta)
+		local uptime = os.time() - startTime
+		local minutes = math.floor(uptime / 60)
+		local seconds = uptime % 60
+		uptimeLabel.Text = string.format("%dm %ds", minutes, seconds)
+		playersLabel.Text = string.format("%d/%d", #Players:GetPlayers(), Players.MaxPlayers or 0)
+	end)
+	local control: any = {}
+	function control:Get()
+		return {
+			PlaceId = game.PlaceId,
+			JobId = game.JobId,
+			Players = #Players:GetPlayers(),
+			MaxPlayers = Players.MaxPlayers,
+			Uptime = os.time() - startTime,
+		}
+	end
+	function control:Destroy()
+		connection:Disconnect()
+		container:Destroy()
+	end
+	return self:_register(options.Flag, control)
+end
+function Section:ServerInfo(text: string)
+	return self:CreateServerInfo({ Name = text })
+end
+
 function Section:ColorPalette(text: string, default: Color3, callback: (Color3) -> ()) return self:CreateColorPicker({ Name = text, Default = default, Callback = callback }) end
 function Section:ColorPicker(text: string, default: Color3, callback: (Color3) -> ()) return self:ColorPalette(text, default, callback) end
 
