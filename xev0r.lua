@@ -1,1227 +1,328 @@
---[[
-
-    xev0r UI Library v2.1
-    Purple Rounded Dark Theme
-    Modern API, working window flow, cleaner visuals
-
-]]
-
-local xev0r = {}
-xev0r.__index = xev0r
-
+-- ModuleScript library. Put in ReplicatedStorage, then require it from a LocalScript.
+-- UI only: use callbacks for legitimate settings in an experience you own.
 local Players = game:GetService("Players")
-local UserInputService = game:GetService("UserInputService")
-local TweenService = game:GetService("TweenService")
 local RunService = game:GetService("RunService")
-local CoreGui = game:GetService("CoreGui")
-local LocalPlayer = Players.LocalPlayer
 
-local DEFAULT_THEME = {
-    Main = Color3.fromRGB(13, 13, 16),
-    Panel = Color3.fromRGB(24, 24, 29),
-    Surface = Color3.fromRGB(40, 40, 48),
-    Accent = Color3.fromRGB(128, 54, 255),
-    AccentSoft = Color3.fromRGB(168, 110, 255),
-    Success = Color3.fromRGB(95, 225, 130),
-    Error = Color3.fromRGB(255, 110, 110),
-    Text = Color3.fromRGB(250, 250, 255),
-    Muted = Color3.fromRGB(185, 185, 200),
-    Border = Color3.fromRGB(255, 255, 255),
-}
+local XevorUI = {}
+XevorUI.__index = XevorUI
 
-local function create(className, parent, props)
-    local inst = Instance.new(className)
-    for k, v in pairs(props or {}) do
-        inst[k] = v
-    end
-    inst.Parent = parent
-    return inst
+local C = {bg=Color3.fromRGB(22,20,31), bar=Color3.fromRGB(29,26,40), side=Color3.fromRGB(34,30,48), panel=Color3.fromRGB(42,37,57), field=Color3.fromRGB(28,25,39), text=Color3.fromRGB(245,240,255), muted=Color3.fromRGB(180,166,203), accent=Color3.fromRGB(160,91,255), line=Color3.fromRGB(88,72,116)}
+
+local function new(className, properties, parent)
+	local object = Instance.new(className)
+	for key, value in pairs(properties or {}) do object[key] = value end
+	object.Parent = parent
+	return object
 end
 
-local function addCorner(parent, radius)
-    local corner = Instance.new("UICorner")
-    corner.CornerRadius = radius or UDim.new(0, 8)
-    corner.Parent = parent
-    return corner
+local function rounded(object, radius)
+	new("UICorner", {CornerRadius=UDim.new(0, radius or 6)}, object)
+	return object
 end
 
-local function addStroke(parent, color, thickness, transparency)
-    local stroke = Instance.new("UIStroke")
-    stroke.Color = color or Color3.fromRGB(255, 255, 255)
-    stroke.Thickness = thickness or 1
-    stroke.Transparency = transparency or 0
-    stroke.Parent = parent
-    return stroke
+function XevorUI.new(title)
+	local self = setmetatable({Tabs={}, Title=title or "XEVOR", ActiveTab=nil}, XevorUI)
+	local playerGui = Players.LocalPlayer:WaitForChild("PlayerGui")
+	local old = playerGui:FindFirstChild("XevorLibrary") if old then old:Destroy() end
+	self.Gui = new("ScreenGui", {Name="XevorLibrary", ResetOnSpawn=false, DisplayOrder=10}, playerGui)
+	self.Notifications = new("Frame", {AnchorPoint=Vector2.new(1,0), Position=UDim2.new(1,-16,0,57), Size=UDim2.fromOffset(265,350), BackgroundTransparency=1}, self.Gui)
+	new("UIListLayout", {Padding=UDim.new(0,7), HorizontalAlignment=Enum.HorizontalAlignment.Right, SortOrder=Enum.SortOrder.LayoutOrder}, self.Notifications)
+
+	local win = rounded(new("Frame", {AnchorPoint=Vector2.new(.5,.5), Position=UDim2.fromScale(.5,.5), Size=UDim2.fromOffset(720,470), BackgroundColor3=C.bg, BorderSizePixel=0}, self.Gui), 7)
+	new("UIStroke", {Color=Color3.fromRGB(9,7,13), Thickness=1}, win)
+	self.Window = win
+	local top = rounded(new("Frame", {Size=UDim2.new(1,0,0,30), BackgroundColor3=C.bar, BorderSizePixel=0}, win), 7)
+	new("Frame", {Position=UDim2.new(0,0,1,-7), Size=UDim2.new(1,0,0,7), BackgroundColor3=C.bar, BorderSizePixel=0}, top)
+	new("TextLabel", {Position=UDim2.fromOffset(11,0), Size=UDim2.fromOffset(500,30), BackgroundTransparency=1, Text=self.Title:upper().."  |  MAIN MENU", Font=Enum.Font.GothamBold, TextSize=12, TextColor3=C.text, TextXAlignment=Enum.TextXAlignment.Left}, top)
+	local close = new("TextButton", {AnchorPoint=Vector2.new(1,.5), Position=UDim2.new(1,-8,.5), Size=UDim2.fromOffset(18,20), BackgroundTransparency=1, Text="×", Font=Enum.Font.Gotham, TextSize=22, TextColor3=C.muted}, top)
+	close.Activated:Connect(function() win.Visible=false end)
+	self.Sidebar = new("Frame", {Position=UDim2.fromOffset(0,30), Size=UDim2.new(0,178,1,-30), BackgroundColor3=C.side, BorderSizePixel=0}, win)
+	self.Content = new("Frame", {Position=UDim2.fromOffset(178,30), Size=UDim2.new(1,-178,1,-30), BackgroundTransparency=1}, win)
+	return self
 end
 
-local function safeCall(fn)
-    local ok, result = pcall(fn)
-    if ok then
-        return result
-    end
-    return nil
+function XevorUI:Notify(title, message)
+	local card = rounded(new("Frame", {Size=UDim2.fromOffset(265,52), BackgroundColor3=C.panel, BorderSizePixel=0}, self.Notifications), 6)
+	new("UIStroke", {Color=C.line}, card)
+	new("Frame", {Size=UDim2.fromOffset(3,52), BackgroundColor3=C.accent, BorderSizePixel=0}, card)
+	new("TextLabel", {Position=UDim2.fromOffset(12,7), Size=UDim2.fromOffset(240,16), BackgroundTransparency=1, Text=title, Font=Enum.Font.GothamBold, TextSize=11, TextColor3=C.text, TextXAlignment=Enum.TextXAlignment.Left}, card)
+	new("TextLabel", {Position=UDim2.fromOffset(12,25), Size=UDim2.fromOffset(240,17), BackgroundTransparency=1, Text=message, Font=Enum.Font.Gotham, TextSize=10, TextColor3=C.muted, TextXAlignment=Enum.TextXAlignment.Left}, card)
+	task.delay(3.5, function() if card.Parent then card:Destroy() end end)
 end
 
-local function getExecutor()
-    local env = getgenv and getgenv() or {}
-    local fenv = (getfenv and getfenv()) or {}
-
-    local names = { "identifyexecutor", "getexecutorname" }
-    for _, name in ipairs(names) do
-        local fn = env[name] or fenv[name]
-        if type(fn) == "function" then
-            local result = safeCall(fn)
-            if type(result) == "string" and result ~= "" then
-                return result
-            end
-        end
-    end
-
-    return "Unknown"
+function XevorUI:Watermark()
+	if self.WatermarkFrame then return end
+	local frame = rounded(new("Frame", {AnchorPoint=Vector2.new(1,0), Position=UDim2.new(1,-16,0,16), Size=UDim2.fromOffset(265,31), BackgroundColor3=C.panel, BorderSizePixel=0}, self.Gui), 6)
+	new("UIStroke", {Color=C.line}, frame)
+	new("Frame", {Position=UDim2.fromOffset(0,5), Size=UDim2.fromOffset(3,21), BackgroundColor3=C.accent, BorderSizePixel=0}, frame)
+	local label = new("TextLabel", {Position=UDim2.fromOffset(11,0), Size=UDim2.fromOffset(244,31), BackgroundTransparency=1, Font=Enum.Font.GothamMedium, TextSize=11, TextColor3=C.text, TextXAlignment=Enum.TextXAlignment.Left}, frame)
+	self.WatermarkFrame = frame
+	local frames, elapsed, fps = 0, 0, 0
+	RunService.RenderStepped:Connect(function(delta)
+		frames += 1 elapsed += delta
+		if elapsed >= 1 then fps=math.floor(frames/elapsed+.5) frames,elapsed=0,0 end
+		local ping="-- ms" pcall(function() ping=game:GetService("Stats").Network.ServerStatsItem["Data Ping"]:GetValueString() end)
+		label.Text=string.format("%s  |  %s  |  %d FPS  |  %s", self.Title:upper(), Players.LocalPlayer.Name, fps, ping)
+	end)
 end
 
-local function copyToClipboard(text)
-    pcall(function()
-        if setclipboard then
-            setclipboard(text)
-        end
-    end)
+function XevorUI:Tab(name)
+	local tab = {Library=self, Name=name}
+	tab.Page = new("Frame", {Name=name, Size=UDim2.fromScale(1,1), BackgroundTransparency=1, Visible=false}, self.Content)
+	tab.Button = new("TextButton", {Position=UDim2.fromOffset(5,11+(#self.Tabs*37)), Size=UDim2.fromOffset(168,31), BackgroundColor3=C.side, BorderSizePixel=0, Text="     "..name, Font=Enum.Font.GothamMedium, TextSize=13, TextColor3=C.text, TextXAlignment=Enum.TextXAlignment.Left}, self.Sidebar)
+	tab.Bar = new("Frame", {Position=UDim2.fromOffset(0,3), Size=UDim2.fromOffset(4,25), BackgroundColor3=C.accent, BorderSizePixel=0, Visible=false}, tab.Button)
+	tab.Button.Activated:Connect(function() self:SelectTab(tab) end)
+	table.insert(self.Tabs, tab)
+	if #self.Tabs == 1 then self:SelectTab(tab) end
+	return setmetatable(tab, {__index=XevorUI})
 end
 
-local function clamp(value, minValue, maxValue)
-    return math.max(minValue, math.min(maxValue, value))
+function XevorUI:SelectTab(tab)
+	for _, item in ipairs(self.Tabs) do item.Page.Visible=item==tab item.Bar.Visible=item==tab item.Button.BackgroundColor3=item==tab and Color3.fromRGB(57,48,75) or C.side end
+	self.ActiveTab=tab self:Notify(self.Title, tab.Name.." tab opened.")
 end
 
-local function createShadow(parent, transparency)
-    local shadow = create("ImageLabel", parent, {
-        Name = "Shadow",
-        BackgroundTransparency = 1,
-        Image = "rbxassetid://1316045217",
-        ImageColor3 = Color3.fromRGB(0, 0, 0),
-        ImageTransparency = transparency or 0.55,
-        Size = UDim2.new(1, 24, 1, 24),
-        Position = UDim2.new(0, -12, 0, -12),
-        ZIndex = 0,
-    })
-    return shadow
+function XevorUI:Section(title, position)
+	local parent = self.Page or self.Content
+	local section = rounded(new("Frame", {Position=position or UDim2.fromOffset(18,50), Size=UDim2.fromOffset(248,225), BackgroundColor3=C.panel, BorderSizePixel=0}, parent), 5)
+	new("TextLabel", {Position=UDim2.fromOffset(10,8), Size=UDim2.fromOffset(228,17), BackgroundTransparency=1, Text=title:upper(), Font=Enum.Font.GothamBold, TextSize=11, TextColor3=C.text, TextXAlignment=Enum.TextXAlignment.Left}, section)
+	new("Frame", {Position=UDim2.fromOffset(8,31), Size=UDim2.fromOffset(232,2), BackgroundColor3=C.accent, BorderSizePixel=0}, section)
+	return setmetatable({Frame=section, Offset=43, Library=self}, {__index=XevorUI})
 end
 
-local function applyDrag(titleBar, frame)
-    local dragging = false
-    local dragStart
-    local startPos
-
-    titleBar.InputBegan:Connect(function(input)
-        if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
-            dragging = true
-            dragStart = input.Position
-            startPos = frame.Position
-        end
-    end)
-
-    titleBar.InputEnded:Connect(function(input)
-        if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
-            dragging = false
-        end
-    end)
-
-    UserInputService.InputChanged:Connect(function(input)
-        if dragging and input.UserInputType == Enum.UserInputType.MouseMovement then
-            local delta = input.Position - dragStart
-            frame.Position = UDim2.new(
-                startPos.X.Scale,
-                startPos.X.Offset + delta.X,
-                startPos.Y.Scale,
-                startPos.Y.Offset + delta.Y
-            )
-        end
-    end)
+function XevorUI:Button(text, callback)
+	local b = rounded(new("TextButton", {Position=UDim2.fromOffset(9,self.Offset), Size=UDim2.fromOffset(230,27), BackgroundColor3=C.field, BorderSizePixel=0, Text=text, Font=Enum.Font.GothamBold, TextSize=11, TextColor3=C.text}, self.Frame), 4)
+	new("UIStroke", {Color=C.line}, b) self.Offset += 35
+	b.Activated:Connect(function() self.Library:Notify(self.Library.Title, text.." selected.") if callback then callback() end end)
+	return b
 end
 
-local function createWatermark(theme)
-    local gui = create("ScreenGui", CoreGui, {
-        Name = "xev0r_Watermark",
-        ResetOnSpawn = false,
-        ZIndexBehavior = Enum.ZIndexBehavior.Sibling,
-    })
-
-    local panel = create("Frame", gui, {
-        Size = UDim2.new(0, 210, 0, 24),
-        Position = UDim2.new(1, -220, 0, 6),
-        BackgroundColor3 = theme.Main,
-        BackgroundTransparency = 0.45,
-        BorderSizePixel = 0,
-    })
-    addCorner(panel, UDim.new(0, 6))
-    addStroke(panel, theme.AccentSoft, 1, 0.2)
-    createShadow(panel, 0.65)
-
-    local label = create("TextLabel", panel, {
-        Size = UDim2.new(1, -10, 1, -10),
-        Position = UDim2.new(0, 5, 0, 5),
-        BackgroundTransparency = 1,
-        Text = "xev0r • 0 FPS • 0 ms",
-        TextColor3 = theme.Muted,
-        Font = Enum.Font.GothamSemibold,
-        TextSize = 12,
-        TextXAlignment = Enum.TextXAlignment.Left,
-    })
-
-    local fps = 0
-    local ping = 0
-    local frameCounter = 0
-
-    RunService.RenderStepped:Connect(function(_, dt)
-        frameCounter = frameCounter + 1
-        if type(dt) == "number" and dt > 0 then
-            fps = math.max(0, math.floor(1 / dt))
-        end
-    end)
-
-    task.spawn(function()
-        while gui and gui.Parent do
-            local sampledFrames = frameCounter
-            frameCounter = 0
-            if sampledFrames > 0 then
-                fps = math.max(0, math.floor(sampledFrames / 0.4))
-            end
-
-            ping = math.floor(LocalPlayer:GetNetworkPing() * 1000)
-            label.Text = string.format("xev0r • %s • %d FPS • %d ms", getExecutor(), fps, ping)
-            task.wait(0.4)
-        end
-    end)
-
-    return gui
+function XevorUI:Toggle(text, default, callback)
+	local row = new("TextButton", {Position=UDim2.fromOffset(9,self.Offset), Size=UDim2.fromOffset(230,23), BackgroundTransparency=1, Text=text, Font=Enum.Font.Gotham, TextSize=12, TextColor3=C.text, TextXAlignment=Enum.TextXAlignment.Left}, self.Frame)
+	local on=default==true
+	local box=rounded(new("Frame", {AnchorPoint=Vector2.new(1,.5), Position=UDim2.new(1,0,.5,0), Size=UDim2.fromOffset(25,15), BackgroundColor3=on and C.accent or C.field, BorderSizePixel=0}, row), 4)
+	new("UIStroke", {Color=C.line}, box) self.Offset += 29
+	row.Activated:Connect(function() on=not on box.BackgroundColor3=on and C.accent or C.field self.Library:Notify(self.Library.Title, text..(on and " enabled." or " disabled.")) if callback then callback(on) end end)
+	return row
 end
 
-local function createKeySystem(self)
-    if self.keySystemShown then
-        return
-    end
-
-    self.keySystemShown = true
-
-    local keyGui = create("ScreenGui", CoreGui, {
-        Name = "xev0r_KeySystem",
-        ResetOnSpawn = false,
-        ZIndexBehavior = Enum.ZIndexBehavior.Sibling,
-    })
-
-    local overlay = create("Frame", keyGui, {
-        Size = UDim2.new(1, 0, 1, 0),
-        BackgroundColor3 = Color3.fromRGB(3, 3, 5),
-        BackgroundTransparency = 0.25,
-        BorderSizePixel = 0,
-    })
-
-    local panel = create("Frame", overlay, {
-        AnchorPoint = Vector2.new(0.5, 0.5),
-        Position = UDim2.new(0.5, 0, 0.45, 0),
-        Size = UDim2.new(0, 420, 0, 372),
-        BackgroundColor3 = self.theme.Panel,
-        BorderSizePixel = 0,
-    })
-    addCorner(panel, UDim.new(0, 14))
-    addStroke(panel, self.theme.AccentSoft, 1, 0.22)
-    createShadow(panel, 0.78)
-
-    local introTween = TweenService:Create(panel, TweenInfo.new(0.18, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
-        Position = UDim2.new(0.5, 0, 0.5, 0),
-    })
-    introTween:Play()
-
-    local top = create("Frame", panel, {
-        Size = UDim2.new(1, 0, 0, 46),
-        BackgroundColor3 = self.theme.Accent,
-        BorderSizePixel = 0,
-    })
-    addCorner(top, UDim.new(0, 14))
-
-    local title = create("TextLabel", top, {
-        Size = UDim2.new(1, -10, 1, 0),
-        Position = UDim2.new(0, 5, 0, 0),
-        BackgroundTransparency = 1,
-        Text = "xev0r Key System",
-        TextColor3 = Color3.fromRGB(255, 255, 255),
-        Font = Enum.Font.GothamBold,
-        TextSize = 16,
-        TextXAlignment = Enum.TextXAlignment.Left,
-    })
-
-    local clock = create("TextLabel", panel, {
-        Size = UDim2.new(1, -14, 0, 18),
-        Position = UDim2.new(0, 7, 0, 55),
-        BackgroundTransparency = 1,
-        Text = "00:00:00",
-        TextColor3 = self.theme.Muted,
-        Font = Enum.Font.Gotham,
-        TextSize = 12,
-        TextXAlignment = Enum.TextXAlignment.Left,
-    })
-
-    task.spawn(function()
-        while keyGui and keyGui.Parent do
-            local now = DateTime.now()
-            clock.Text = now:FormatLocalTime("HH:mm:ss", "en-us")
-            task.wait(1)
-        end
-    end)
-
-    local infoFrame = create("Frame", panel, {
-        Size = UDim2.new(1, -14, 0, 90),
-        Position = UDim2.new(0, 7, 0, 78),
-        BackgroundColor3 = self.theme.Main,
-        BorderSizePixel = 0,
-    })
-    addCorner(infoFrame, UDim.new(0, 12))
-    addStroke(infoFrame, self.theme.Border, 1, 0.88)
-
-    local avatar = create("ImageLabel", infoFrame, {
-        Size = UDim2.new(0, 60, 0, 60),
-        Position = UDim2.new(0, 6, 0.5, -30),
-        BackgroundTransparency = 1,
-        Image = "rbxasset://textures/ui/GuiImagePlaceholder.png",
-        BorderSizePixel = 0,
-    })
-    addCorner(avatar, UDim.new(0, 30))
-
-    task.spawn(function()
-        local content, _ = Players:GetUserThumbnailAsync(LocalPlayer.UserId, Enum.ThumbnailType.HeadShot, Enum.ThumbnailSize.Size420x420)
-        avatar.Image = content
-    end)
-
-    local nameLabel = create("TextLabel", infoFrame, {
-        Size = UDim2.new(1, -78, 0, 22),
-        Position = UDim2.new(0, 74, 0, 8),
-        BackgroundTransparency = 1,
-        Text = LocalPlayer.Name,
-        TextColor3 = self.theme.Text,
-        Font = Enum.Font.GothamBold,
-        TextSize = 14,
-        TextXAlignment = Enum.TextXAlignment.Left,
-    })
-
-    local execLabel = create("TextLabel", infoFrame, {
-        Size = UDim2.new(1, -78, 0, 18),
-        Position = UDim2.new(0, 74, 0, 34),
-        BackgroundTransparency = 1,
-        Text = "Executor: " .. getExecutor(),
-        TextColor3 = self.theme.Muted,
-        Font = Enum.Font.Gotham,
-        TextSize = 12,
-        TextXAlignment = Enum.TextXAlignment.Left,
-    })
-
-    local keyStatus = create("TextLabel", panel, {
-        Size = UDim2.new(1, -14, 0, 18),
-        Position = UDim2.new(0, 7, 0, 182),
-        BackgroundTransparency = 1,
-        Text = "Key Status: Not verified",
-        TextColor3 = self.theme.Error,
-        Font = Enum.Font.Gotham,
-        TextSize = 12,
-        TextXAlignment = Enum.TextXAlignment.Left,
-    })
-
-    local scriptStatus = create("TextLabel", panel, {
-        Size = UDim2.new(1, -14, 0, 18),
-        Position = UDim2.new(0, 7, 0, 204),
-        BackgroundTransparency = 1,
-        Text = "Script Status: Waiting for key",
-        TextColor3 = Color3.fromRGB(255, 200, 90),
-        Font = Enum.Font.Gotham,
-        TextSize = 12,
-        TextXAlignment = Enum.TextXAlignment.Left,
-    })
-
-    local box = create("TextBox", panel, {
-        Size = UDim2.new(1, -14, 0, 32),
-        Position = UDim2.new(0, 7, 0, 230),
-        BackgroundColor3 = self.theme.Main,
-        BorderSizePixel = 0,
-        PlaceholderText = "Enter key...",
-        Text = "",
-        TextColor3 = self.theme.Text,
-        TextSize = 14,
-        Font = Enum.Font.Gotham,
-        ClearTextOnFocus = false,
-    })
-    addCorner(box, UDim.new(0, 8))
-    addStroke(box, self.theme.AccentSoft, 1, 0.5)
-
-    local errorLabel = create("TextLabel", panel, {
-        Size = UDim2.new(1, -14, 0, 16),
-        Position = UDim2.new(0, 7, 0, 268),
-        BackgroundTransparency = 1,
-        Text = "",
-        TextColor3 = self.theme.Error,
-        Font = Enum.Font.Gotham,
-        TextSize = 11,
-        TextXAlignment = Enum.TextXAlignment.Left,
-    })
-
-    local submitBtn = create("TextButton", panel, {
-        Size = UDim2.new(1, -14, 0, 38),
-        Position = UDim2.new(0, 7, 0, 292),
-        BackgroundColor3 = self.theme.Accent,
-        Text = "Submit",
-        TextColor3 = Color3.fromRGB(255, 255, 255),
-        Font = Enum.Font.GothamBold,
-        TextSize = 14,
-        BorderSizePixel = 0,
-    })
-    addCorner(submitBtn, UDim.new(0, 8))
-    addStroke(submitBtn, self.theme.AccentSoft, 1, 0.25)
-
-    local linkFrame = create("Frame", panel, {
-        Size = UDim2.new(1, -14, 0, 36),
-        Position = UDim2.new(0, 7, 0, 336),
-        BackgroundTransparency = 1,
-    })
-
-    local getKeyBtn = create("TextButton", linkFrame, {
-        Size = UDim2.new(0.5, -4, 1, 0),
-        BackgroundColor3 = self.theme.Surface,
-        Text = "Get Key",
-        TextColor3 = self.theme.Text,
-        Font = Enum.Font.Gotham,
-        TextSize = 13,
-        BorderSizePixel = 0,
-    })
-    addCorner(getKeyBtn, UDim.new(0, 8))
-
-    local discordBtn = create("TextButton", linkFrame, {
-        Size = UDim2.new(0.5, -4, 1, 0),
-        Position = UDim2.new(0.5, 4, 0, 0),
-        BackgroundColor3 = self.theme.Surface,
-        Text = "Join Discord",
-        TextColor3 = self.theme.Text,
-        Font = Enum.Font.Gotham,
-        TextSize = 13,
-        BorderSizePixel = 0,
-    })
-    addCorner(discordBtn, UDim.new(0, 8))
-
-    local function animateButton(btn, colorNormal, colorPressed)
-        btn.MouseButton1Down:Connect(function()
-            btn.BackgroundColor3 = colorPressed
-        end)
-        btn.MouseButton1Up:Connect(function()
-            btn.BackgroundColor3 = colorNormal
-        end)
-    end
-
-    animateButton(submitBtn, self.theme.Accent, self.theme.AccentSoft)
-    animateButton(getKeyBtn, self.theme.Surface, Color3.fromRGB(65, 65, 65))
-    animateButton(discordBtn, self.theme.Surface, Color3.fromRGB(65, 65, 65))
-
-    getKeyBtn.MouseButton1Click:Connect(function()
-        copyToClipboard("https://your-key-site.com")
-        errorLabel.Text = "Get Key link copied!"
-        task.delay(2, function()
-            errorLabel.Text = ""
-        end)
-    end)
-
-    discordBtn.MouseButton1Click:Connect(function()
-        copyToClipboard("https://discord.gg/example")
-        errorLabel.Text = "Discord link copied!"
-        task.delay(2, function()
-            errorLabel.Text = ""
-        end)
-    end)
-
-    submitBtn.MouseButton1Click:Connect(function()
-        if string.lower(box.Text or "") == string.lower(self.key) then
-            self.keyVerified = true
-            keyStatus.Text = "Key Status: Verified"
-            keyStatus.TextColor3 = self.theme.Success
-            scriptStatus.Text = "Script Status: Verified"
-            scriptStatus.TextColor3 = self.theme.Success
-
-            if not self.watermark or not self.watermark.Parent then
-                self.watermark = createWatermark(self.theme)
-            end
-
-            task.delay(0.35, function()
-                keyGui:Destroy()
-                self.keySystemShown = false
-                self:FlushQueuedWindows()
-            end)
-        else
-            keyStatus.Text = "Key Status: Invalid"
-            keyStatus.TextColor3 = self.theme.Error
-            errorLabel.Text = "Invalid key!"
-            box.Text = ""
-        end
-    end)
-
-    self.keyGui = keyGui
+function XevorUI:Textbox(placeholder, callback)
+	local input = new("TextBox", {Position=UDim2.fromOffset(9,self.Offset), Size=UDim2.fromOffset(230,24), BackgroundColor3=C.field, BorderSizePixel=0, PlaceholderText=placeholder, PlaceholderColor3=C.muted, Text="", ClearTextOnFocus=false, Font=Enum.Font.Gotham, TextSize=12, TextColor3=C.text, TextXAlignment=Enum.TextXAlignment.Left}, self.Frame)
+	new("UIStroke", {Color=C.line}, input) new("UIPadding", {PaddingLeft=UDim.new(0,7)}, input) self.Offset += 32
+	if callback then input.FocusLost:Connect(function() callback(input.Text) end) end
+	return input
 end
 
-function xev0r.new(options)
-    options = options or {}
-
-    local self = setmetatable({
-        key = options.key or "xev0r",
-        theme = options.theme or DEFAULT_THEME,
-        keyVerified = false,
-        keySystemShown = false,
-        keyGui = nil,
-        watermark = nil,
-        pendingWindows = {},
-    }, xev0r)
-
-    return self
+function XevorUI:Label(text)
+	local label = new("TextLabel", {Position=UDim2.fromOffset(9,self.Offset), Size=UDim2.fromOffset(230,20), BackgroundTransparency=1, Text=text, Font=Enum.Font.Gotham, TextSize=12, TextColor3=C.muted, TextXAlignment=Enum.TextXAlignment.Left}, self.Frame)
+	self.Offset += 24
+	return label
 end
 
-function xev0r:CreateWindow(title)
-    if not self.keyVerified then
-        local event = Instance.new("BindableEvent")
-        table.insert(self.pendingWindows, { title = title, event = event })
-        createKeySystem(self)
-        local win = event.Event:Wait()
-        event:Destroy()
-        return win
-    end
-
-    return self:_CreateWindowInternal(title)
+function XevorUI:Divider()
+	local line = new("Frame", {Position=UDim2.fromOffset(9,self.Offset), Size=UDim2.fromOffset(230,1), BackgroundColor3=C.line, BorderSizePixel=0}, self.Frame)
+	self.Offset += 12
+	return line
 end
 
-function xev0r:FlushQueuedWindows()
-    for _, item in ipairs(self.pendingWindows) do
-        local win = self:_CreateWindowInternal(item.title)
-        item.event:Fire(win)
-    end
-    self.pendingWindows = {}
+function XevorUI:Paragraph(title, content)
+	local holder = new("Frame", {Position=UDim2.fromOffset(9,self.Offset), Size=UDim2.fromOffset(230,50), BackgroundTransparency=1}, self.Frame)
+	new("TextLabel", {Size=UDim2.fromOffset(230,17), BackgroundTransparency=1, Text=title, Font=Enum.Font.GothamBold, TextSize=11, TextColor3=C.text, TextXAlignment=Enum.TextXAlignment.Left}, holder)
+	new("TextLabel", {Position=UDim2.fromOffset(0,17), Size=UDim2.fromOffset(230,33), BackgroundTransparency=1, Text=content, TextWrapped=true, Font=Enum.Font.Gotham, TextSize=10, TextColor3=C.muted, TextXAlignment=Enum.TextXAlignment.Left, TextYAlignment=Enum.TextYAlignment.Top}, holder)
+	self.Offset += 55
+	return holder
 end
 
-function xev0r:_CreateWindowInternal(title)
-    local screen = create("ScreenGui", CoreGui, {
-        Name = "xev0r_Library",
-        ResetOnSpawn = false,
-        ZIndexBehavior = Enum.ZIndexBehavior.Sibling,
-    })
-
-    local uiScale = create("UIScale", screen, {
-        Scale = 1,
-    })
-
-    local window = create("Frame", screen, {
-        Size = UDim2.new(0.38, 0, 0.52, 0),
-        Position = UDim2.new(0.31, 0, 0.24, 0),
-        BackgroundColor3 = self.theme.Main,
-        BorderSizePixel = 0,
-    })
-    addCorner(window, UDim.new(0, 12))
-    addStroke(window, self.theme.AccentSoft, 1, 0.2)
-    createShadow(window, 0.72)
-
-    local titleBar = create("TextButton", window, {
-        Size = UDim2.new(1, 0, 0, 36),
-        BackgroundColor3 = self.theme.Accent,
-        Text = title or "xev0r",
-        TextColor3 = self.theme.Text,
-        Font = Enum.Font.GothamBold,
-        TextSize = 15,
-        TextXAlignment = Enum.TextXAlignment.Left,
-        BorderSizePixel = 0,
-    })
-    addCorner(titleBar, UDim.new(0, 10))
-    addStroke(titleBar, self.theme.Border, 1, 0.65)
-
-    local padding = create("UIPadding", titleBar, {
-        PaddingLeft = UDim.new(0, 10),
-    })
-
-    local closeBtn = create("TextButton", titleBar, {
-        Size = UDim2.new(0, 30, 0, 30),
-        Position = UDim2.new(1, -34, 0, 3),
-        BackgroundColor3 = Color3.fromRGB(255, 72, 72),
-        Text = "✕",
-        TextColor3 = Color3.fromRGB(255, 255, 255),
-        Font = Enum.Font.GothamBold,
-        TextSize = 16,
-        BorderSizePixel = 0,
-    })
-    addCorner(closeBtn, UDim.new(0, 8))
-
-    closeBtn.MouseButton1Click:Connect(function()
-        screen:Destroy()
-    end)
-
-    applyDrag(titleBar, window)
-
-    local tabStrip = create("Frame", window, {
-        Size = UDim2.new(1, 0, 0, 36),
-        Position = UDim2.new(0, 0, 0, 36),
-        BackgroundColor3 = self.theme.Panel,
-        BorderSizePixel = 0,
-    })
-
-    local tabScrolling = create("ScrollingFrame", tabStrip, {
-        Size = UDim2.new(1, 0, 1, 0),
-        BackgroundTransparency = 1,
-        ScrollBarThickness = 0,
-        BorderSizePixel = 0,
-        CanvasSize = UDim2.new(0, 0, 0, 0),
-    })
-
-    local tabLayout = create("UIListLayout", tabScrolling, {
-        FillDirection = Enum.FillDirection.Horizontal,
-        Padding = UDim.new(0, 4),
-        HorizontalAlignment = Enum.HorizontalAlignment.Left,
-    })
-
-    local contentHolder = create("Frame", window, {
-        Size = UDim2.new(1, 0, 1, -72),
-        Position = UDim2.new(0, 0, 0, 72),
-        BackgroundColor3 = self.theme.Main,
-        BorderSizePixel = 0,
-    })
-
-    local tabs = {}
-    local currentTab = nil
-
-    local function switchTab(tab)
-        if currentTab then
-            currentTab.content.Visible = false
-            currentTab.button.BackgroundColor3 = self.theme.Surface
-        end
-
-        currentTab = tab
-        tab.content.Visible = true
-        tab.button.BackgroundColor3 = self.theme.Accent
-    end
-
-    local function createTab(tabName)
-        local tabButton = create("TextButton", tabScrolling, {
-            Size = UDim2.new(0, 100, 1, 0),
-            BackgroundColor3 = self.theme.Surface,
-            Text = tabName,
-            TextColor3 = self.theme.Text,
-            Font = Enum.Font.GothamSemibold,
-            TextSize = 13,
-            BorderSizePixel = 0,
-        })
-        addCorner(tabButton, UDim.new(0, 8))
-        addStroke(tabButton, self.theme.Border, 1, 0.7)
-
-        local content = create("ScrollingFrame", contentHolder, {
-            Size = UDim2.new(1, 0, 1, 0),
-            BackgroundTransparency = 1,
-            BorderSizePixel = 0,
-            Visible = false,
-            CanvasSize = UDim2.new(0, 0, 0, 0),
-            ScrollBarThickness = 4,
-            ScrollBarImageColor3 = self.theme.Accent,
-        })
-
-        local contentLayout = create("UIListLayout", content, {
-            Padding = UDim.new(0, 6),
-        })
-
-        local tab = {
-            button = tabButton,
-            content = content,
-            layout = contentLayout,
-            name = tabName,
-        }
-
-        table.insert(tabs, tab)
-
-        tabButton.MouseButton1Click:Connect(function()
-            switchTab(tab)
-        end)
-
-        if #tabs == 1 then
-            switchTab(tab)
-        end
-
-        contentLayout:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function()
-            content.CanvasSize = UDim2.new(0, 0, 0, contentLayout.AbsoluteContentSize.Y + 12)
-        end)
-
-        local function createElement(className, props)
-            return create(className, content, props)
-        end
-
-        local function defaultButton(text, callback)
-            callback = callback or function() end
-            local btn = createElement("TextButton", {
-                Size = UDim2.new(1, -10, 0, 30),
-                Position = UDim2.new(0, 5, 0, 0),
-                BackgroundColor3 = self.theme.Surface,
-                Text = text,
-                TextColor3 = self.theme.Text,
-                Font = Enum.Font.Gotham,
-                TextSize = 13,
-                BorderSizePixel = 0,
-            })
-            addCorner(btn, UDim.new(0, 8))
-            addStroke(btn, self.theme.Border, 1, 0.6)
-            btn.MouseButton1Click:Connect(callback)
-            return btn
-        end
-
-        function tab:CreateButton(text, callback)
-            return defaultButton(text, callback)
-        end
-
-        function tab:CreateToggle(text, defaultValue, callback)
-            callback = callback or function() end
-
-            local frame = createElement("Frame", {
-                Size = UDim2.new(1, -10, 0, 34),
-                Position = UDim2.new(0, 5, 0, 0),
-                BackgroundColor3 = self.theme.Surface,
-                BorderSizePixel = 0,
-            })
-            addCorner(frame, UDim.new(0, 8))
-
-            local label = createElement("TextLabel", {
-                Size = UDim2.new(1, -44, 1, 0),
-                BackgroundTransparency = 1,
-                Text = text,
-                TextColor3 = self.theme.Text,
-                Font = Enum.Font.Gotham,
-                TextSize = 13,
-                TextXAlignment = Enum.TextXAlignment.Left,
-            })
-
-            local toggle = createElement("TextButton", {
-                Size = UDim2.new(0, 34, 0, 18),
-                Position = UDim2.new(1, -40, 0.5, -9),
-                BackgroundColor3 = defaultValue and self.theme.Accent or Color3.fromRGB(85, 85, 85),
-                Text = "",
-                BorderSizePixel = 0,
-            })
-            addCorner(toggle, UDim.new(0, 10))
-
-            local enabled = defaultValue
-            local function refresh()
-                toggle.BackgroundColor3 = enabled and self.theme.Accent or Color3.fromRGB(85, 85, 85)
-                callback(enabled)
-            end
-
-            toggle.MouseButton1Click:Connect(function()
-                enabled = not enabled
-                refresh()
-            end)
-
-            refresh()
-            return frame
-        end
-
-        function tab:CreateSlider(text, defaultValue, minValue, maxValue, callback)
-            callback = callback or function() end
-            local frame = createElement("Frame", {
-                Size = UDim2.new(1, -10, 0, 48),
-                Position = UDim2.new(0, 5, 0, 0),
-                BackgroundColor3 = self.theme.Surface,
-                BorderSizePixel = 0,
-            })
-            addCorner(frame, UDim.new(0, 8))
-
-            local label = createElement("TextLabel", {
-                Size = UDim2.new(1, -10, 0, 18),
-                Position = UDim2.new(0, 5, 0, 3),
-                BackgroundTransparency = 1,
-                Text = text .. ": " .. defaultValue,
-                TextColor3 = self.theme.Text,
-                Font = Enum.Font.Gotham,
-                TextSize = 12,
-                TextXAlignment = Enum.TextXAlignment.Left,
-            })
-
-            local line = createElement("Frame", {
-                Size = UDim2.new(1, -10, 0, 8),
-                Position = UDim2.new(0, 5, 0, 26),
-                BackgroundColor3 = Color3.fromRGB(80, 80, 80),
-                BorderSizePixel = 0,
-            })
-            addCorner(line, UDim.new(0, 4))
-
-            local fill = createElement("Frame", line, {
-                Size = UDim2.new(0, 0, 1, 0),
-                BackgroundColor3 = self.theme.Accent,
-                BorderSizePixel = 0,
-            })
-            addCorner(fill, UDim.new(0, 4))
-
-            local knob = createElement("Frame", line, {
-                Size = UDim2.new(0, 12, 0, 12),
-                Position = UDim2.new(0, -6, 0.5, -6),
-                BackgroundColor3 = self.theme.Text,
-                BorderSizePixel = 0,
-            })
-            addCorner(knob, UDim.new(0, 6))
-
-            local dragging = false
-            local function setFraction(frac)
-                frac = clamp(frac, 0, 1)
-                local value = math.floor(minValue + (maxValue - minValue) * frac)
-                label.Text = text .. ": " .. value
-                fill.Size = UDim2.new(frac, 0, 1, 0)
-                knob.Position = UDim2.new(frac, -6, 0.5, -6)
-                callback(value)
-            end
-
-            knob.InputBegan:Connect(function(input)
-                if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
-                    dragging = true
-                end
-            end)
-
-            UserInputService.InputEnded:Connect(function(input)
-                if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
-                    dragging = false
-                end
-            end)
-
-            UserInputService.InputChanged:Connect(function(input)
-                if dragging and (input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch) then
-                    local rel = (input.Position.X - line.AbsolutePosition.X) / line.AbsoluteSize.X
-                    setFraction(rel)
-                end
-            end)
-
-            setFraction((defaultValue - minValue) / (maxValue - minValue))
-            return frame
-        end
-
-        function tab:CreateDropdown(text, options, callback)
-            callback = callback or function() end
-            options = options or {}
-
-            local frame = createElement("Frame", {
-                Size = UDim2.new(1, -10, 0, 34),
-                Position = UDim2.new(0, 5, 0, 0),
-                BackgroundColor3 = self.theme.Surface,
-                BorderSizePixel = 0,
-            })
-            addCorner(frame, UDim.new(0, 8))
-
-            local label = createElement("TextLabel", {
-                Size = UDim2.new(0, 82, 1, 0),
-                Position = UDim2.new(0, 0, 0, 0),
-                BackgroundTransparency = 1,
-                Text = text,
-                TextColor3 = self.theme.Text,
-                Font = Enum.Font.Gotham,
-                TextSize = 13,
-                TextXAlignment = Enum.TextXAlignment.Left,
-            })
-
-            local button = createElement("TextButton", {
-                Size = UDim2.new(1, -92, 1, 0),
-                Position = UDim2.new(0, 92, 0, 0),
-                BackgroundColor3 = Color3.fromRGB(85, 85, 85),
-                Text = options[1] or "",
-                TextColor3 = self.theme.Text,
-                Font = Enum.Font.Gotham,
-                TextSize = 13,
-                BorderSizePixel = 0,
-            })
-            addCorner(button, UDim.new(0, 8))
-
-            local panel = createElement("Frame", {
-                Size = UDim2.new(1, -10, 0, 0),
-                Position = UDim2.new(0, 5, 0, 0),
-                BackgroundColor3 = self.theme.Panel,
-                BorderSizePixel = 0,
-                ClipsDescendants = true,
-                Visible = false,
-                ZIndex = 25,
-            })
-            addCorner(panel, UDim.new(0, 8))
-            addStroke(panel, self.theme.Border, 1, 0.8)
-
-            local list = create("UIListLayout", panel, {
-                Padding = UDim.new(0, 2),
-            })
-
-            local expanded = false
-
-            local function collapse()
-                expanded = false
-                panel.Visible = false
-                panel.Size = UDim2.new(1, -10, 0, 0)
-            end
-
-            button.MouseButton1Click:Connect(function()
-                expanded = not expanded
-                if expanded then
-                    panel.Visible = true
-                    panel.Size = UDim2.new(1, -10, 0, math.max(24, #options * 22))
-                else
-                    collapse()
-                end
-            end)
-
-            for _, opt in ipairs(options) do
-                local optBtn = create("TextButton", panel, {
-                    Size = UDim2.new(1, -6, 0, 20),
-                    BackgroundColor3 = self.theme.Surface,
-                    Text = opt,
-                    TextColor3 = self.theme.Text,
-                    Font = Enum.Font.Gotham,
-                    TextSize = 13,
-                    BorderSizePixel = 0,
-                    ZIndex = 26,
-                })
-                addCorner(optBtn, UDim.new(0, 6))
-
-                optBtn.MouseButton1Click:Connect(function()
-                    button.Text = opt
-                    callback(opt)
-                    collapse()
-                end)
-            end
-
-            return frame
-        end
-
-        function tab:CreateTextBox(text, placeholder, callback)
-            callback = callback or function() end
-
-            local frame = createElement("Frame", {
-                Size = UDim2.new(1, -10, 0, 34),
-                Position = UDim2.new(0, 5, 0, 0),
-                BackgroundColor3 = self.theme.Surface,
-                BorderSizePixel = 0,
-            })
-            addCorner(frame, UDim.new(0, 8))
-
-            createElement("TextLabel", {
-                Size = UDim2.new(0, 86, 1, 0),
-                BackgroundTransparency = 1,
-                Text = text,
-                TextColor3 = self.theme.Text,
-                Font = Enum.Font.Gotham,
-                TextSize = 13,
-                TextXAlignment = Enum.TextXAlignment.Left,
-            })
-
-            local box = createElement("TextBox", {
-                Size = UDim2.new(1, -96, 1, 0),
-                Position = UDim2.new(0, 96, 0, 0),
-                BackgroundColor3 = Color3.fromRGB(85, 85, 85),
-                TextColor3 = self.theme.Text,
-                PlaceholderText = placeholder or "",
-                Font = Enum.Font.Gotham,
-                TextSize = 13,
-                BorderSizePixel = 0,
-            })
-            addCorner(box, UDim.new(0, 8))
-
-            box.FocusLost:Connect(function(enterPressed)
-                callback(box.Text, enterPressed)
-            end)
-
-            return frame
-        end
-
-        function tab:CreateLabel(text)
-            return createElement("TextLabel", {
-                Size = UDim2.new(1, -10, 0, 20),
-                Position = UDim2.new(0, 5, 0, 0),
-                BackgroundTransparency = 1,
-                Text = text,
-                TextColor3 = self.theme.Muted,
-                Font = Enum.Font.Gotham,
-                TextSize = 13,
-                TextXAlignment = Enum.TextXAlignment.Left,
-            })
-        end
-
-        function tab:CreateColorPicker(defaultColor, callback)
-            callback = callback or function() end
-            local currentColor = defaultColor or Color3.fromRGB(255, 0, 0)
-
-            local frame = createElement("Frame", {
-                Size = UDim2.new(1, -10, 0, 34),
-                Position = UDim2.new(0, 5, 0, 0),
-                BackgroundColor3 = self.theme.Surface,
-                BorderSizePixel = 0,
-            })
-            addCorner(frame, UDim.new(0, 8))
-
-            local preview = createElement("Frame", {
-                Size = UDim2.new(0, 26, 0, 26),
-                Position = UDim2.new(0, 4, 0.5, -13),
-                BackgroundColor3 = currentColor,
-                BorderSizePixel = 0,
-            })
-            addCorner(preview, UDim.new(0, 5))
-
-            local button = createElement("TextButton", {
-                Size = UDim2.new(1, -40, 1, 0),
-                Position = UDim2.new(0, 34, 0, 0),
-                BackgroundColor3 = Color3.fromRGB(85, 85, 85),
-                Text = "Pick Color",
-                TextColor3 = self.theme.Text,
-                Font = Enum.Font.Gotham,
-                TextSize = 13,
-                BorderSizePixel = 0,
-            })
-            addCorner(button, UDim.new(0, 8))
-
-            local popup = create("Frame", screen, {
-                Size = UDim2.new(0, 220, 0, 210),
-                Position = UDim2.new(0.5, -110, 0.5, -105),
-                BackgroundColor3 = self.theme.Main,
-                BorderSizePixel = 0,
-                Visible = false,
-                ZIndex = 40,
-            })
-            addCorner(popup, UDim.new(0, 10))
-            addStroke(popup, self.theme.AccentSoft, 1, 0.3)
-
-            local popupTitle = create("TextLabel", popup, {
-                Size = UDim2.new(1, 0, 0, 22),
-                BackgroundColor3 = self.theme.Accent,
-                Text = "Color Picker",
-                TextColor3 = self.theme.Text,
-                Font = Enum.Font.GothamBold,
-                TextSize = 13,
-                BorderSizePixel = 0,
-                ZIndex = 41,
-            })
-            addCorner(popupTitle, UDim.new(0, 10))
-
-            local rLabel = create("TextLabel", popup, { Size = UDim2.new(0, 20, 0, 15), Position = UDim2.new(0, 6, 0, 30), BackgroundTransparency = 1, Text = "R", TextColor3 = Color3.fromRGB(255,255,255), Font = Enum.Font.Gotham, TextSize = 11, ZIndex = 41 })
-            local gLabel = create("TextLabel", popup, { Size = UDim2.new(0, 20, 0, 15), Position = UDim2.new(0, 6, 0, 58), BackgroundTransparency = 1, Text = "G", TextColor3 = Color3.fromRGB(255,255,255), Font = Enum.Font.Gotham, TextSize = 11, ZIndex = 41 })
-            local bLabel = create("TextLabel", popup, { Size = UDim2.new(0, 20, 0, 15), Position = UDim2.new(0, 6, 0, 86), BackgroundTransparency = 1, Text = "B", TextColor3 = Color3.fromRGB(255,255,255), Font = Enum.Font.Gotham, TextSize = 11, ZIndex = 41 })
-
-            local rVal = create("TextLabel", popup, { Size = UDim2.new(0, 50, 0, 15), Position = UDim2.new(0, 150, 0, 30), BackgroundTransparency = 1, Text = "0", TextColor3 = self.theme.Muted, Font = Enum.Font.Gotham, TextSize = 11, ZIndex = 41 })
-            local gVal = create("TextLabel", popup, { Size = UDim2.new(0, 50, 0, 15), Position = UDim2.new(0, 150, 0, 58), BackgroundTransparency = 1, Text = "0", TextColor3 = self.theme.Muted, Font = Enum.Font.Gotham, TextSize = 11, ZIndex = 41 })
-            local bVal = create("TextLabel", popup, { Size = UDim2.new(0, 50, 0, 15), Position = UDim2.new(0, 150, 0, 86), BackgroundTransparency = 1, Text = "0", TextColor3 = self.theme.Muted, Font = Enum.Font.Gotham, TextSize = 11, ZIndex = 41 })
-
-            local function makeBar(y)
-                local bar = create("Frame", popup, {
-                    Size = UDim2.new(1, -40, 0, 10),
-                    Position = UDim2.new(0, 30, 0, y),
-                    BackgroundColor3 = Color3.fromRGB(70, 70, 70),
-                    BorderSizePixel = 0,
-                    ZIndex = 41,
-                })
-                addCorner(bar, UDim.new(0, 4))
-                local fill = create("Frame", bar, {
-                    Size = UDim2.new(0.5, 0, 1, 0),
-                    BackgroundColor3 = Color3.fromRGB(255, 0, 0),
-                    BorderSizePixel = 0,
-                    ZIndex = 42,
-                })
-                addCorner(fill, UDim.new(0, 4))
-                return bar, fill
-            end
-
-            local barR, fillR = makeBar(28)
-            local barG, fillG = makeBar(56)
-            local barB, fillB = makeBar(84)
-
-            local hexBox = create("TextBox", popup, {
-                Size = UDim2.new(1, -10, 0, 22),
-                Position = UDim2.new(0, 5, 0, 115),
-                BackgroundColor3 = Color3.fromRGB(70, 70, 70),
-                TextColor3 = self.theme.Text,
-                PlaceholderText = "#FFFFFF",
-                Font = Enum.Font.Gotham,
-                TextSize = 12,
-                BorderSizePixel = 0,
-                ZIndex = 41,
-            })
-            addCorner(hexBox, UDim.new(0, 6))
-
-            local previewLarge = create("Frame", popup, {
-                Size = UDim2.new(0, 50, 0, 22),
-                Position = UDim2.new(0.5, -25, 0, 145),
-                BackgroundColor3 = currentColor,
-                BorderSizePixel = 0,
-                ZIndex = 41,
-            })
-            addCorner(previewLarge, UDim.new(0, 6))
-
-            local okBtn = create("TextButton", popup, {
-                Size = UDim2.new(0, 58, 0, 24),
-                Position = UDim2.new(0.5, -29, 0, 176),
-                BackgroundColor3 = self.theme.Accent,
-                Text = "OK",
-                TextColor3 = self.theme.Text,
-                Font = Enum.Font.GothamBold,
-                TextSize = 12,
-                BorderSizePixel = 0,
-                ZIndex = 41,
-            })
-            addCorner(okBtn, UDim.new(0, 8))
-
-            local function updatePreview()
-                preview.BackgroundColor3 = currentColor
-                previewLarge.BackgroundColor3 = currentColor
-                callback(currentColor)
-            end
-
-            local function updateBars()
-                local r = math.floor(currentColor.R * 255)
-                local g = math.floor(currentColor.G * 255)
-                local b = math.floor(currentColor.B * 255)
-                rVal.Text = "R: " .. r
-                gVal.Text = "G: " .. g
-                bVal.Text = "B: " .. b
-                hexBox.Text = string.format("#%02X%02X%02X", r, g, b)
-                fillR.Size = UDim2.new(r / 255, 0, 1, 0)
-                fillG.Size = UDim2.new(g / 255, 0, 1, 0)
-                fillB.Size = UDim2.new(b / 255, 0, 1, 0)
-            end
-
-            local function setCurrentColor(c)
-                currentColor = c
-                updatePreview()
-                updateBars()
-            end
-
-            local function dragBar(bar, fill, axis)
-                local drag = false
-                bar.InputBegan:Connect(function(input)
-                    if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
-                        drag = true
-                    end
-                end)
-
-                UserInputService.InputEnded:Connect(function(input)
-                    if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
-                        drag = false
-                    end
-                end)
-
-                UserInputService.InputChanged:Connect(function(input)
-                    if drag and (input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch) then
-                        local pct = (input.Position.X - bar.AbsolutePosition.X) / bar.AbsoluteSize.X
-                        pct = clamp(pct, 0, 1)
-
-                        local r = fillR.Size.X.Scale
-                        local g = fillG.Size.X.Scale
-                        local b = fillB.Size.X.Scale
-
-                        if axis == "r" then
-                            r = pct
-                            fillR.Size = UDim2.new(r, 0, 1, 0)
-                        elseif axis == "g" then
-                            g = pct
-                            fillG.Size = UDim2.new(g, 0, 1, 0)
-                        elseif axis == "b" then
-                            b = pct
-                            fillB.Size = UDim2.new(b, 0, 1, 0)
-                        end
-
-                        currentColor = Color3.new(
-                            clamp(r, 0, 1),
-                            clamp(g, 0, 1),
-                            clamp(b, 0, 1)
-                        )
-                        updatePreview()
-                        updateBars()
-                    end
-                end)
-            end
-
-            dragBar(barR, fillR, "r")
-            dragBar(barG, fillG, "g")
-            dragBar(barB, fillB, "b")
-
-            hexBox.FocusLost:Connect(function()
-                local hex = hexBox.Text:gsub("#", "")
-                if #hex == 6 then
-                    local r = tonumber(hex:sub(1, 2), 16) or 0
-                    local g = tonumber(hex:sub(3, 4), 16) or 0
-                    local b = tonumber(hex:sub(5, 6), 16) or 0
-                    setCurrentColor(Color3.fromRGB(r, g, b))
-                end
-            end)
-
-            okBtn.MouseButton1Click:Connect(function()
-                popup.Visible = false
-            end)
-
-            button.MouseButton1Click:Connect(function()
-                popup.Visible = not popup.Visible
-                updateBars()
-            end)
-
-            updateBars()
-            return frame
-        end
-
-        function tab:CreateKeybind(text, defaultKey, callback)
-            callback = callback or function() end
-
-            local frame = createElement("Frame", {
-                Size = UDim2.new(1, -10, 0, 34),
-                Position = UDim2.new(0, 5, 0, 0),
-                BackgroundColor3 = self.theme.Surface,
-                BorderSizePixel = 0,
-            })
-            addCorner(frame, UDim.new(0, 8))
-
-            createElement("TextLabel", {
-                Size = UDim2.new(0, 86, 1, 0),
-                BackgroundTransparency = 1,
-                Text = text,
-                TextColor3 = self.theme.Text,
-                Font = Enum.Font.Gotham,
-                TextSize = 13,
-                TextXAlignment = Enum.TextXAlignment.Left,
-            })
-
-            local keyBtn = createElement("TextButton", {
-                Size = UDim2.new(1, -96, 1, 0),
-                Position = UDim2.new(0, 96, 0, 0),
-                BackgroundColor3 = Color3.fromRGB(85, 85, 85),
-                Text = defaultKey and defaultKey.Name or "[...]",
-                TextColor3 = self.theme.Text,
-                Font = Enum.Font.Gotham,
-                TextSize = 13,
-                BorderSizePixel = 0,
-            })
-            addCorner(keyBtn, UDim.new(0, 8))
-
-            local binding = false
-            local currentKey = defaultKey
-            local connection
-
-            keyBtn.MouseButton1Click:Connect(function()
-                binding = true
-                keyBtn.Text = "..."
-                if connection then
-                    connection:Disconnect()
-                end
-
-                connection = UserInputService.InputBegan:Connect(function(input, gameProcessed)
-                    if binding and not gameProcessed and input.UserInputType == Enum.UserInputType.Keyboard then
-                        currentKey = input.KeyCode
-                        keyBtn.Text = currentKey.Name
-                        callback(currentKey)
-                        binding = false
-                        connection:Disconnect()
-                    end
-                end)
-            end)
-
-            return frame
-        end
-
-        return tab
-    end
-
-    return {
-        window = window,
-        screen = screen,
-        CreateTab = createTab,
-    }
+function XevorUI:Slider(text, minimum, maximum, default, callback)
+	minimum, maximum = minimum or 0, maximum or 100
+	local value = math.clamp(default or minimum, minimum, maximum)
+	local row = new("Frame", {Position=UDim2.fromOffset(9,self.Offset), Size=UDim2.fromOffset(230,39), BackgroundTransparency=1}, self.Frame)
+	new("TextLabel", {Size=UDim2.fromOffset(178,17), BackgroundTransparency=1, Text=text, Font=Enum.Font.Gotham, TextSize=12, TextColor3=C.text, TextXAlignment=Enum.TextXAlignment.Left}, row)
+	local valueLabel = new("TextLabel", {AnchorPoint=Vector2.new(1,0), Position=UDim2.new(1,0,0,0), Size=UDim2.fromOffset(46,17), BackgroundTransparency=1, Text=tostring(value), Font=Enum.Font.Gotham, TextSize=11, TextColor3=C.muted, TextXAlignment=Enum.TextXAlignment.Right}, row)
+	local track = rounded(new("TextButton", {Position=UDim2.fromOffset(0,25), Size=UDim2.fromOffset(230,4), BackgroundColor3=C.field, BorderSizePixel=0, Text=""}, row), 3)
+	local fill = rounded(new("Frame", {Size=UDim2.new((value-minimum)/(maximum-minimum),0,1,0), BackgroundColor3=C.accent, BorderSizePixel=0}, track), 3)
+	local dragging = false
+	local function setValue(inputPosition)
+		local pct = math.clamp((inputPosition.X-track.AbsolutePosition.X)/track.AbsoluteSize.X,0,1)
+		value = math.floor((minimum+(maximum-minimum)*pct)+.5)
+		fill.Size = UDim2.new(pct,0,1,0) valueLabel.Text=tostring(value)
+		if callback then callback(value) end
+	end
+	track.InputBegan:Connect(function(input) if input.UserInputType==Enum.UserInputType.MouseButton1 or input.UserInputType==Enum.UserInputType.Touch then dragging=true setValue(input.Position) end end)
+	track.InputEnded:Connect(function(input) if input.UserInputType==Enum.UserInputType.MouseButton1 or input.UserInputType==Enum.UserInputType.Touch then dragging=false end end)
+	game:GetService("UserInputService").InputChanged:Connect(function(input) if dragging and (input.UserInputType==Enum.UserInputType.MouseMovement or input.UserInputType==Enum.UserInputType.Touch) then setValue(input.Position) end end)
+	self.Offset += 45
+	return {Get=function() return value end, Set=function(_,newValue) value=math.clamp(newValue,minimum,maximum) local pct=(value-minimum)/(maximum-minimum) fill.Size=UDim2.new(pct,0,1,0) valueLabel.Text=tostring(value) if callback then callback(value) end end}
 end
 
-getgenv().xev0r = xev0r
+function XevorUI:Keybind(text, defaultKey, callback)
+	local boundKey = defaultKey or Enum.KeyCode.Unknown
+	local row = new("Frame", {Position=UDim2.fromOffset(9,self.Offset), Size=UDim2.fromOffset(230,23), BackgroundTransparency=1}, self.Frame)
+	new("TextLabel", {Size=UDim2.fromOffset(170,23), BackgroundTransparency=1, Text=text, Font=Enum.Font.Gotham, TextSize=12, TextColor3=C.text, TextXAlignment=Enum.TextXAlignment.Left}, row)
+	local button = rounded(new("TextButton", {AnchorPoint=Vector2.new(1,.5), Position=UDim2.new(1,0,.5,0), Size=UDim2.fromOffset(52,18), BackgroundColor3=C.field, BorderSizePixel=0, Text=boundKey.Name, Font=Enum.Font.Gotham, TextSize=10, TextColor3=C.muted}, row), 3)
+	new("UIStroke", {Color=C.line}, button)
+	local listening = false
+	button.Activated:Connect(function() listening=true button.Text="..." end)
+	game:GetService("UserInputService").InputBegan:Connect(function(input, processed)
+		if listening and input.UserInputType==Enum.UserInputType.Keyboard then boundKey=input.KeyCode button.Text=boundKey.Name listening=false self.Library:Notify(self.Library.Title,text.." set to "..boundKey.Name..".") return end
+		if not processed and not listening and input.KeyCode==boundKey and callback then callback() end
+	end)
+	self.Offset += 29
+	return {Get=function() return boundKey end, Set=function(_,key) boundKey=key button.Text=key.Name end}
+end
 
-return xev0r
+function XevorUI:Dropdown(text, options, default, callback)
+	options = options or {}
+	local value = default or options[1] or "Select..."
+	local holder = new("Frame", {Position=UDim2.fromOffset(9,self.Offset), Size=UDim2.fromOffset(230,25), BackgroundTransparency=1, ClipsDescendants=true}, self.Frame)
+	local head = rounded(new("TextButton", {Size=UDim2.fromOffset(230,24), BackgroundColor3=C.field, BorderSizePixel=0, Text=text.."  ·  "..value, Font=Enum.Font.Gotham, TextSize=11, TextColor3=C.text, TextXAlignment=Enum.TextXAlignment.Left}, holder), 3)
+	new("UIPadding", {PaddingLeft=UDim.new(0,7)}, head) new("UIStroke", {Color=C.line}, head)
+	local opened=false
+	head.Activated:Connect(function()
+		opened=not opened holder.Size=UDim2.fromOffset(230,opened and (25+#options*24) or 25)
+	end)
+	for index, option in ipairs(options) do
+		local optionButton = new("TextButton", {Position=UDim2.fromOffset(0,25+(index-1)*24), Size=UDim2.fromOffset(230,23), BackgroundColor3=C.panel, BorderSizePixel=0, Text="  "..tostring(option), Font=Enum.Font.Gotham, TextSize=11, TextColor3=C.muted, TextXAlignment=Enum.TextXAlignment.Left}, holder)
+		optionButton.Activated:Connect(function() value=option head.Text=text.."  ·  "..value opened=false holder.Size=UDim2.fromOffset(230,25) if callback then callback(value) end end)
+	end
+	self.Offset += 31
+	return {Get=function() return value end, Set=function(_,newValue) value=newValue head.Text=text.."  ·  "..value if callback then callback(value) end end}
+end
+
+function XevorUI:ColorPalette(text, default, callback)
+	local color = default or C.accent
+	local row = new("Frame", {Position=UDim2.fromOffset(9,self.Offset), Size=UDim2.fromOffset(230,23), BackgroundTransparency=1}, self.Frame)
+	new("TextLabel", {Size=UDim2.fromOffset(170,23), BackgroundTransparency=1, Text=text, Font=Enum.Font.Gotham, TextSize=12, TextColor3=C.text, TextXAlignment=Enum.TextXAlignment.Left}, row)
+	local preview = rounded(new("TextButton", {AnchorPoint=Vector2.new(1,.5), Position=UDim2.new(1,0,.5,0), Size=UDim2.fromOffset(36,18), BackgroundColor3=color, BorderSizePixel=0, Text=""}, row), 4)
+	new("UIStroke", {Color=C.line}, preview)
+	local palette={Color3.fromRGB(160,91,255),Color3.fromRGB(93,158,255),Color3.fromRGB(78,214,155),Color3.fromRGB(255,115,148),Color3.fromRGB(255,191,87)}
+	local index=1
+	preview.Activated:Connect(function() index=index%#palette+1 color=palette[index] preview.BackgroundColor3=color self.Library:Notify(self.Library.Title,text.." color updated.") if callback then callback(color) end end)
+	self.Offset += 29
+	return {Get=function() return color end, Set=function(_,newColor) color=newColor preview.BackgroundColor3=color if callback then callback(color) end end}
+end
+
+-- ColorPicker provides a compact RGB picker. Click a swatch to select it;
+-- pass a custom palette as the fourth argument if you want your own colors.
+function XevorUI:ColorPicker(text, default, callback, palette)
+	local color = default or C.accent
+	palette = palette or {
+		Color3.fromRGB(160,91,255), Color3.fromRGB(93,158,255), Color3.fromRGB(78,214,155),
+		Color3.fromRGB(255,115,148), Color3.fromRGB(255,191,87), Color3.fromRGB(245,240,255),
+	}
+	local holder = new("Frame", {Position=UDim2.fromOffset(9,self.Offset), Size=UDim2.fromOffset(230,23), BackgroundTransparency=1, ClipsDescendants=true}, self.Frame)
+	new("TextLabel", {Size=UDim2.fromOffset(170,23), BackgroundTransparency=1, Text=text, Font=Enum.Font.Gotham, TextSize=12, TextColor3=C.text, TextXAlignment=Enum.TextXAlignment.Left}, holder)
+	local preview = rounded(new("TextButton", {AnchorPoint=Vector2.new(1,.5), Position=UDim2.new(1,0,.5,0), Size=UDim2.fromOffset(36,18), BackgroundColor3=color, BorderSizePixel=0, Text="", AutoButtonColor=false}, holder), 4)
+	new("UIStroke", {Color=C.line}, preview)
+	local opened = false
+	preview.Activated:Connect(function()
+		opened = not opened
+		holder.Size = UDim2.fromOffset(230, opened and 53 or 23)
+	end)
+	for index, swatchColor in ipairs(palette) do
+		local swatch = rounded(new("TextButton", {Position=UDim2.fromOffset((index-1)*36,29), Size=UDim2.fromOffset(30,18), BackgroundColor3=swatchColor, BorderSizePixel=0, Text="", AutoButtonColor=false}, holder), 4)
+		swatch.Activated:Connect(function()
+			color = swatchColor
+			preview.BackgroundColor3 = color
+			opened = false
+			holder.Size = UDim2.fromOffset(230,23)
+			if callback then callback(color) end
+		end)
+	end
+	self.Offset += 29
+	return {Get=function() return color end, Set=function(_,newColor) color=newColor preview.BackgroundColor3=color if callback then callback(color) end end}
+end
+
+function XevorUI:Bind(text, defaultKey, callback)
+	return self:Keybind(text, defaultKey, callback)
+end
+
+function XevorUI:MultiDropdown(text, options, defaults, callback)
+	local selected = {}
+	for _, value in ipairs(defaults or {}) do selected[value] = true end
+	local dropdown = self:Dropdown(text, options, nil, function(value)
+		selected[value] = not selected[value]
+		if callback then
+			local output = {}
+			for _, item in ipairs(options or {}) do if selected[item] then table.insert(output,item) end end
+			callback(output)
+		end
+	end)
+	return {Get=function()
+		local output = {}
+		for _, item in ipairs(options or {}) do if selected[item] then table.insert(output,item) end end
+		return output
+	end, Dropdown=dropdown}
+end
+
+-- Rayfield-style convenience API. These are original compatibility helpers
+-- for XevorUI's purple interface; they do not use Rayfield code or assets.
+function XevorUI:CreateTab(options)
+	local name = type(options) == "table" and (options.Name or options.Title) or options
+	return self:Tab(name or "Tab")
+end
+
+function XevorUI:CreateSection(options)
+	if type(options) == "table" then
+		return self:Section(options.Name or options.Title or "Section", options.Position)
+	end
+	return self:Section(options or "Section")
+end
+
+function XevorUI:CreateButton(options)
+	options = options or {}
+	return self:Button(options.Name or options.Title or "Button", options.Callback)
+end
+
+function XevorUI:CreateToggle(options)
+	options = options or {}
+	return self:Toggle(options.Name or options.Title or "Toggle", options.CurrentValue == true or options.Default == true, options.Callback)
+end
+
+function XevorUI:CreateSlider(options)
+	options = options or {}
+	local range = options.Range or {0, 100}
+	return self:Slider(options.Name or options.Title or "Slider", range[1] or 0, range[2] or 100, options.CurrentValue or options.Default or range[1] or 0, options.Callback)
+end
+
+function XevorUI:CreateDropdown(options)
+	options = options or {}
+	if options.MultipleOptions or options.Multi then
+		return self:MultiDropdown(options.Name or options.Title or "Dropdown", options.Options or {}, options.CurrentOption or options.Default or {}, options.Callback)
+	end
+	local default = options.CurrentOption or options.Default
+	if type(default) == "table" then default = default[1] end
+	return self:Dropdown(options.Name or options.Title or "Dropdown", options.Options or {}, default, options.Callback)
+end
+
+function XevorUI:CreateInput(options)
+	options = options or {}
+	return self:Textbox(options.PlaceholderText or options.Placeholder or options.Name or "Enter text...", options.Callback)
+end
+
+function XevorUI:CreateKeybind(options)
+	options = options or {}
+	return self:Keybind(options.Name or options.Title or "Keybind", options.CurrentKeybind or options.Default or Enum.KeyCode.Unknown, options.Callback)
+end
+
+function XevorUI:CreateColorPicker(options)
+	options = options or {}
+	return self:ColorPicker(options.Name or options.Title or "Color", options.Color or options.CurrentColor or C.accent, options.Callback, options.Palette)
+end
+
+function XevorUI:CreateLabel(options)
+	return self:Label(type(options) == "table" and (options.Content or options.Name or "Label") or options)
+end
+
+function XevorUI:CreateParagraph(options)
+	options = options or {}
+	return self:Paragraph(options.Title or options.Name or "Paragraph", options.Content or "")
+end
+
+function XevorUI.CreateWindow(first, second)
+	local options = second or first -- supports both XevorUI.CreateWindow() and XevorUI:CreateWindow()
+	local title = type(options) == "table" and (options.Name or options.Title) or options
+	return XevorUI.new(title or "Xevor")
+end
+
+return XevorUI
