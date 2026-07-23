@@ -24,7 +24,7 @@ function XevorUI.new(title)
 	local self = setmetatable({Tabs={}, Title=title or "XEVOR", ActiveTab=nil}, XevorUI)
 	local playerGui = Players.LocalPlayer:WaitForChild("PlayerGui")
 	local old = playerGui:FindFirstChild("XevorLibrary") if old then old:Destroy() end
-	self.Gui = new("ScreenGui", {Name="XevorLibrary", ResetOnSpawn=false, DisplayOrder=10}, playerGui)
+	self.Gui = new("ScreenGui", {Name="XevorLibrary", ResetOnSpawn=false, DisplayOrder=10, IgnoreGuiInset=false, ZIndexBehavior=Enum.ZIndexBehavior.Sibling}, playerGui)
 	self.Notifications = new("Frame", {AnchorPoint=Vector2.new(1,0), Position=UDim2.new(1,-16,0,57), Size=UDim2.fromOffset(265,350), BackgroundTransparency=1}, self.Gui)
 	new("UIListLayout", {Padding=UDim.new(0,7), HorizontalAlignment=Enum.HorizontalAlignment.Right, SortOrder=Enum.SortOrder.LayoutOrder}, self.Notifications)
 
@@ -139,7 +139,7 @@ function XevorUI:Slider(text, minimum, maximum, default, callback)
 	local row = new("Frame", {Position=UDim2.fromOffset(9,self.Offset), Size=UDim2.fromOffset(230,39), BackgroundTransparency=1}, self.Frame)
 	new("TextLabel", {Size=UDim2.fromOffset(178,17), BackgroundTransparency=1, Text=text, Font=Enum.Font.Gotham, TextSize=12, TextColor3=C.text, TextXAlignment=Enum.TextXAlignment.Left}, row)
 	local valueLabel = new("TextLabel", {AnchorPoint=Vector2.new(1,0), Position=UDim2.new(1,0,0,0), Size=UDim2.fromOffset(46,17), BackgroundTransparency=1, Text=tostring(value), Font=Enum.Font.Gotham, TextSize=11, TextColor3=C.muted, TextXAlignment=Enum.TextXAlignment.Right}, row)
-	local track = rounded(new("TextButton", {Position=UDim2.fromOffset(0,25), Size=UDim2.fromOffset(230,4), BackgroundColor3=C.field, BorderSizePixel=0, Text=""}, row), 3)
+	local track = rounded(new("TextButton", {Position=UDim2.fromOffset(0,25), Size=UDim2.fromOffset(230,4), BackgroundColor3=C.field, BorderSizePixel=0, Text="", AutoButtonColor=false}, row), 3)
 	local fill = rounded(new("Frame", {Size=UDim2.new((value-minimum)/(maximum-minimum),0,1,0), BackgroundColor3=C.accent, BorderSizePixel=0}, track), 3)
 	local dragging = false
 	local function setValue(inputPosition)
@@ -202,35 +202,33 @@ function XevorUI:ColorPalette(text, default, callback)
 	return {Get=function() return color end, Set=function(_,newColor) color=newColor preview.BackgroundColor3=color if callback then callback(color) end end}
 end
 
--- ColorPicker provides a compact RGB picker. Click a swatch to select it;
--- pass a custom palette as the fourth argument if you want your own colors.
-function XevorUI:ColorPicker(text, default, callback, palette)
+-- RGB picker: click the preview, then drag Red, Green, or Blue. No external image assets needed.
+function XevorUI:ColorPicker(text, default, callback)
 	local color = default or C.accent
-	palette = palette or {
-		Color3.fromRGB(160,91,255), Color3.fromRGB(93,158,255), Color3.fromRGB(78,214,155),
-		Color3.fromRGB(255,115,148), Color3.fromRGB(255,191,87), Color3.fromRGB(245,240,255),
-	}
+	local r,g,b = math.floor(color.R*255+.5), math.floor(color.G*255+.5), math.floor(color.B*255+.5)
 	local holder = new("Frame", {Position=UDim2.fromOffset(9,self.Offset), Size=UDim2.fromOffset(230,23), BackgroundTransparency=1, ClipsDescendants=true}, self.Frame)
 	new("TextLabel", {Size=UDim2.fromOffset(170,23), BackgroundTransparency=1, Text=text, Font=Enum.Font.Gotham, TextSize=12, TextColor3=C.text, TextXAlignment=Enum.TextXAlignment.Left}, holder)
-	local preview = rounded(new("TextButton", {AnchorPoint=Vector2.new(1,.5), Position=UDim2.new(1,0,.5,0), Size=UDim2.fromOffset(36,18), BackgroundColor3=color, BorderSizePixel=0, Text="", AutoButtonColor=false}, holder), 4)
-	new("UIStroke", {Color=C.line}, preview)
-	local opened = false
-	preview.Activated:Connect(function()
-		opened = not opened
-		holder.Size = UDim2.fromOffset(230, opened and 53 or 23)
-	end)
-	for index, swatchColor in ipairs(palette) do
-		local swatch = rounded(new("TextButton", {Position=UDim2.fromOffset((index-1)*36,29), Size=UDim2.fromOffset(30,18), BackgroundColor3=swatchColor, BorderSizePixel=0, Text="", AutoButtonColor=false}, holder), 4)
-		swatch.Activated:Connect(function()
-			color = swatchColor
-			preview.BackgroundColor3 = color
-			opened = false
-			holder.Size = UDim2.fromOffset(230,23)
-			if callback then callback(color) end
-		end)
+	local preview = rounded(new("TextButton", {AnchorPoint=Vector2.new(1,.5), Position=UDim2.new(1,0,.5,0), Size=UDim2.fromOffset(36,18), BackgroundColor3=color, BorderSizePixel=0, Text="", AutoButtonColor=false}, holder),4)
+	new("UIStroke", {Color=C.line},preview)
+	local open=false
+	local function apply() color=Color3.fromRGB(r,g,b) preview.BackgroundColor3=color if callback then callback(color) end end
+	local function channel(name, y, channelColor, getter, setter)
+		new("TextLabel",{Position=UDim2.fromOffset(0,y),Size=UDim2.fromOffset(15,16),BackgroundTransparency=1,Text=name,Font=Enum.Font.GothamBold,TextSize=10,TextColor3=C.muted},holder)
+		local track=rounded(new("TextButton",{Position=UDim2.fromOffset(19,y+6),Size=UDim2.fromOffset(172,4),BackgroundColor3=C.field,BorderSizePixel=0,Text="",AutoButtonColor=false},holder),3)
+		local fill=rounded(new("Frame",{Size=UDim2.new(getter()/255,0,1,0),BackgroundColor3=channelColor,BorderSizePixel=0},track),3)
+		local value=new("TextLabel",{Position=UDim2.fromOffset(195,y),Size=UDim2.fromOffset(34,16),BackgroundTransparency=1,Text=tostring(getter()),Font=Enum.Font.Gotham,TextSize=10,TextColor3=C.muted,TextXAlignment=Enum.TextXAlignment.Right},holder)
+		local drag=false
+		local function set(pos) local pct=math.clamp((pos.X-track.AbsolutePosition.X)/track.AbsoluteSize.X,0,1) local v=math.floor(pct*255+.5) setter(v) fill.Size=UDim2.new(pct,0,1,0) value.Text=tostring(v) apply() end
+		track.InputBegan:Connect(function(i)if i.UserInputType==Enum.UserInputType.MouseButton1 or i.UserInputType==Enum.UserInputType.Touch then drag=true set(i.Position)end end)
+		game:GetService("UserInputService").InputChanged:Connect(function(i)if drag and(i.UserInputType==Enum.UserInputType.MouseMovement or i.UserInputType==Enum.UserInputType.Touch)then set(i.Position)end end)
+		game:GetService("UserInputService").InputEnded:Connect(function(i)if i.UserInputType==Enum.UserInputType.MouseButton1 or i.UserInputType==Enum.UserInputType.Touch then drag=false end end)
 	end
-	self.Offset += 29
-	return {Get=function() return color end, Set=function(_,newColor) color=newColor preview.BackgroundColor3=color if callback then callback(color) end end}
+	channel("R",29,Color3.fromRGB(255,95,105),function()return r end,function(v)r=v end)
+	channel("G",56,Color3.fromRGB(78,214,155),function()return g end,function(v)g=v end)
+	channel("B",83,Color3.fromRGB(93,158,255),function()return b end,function(v)b=v end)
+	preview.Activated:Connect(function()open=not open holder.Size=UDim2.fromOffset(230,open and 106 or 23)end)
+	self.Offset += 112
+	return {Get=function()return color end,Set=function(_,newColor)color=newColor r=math.floor(color.R*255+.5)g=math.floor(color.G*255+.5)b=math.floor(color.B*255+.5)preview.BackgroundColor3=color if callback then callback(color)end end}
 end
 
 function XevorUI:Bind(text, defaultKey, callback)
