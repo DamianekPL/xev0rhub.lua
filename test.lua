@@ -178,6 +178,7 @@ function XevorUI.CreateWindow(first: any, second: any?)
 	table.insert(self.Connections, UserInputService.InputBegan:Connect(function(input, processed)
 		if not processed and input.KeyCode == self.ToggleKey then self:SetVisible(not self.Gui.Enabled) end
 	end))
+	if options.Watermark == true then self:Watermark() end
 
 	return self
 end
@@ -224,6 +225,44 @@ function Window:Notify(options: any, message: string?, duration: number?)
 		end
 	end)
 	return card
+end
+
+-- Adds a compact performance watermark. It is optional and can be enabled at
+-- creation with Watermark = true, or later with window:Watermark().
+function Window:Watermark()
+	if self.Destroyed then return end
+	if self.WatermarkFrame then return self.WatermarkFrame end
+	local frame = make("Frame", {
+		Name = "Watermark", AnchorPoint = Vector2.new(1, 0), Position = UDim2.new(1, -16, 0, 16),
+		Size = UDim2.fromOffset(290, 31), BackgroundColor3 = self.Theme.Panel, BorderSizePixel = 0,
+		ZIndex = 20,
+	}, self.Gui)
+	corner(frame, 6); stroke(frame, self.Theme.Line)
+	make("Frame", { Position = UDim2.fromOffset(0, 5), Size = UDim2.fromOffset(3, 21), BackgroundColor3 = self.Theme.Accent, BorderSizePixel = 0, ZIndex = 21 }, frame)
+	local label = make("TextLabel", {
+		Position = UDim2.fromOffset(11, 0), Size = UDim2.new(1, -18, 1, 0), BackgroundTransparency = 1,
+		Font = Enum.Font.GothamMedium, TextSize = 11, TextColor3 = self.Theme.Text,
+		TextXAlignment = Enum.TextXAlignment.Left, ZIndex = 21,
+	}, frame)
+	self.WatermarkFrame = frame
+	self.Notifications.Position = UDim2.new(1, -16, 0, 57)
+	local frames, elapsed, fps = 0, 0, 0
+	local connection = game:GetService("RunService").RenderStepped:Connect(function(delta)
+		frames += 1; elapsed += delta
+		if elapsed >= 1 then fps = math.floor(frames / elapsed + 0.5); frames, elapsed = 0, 0 end
+		local ping = "-- ms"
+		pcall(function() ping = game:GetService("Stats").Network.ServerStatsItem["Data Ping"]:GetValueString() end)
+		label.Text = string.format("%s  |  %s  |  %d FPS  |  %s", string.upper(self.Title), Players.LocalPlayer.Name, fps, ping)
+	end)
+	self.WatermarkConnection = connection
+	table.insert(self.Connections, connection)
+	return frame
+end
+
+function Window:RemoveWatermark()
+	if self.WatermarkConnection then self.WatermarkConnection:Disconnect(); self.WatermarkConnection = nil end
+	if self.WatermarkFrame then self.WatermarkFrame:Destroy(); self.WatermarkFrame = nil end
+	if not self.Destroyed then self.Notifications.Position = UDim2.new(1, -16, 0, 16) end
 end
 
 function Window:CreateTab(options: any)
