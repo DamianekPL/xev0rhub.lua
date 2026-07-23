@@ -565,10 +565,39 @@ function XevorUI.ShowKeySystem(options: {[string]: any}?)
 
 	local function revealMainMenu()
 		if options.OnSuccess then
-			options.OnSuccess()
+			safeCallback(options.OnSuccess)
 		end
 		if gui and gui.Parent then
 			gui:Destroy()
+		end
+	end
+
+	local function verifyKey()
+		if input.Text == "" then
+			note.Text = "Enter a key first."
+			note.TextColor3 = C.accent
+			return
+		end
+
+		local expected = options.Key or "XEVOR-ACCESS-KEY"
+		local valid = false
+		if type(options.Validate) == "function" then
+			local ok, result = pcall(options.Validate, input.Text, expected)
+			valid = ok and result == true
+			if not ok then
+				warn("[XevorUI] Key validation callback failed:", result)
+			end
+		else
+			valid = input.Text == expected
+		end
+
+		if valid then
+			note.Text = "Key verified successfully. Opening menu..."
+			note.TextColor3 = Color3.fromRGB(78, 214, 155)
+			task.delay(0.1, revealMainMenu)
+		else
+			note.Text = "Invalid key — please try again."
+			note.TextColor3 = Color3.fromRGB(255, 106, 133)
 		end
 	end
 
@@ -577,17 +606,10 @@ function XevorUI.ShowKeySystem(options: {[string]: any}?)
 		note.TextColor3 = C.accent
 	end)
 
-	verify.Activated:Connect(function()
-		if input.Text == "" then
-			note.Text = "Enter a key first."
-			note.TextColor3 = C.accent
-			return
-		end
-		if input.Text == (options.Key or "XEVOR-ACCESS-KEY") then
-			revealMainMenu()
-		else
-			note.Text = "Invalid key — please try again."
-			note.TextColor3 = Color3.fromRGB(255, 106, 133)
+	verify.Activated:Connect(verifyKey)
+	input.FocusLost:Connect(function(enterPressed)
+		if enterPressed then
+			verifyKey()
 		end
 	end)
 
@@ -598,11 +620,13 @@ function XevorUI.ShowKeySystem(options: {[string]: any}?)
 
 	popupSound:Play()
 	exit.Activated:Connect(function()
-		win.Visible = false
+		if gui and gui.Parent then
+			gui:Destroy()
+		end
 	end)
 
 	UserInputService.InputBegan:Connect(function(input, gameProcessed)
-		if not gameProcessed and input.KeyCode == Enum.KeyCode.RightShift then
+		if not gameProcessed and gui and gui.Parent and input.KeyCode == Enum.KeyCode.RightShift then
 			win.Visible = not win.Visible
 		end
 	end)
