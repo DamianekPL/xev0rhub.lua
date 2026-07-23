@@ -165,6 +165,7 @@ function XevorUI.CreateWindow(first: any, second: any?)
 		Name = "XevorUI", ResetOnSpawn = false, DisplayOrder = options.DisplayOrder or 10,
 		IgnoreGuiInset = false, ZIndexBehavior = Enum.ZIndexBehavior.Sibling,
 	}, playerGui)
+	self.Gui.Enabled = true
 
 	self.Notifications = make("Frame", {
 		AnchorPoint = Vector2.new(1, 0), Position = UDim2.new(1, -16, 0, 16),
