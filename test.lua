@@ -274,7 +274,9 @@ function Window:CreateTab(options: any)
 		Name = name, Size = UDim2.fromScale(1, 1), BackgroundTransparency = 1, Visible = false,
 		ScrollBarThickness = 3, ScrollBarImageColor3 = self.Theme.Line, AutomaticCanvasSize = Enum.AutomaticSize.Y, CanvasSize = UDim2.new(),
 	}, self.Content)
-	padding(tab.Page, 17)
+	local pagePadding = padding(tab.Page, 17)
+	pagePadding.PaddingTop = UDim.new(0, 18)
+	pagePadding.PaddingBottom = UDim.new(0, 18)
 	make("UIListLayout", { Padding = UDim.new(0, 12), SortOrder = Enum.SortOrder.LayoutOrder }, tab.Page)
 	tab.Button = make("TextButton", {
 		Size = UDim2.new(1, 0, 0, 31), BackgroundColor3 = self.Theme.Sidebar, BorderSizePixel = 0, Text = "   " .. name,
@@ -308,14 +310,14 @@ function Tab:CreateSection(options: any)
 	local section = setmetatable({ Tab = self, Window = self.Window, Controls = {} }, Section)
 	-- Cards deliberately have a compact fixed width like the reference UI.
 	-- Override it per section with Width = 300 when a wider control is needed.
-	section.Frame = make("Frame", { Name = options.Name or options.Title or "Section", Size = UDim2.fromOffset(options.Width or 248, 0), AutomaticSize = Enum.AutomaticSize.Y, BackgroundColor3 = self.Window.Theme.Panel, BorderSizePixel = 0 }, self.Page)
-	corner(section.Frame, 6); stroke(section.Frame, self.Window.Theme.Line)
-	make("TextLabel", { Size = UDim2.new(1, -20, 0, 34), Position = UDim2.fromOffset(10, 0), BackgroundTransparency = 1, Text = string.upper(options.Name or options.Title or "SECTION"), Font = Enum.Font.GothamBold, TextSize = 11, TextColor3 = self.Window.Theme.Text, TextXAlignment = Enum.TextXAlignment.Left }, section.Frame)
-	make("Frame", { Position = UDim2.fromOffset(10, 33), Size = UDim2.new(1, -20, 0, 2), BackgroundColor3 = self.Window.Theme.Accent, BorderSizePixel = 0 }, section.Frame)
-	section.Body = make("Frame", { Position = UDim2.fromOffset(10, 43), Size = UDim2.new(1, -20, 0, 0), AutomaticSize = Enum.AutomaticSize.Y, BackgroundTransparency = 1 }, section.Frame)
-	make("UIListLayout", { Padding = UDim.new(0, 7), SortOrder = Enum.SortOrder.LayoutOrder }, section.Body)
-	make("UIPadding", { PaddingBottom = UDim.new(0, 11) }, section.Body)
-	make("Frame", { Size = UDim2.new(1, 0, 0, 54), BackgroundTransparency = 1, LayoutOrder = 999999 }, section.Frame)
+	section.Frame = make("Frame", { Name = options.Name or options.Title or "Section", Size = UDim2.fromOffset(options.Width or 262, 0), AutomaticSize = Enum.AutomaticSize.Y, BackgroundColor3 = self.Window.Theme.Panel, BorderSizePixel = 0 }, self.Page)
+	corner(section.Frame, 2); stroke(section.Frame, self.Window.Theme.Line)
+	make("TextLabel", { Size = UDim2.new(1, -16, 0, 29), Position = UDim2.fromOffset(8, 0), BackgroundTransparency = 1, Text = string.upper(options.Name or options.Title or "SECTION"), Font = Enum.Font.GothamBold, TextSize = 11, TextColor3 = self.Window.Theme.Text, TextXAlignment = Enum.TextXAlignment.Left }, section.Frame)
+	make("Frame", { Position = UDim2.fromOffset(8, 28), Size = UDim2.new(1, -16, 0, 1), BackgroundColor3 = self.Window.Theme.Accent, BorderSizePixel = 0 }, section.Frame)
+	section.Body = make("Frame", { Position = UDim2.fromOffset(8, 36), Size = UDim2.new(1, -16, 0, 0), AutomaticSize = Enum.AutomaticSize.Y, BackgroundTransparency = 1 }, section.Frame)
+	make("UIListLayout", { Padding = UDim.new(0, 3), SortOrder = Enum.SortOrder.LayoutOrder }, section.Body)
+	make("UIPadding", { PaddingBottom = UDim.new(0, 8) }, section.Body)
+	make("Frame", { Size = UDim2.new(1, 0, 0, 44), BackgroundTransparency = 1, LayoutOrder = 999999 }, section.Frame)
 	table.insert(self.Sections, section)
 	return section
 end
@@ -358,8 +360,8 @@ function Section:Divider() return self:CreateDivider() end
 
 function Section:CreateButton(options: any)
 	if type(options) ~= "table" then options = { Name = options } end
-	local button = make("TextButton", { Size = UDim2.new(1, 0, 0, 30), BackgroundColor3 = options.Color or self.Window.Theme.Field, BorderSizePixel = 0, Text = options.Name or options.Title or "Button", Font = Enum.Font.GothamBold, TextSize = 11, TextColor3 = self.Window.Theme.Text }, self.Body)
-	corner(button, 4); stroke(button, self.Window.Theme.Line)
+	local button = make("TextButton", { Size = UDim2.new(1, 0, 0, 23), BackgroundColor3 = options.Color or self.Window.Theme.Field, BorderSizePixel = 0, Text = options.Name or options.Title or "Button", Font = Enum.Font.GothamBold, TextSize = 11, TextColor3 = self.Window.Theme.Text }, self.Body)
+	corner(button, 1); stroke(button, self.Window.Theme.Line)
 	button.Activated:Connect(function() safeCallback(options.Callback) end)
 	return { Destroy = function() button:Destroy() end }
 end
@@ -367,18 +369,20 @@ function Section:Button(text: string, callback: () -> ()) return self:CreateButt
 
 function Section:CreateToggle(options: {[string]: any})
 	options = options or {}
-	local row = self:_row(25)
+	local row = self:_row(22)
 	make("TextLabel", { Size = UDim2.new(1, -45, 1, 0), BackgroundTransparency = 1, Text = options.Name or options.Title or "Toggle", Font = Enum.Font.Gotham, TextSize = 12, TextColor3 = self.Window.Theme.Text, TextXAlignment = Enum.TextXAlignment.Left }, row)
-	local button = make("TextButton", { AnchorPoint = Vector2.new(1, 0.5), Position = UDim2.new(1, 0, 0.5, 0), Size = UDim2.fromOffset(34, 18), BackgroundColor3 = self.Window.Theme.Field, BorderSizePixel = 0, Text = "", AutoButtonColor = false }, row)
-	corner(button, 9); stroke(button, self.Window.Theme.Line)
-	local knob = make("Frame", { AnchorPoint = Vector2.new(0, 0.5), Position = UDim2.new(0, 2, 0.5, 0), Size = UDim2.fromOffset(14, 14), BackgroundColor3 = self.Window.Theme.Muted, BorderSizePixel = 0 }, button)
-	corner(knob, 7)
+	local button = make("TextButton", { AnchorPoint = Vector2.new(1, 0.5), Position = UDim2.new(1, 0, 0.5, 0), Size = UDim2.fromOffset(17, 17), BackgroundColor3 = self.Window.Theme.Field, BorderSizePixel = 0, Text = "", Font = Enum.Font.GothamBold, TextSize = 12, TextColor3 = self.Window.Theme.Text, AutoButtonColor = false }, row)
+	corner(button, 1); stroke(button, self.Window.Theme.Line)
+	local knob = make("Frame", { AnchorPoint = Vector2.new(0, 0.5), Position = UDim2.new(0, 2, 0.5, 0), Size = UDim2.fromOffset(13, 13), BackgroundColor3 = self.Window.Theme.Muted, BorderSizePixel = 0 }, button)
+	corner(knob, 1)
 	local value = false
 	local control: any = {}
 	function control:Set(newValue: boolean, silent: boolean?)
 		value = newValue == true
+		button.Text = value and "✓" or ""
+		knob.Visible = not value
 		TweenService:Create(button, TweenInfo.new(0.12), { BackgroundColor3 = value and self.Window.Theme.Accent or self.Window.Theme.Field }):Play()
-		TweenService:Create(knob, TweenInfo.new(0.12), { Position = value and UDim2.new(1, -16, 0.5, 0) or UDim2.new(0, 2, 0.5, 0), BackgroundColor3 = value and self.Window.Theme.Text or self.Window.Theme.Muted }):Play()
+		TweenService:Create(knob, TweenInfo.new(0.12), { BackgroundColor3 = self.Window.Theme.Muted }):Play()
 		if not silent then safeCallback(options.Callback, value) end
 	end
 	function control:Get() return value end
@@ -389,19 +393,53 @@ function Section:CreateToggle(options: {[string]: any})
 end
 function Section:Toggle(text: string, default: boolean, callback: (boolean) -> ()) return self:CreateToggle({ Name = text, Default = default, Callback = callback }) end
 
+-- A compact square alternative to Toggle. It uses exactly the same Flag,
+-- Default/CurrentValue, Callback, Get and Set conventions as the toggle.
+function Section:CreateCheckbox(options: {[string]: any})
+	options = options or {}
+	local row = self:_row(23)
+	make("TextLabel", {
+		Size = UDim2.new(1, -30, 1, 0), BackgroundTransparency = 1,
+		Text = options.Name or options.Title or "Checkbox", Font = Enum.Font.Gotham,
+		TextSize = 12, TextColor3 = self.Window.Theme.Text, TextXAlignment = Enum.TextXAlignment.Left,
+	}, row)
+	local box = make("TextButton", {
+		AnchorPoint = Vector2.new(1, 0.5), Position = UDim2.new(1, 0, 0.5, 0), Size = UDim2.fromOffset(17, 17),
+		BackgroundColor3 = self.Window.Theme.Field, BorderSizePixel = 0, Text = "", Font = Enum.Font.GothamBold,
+		TextSize = 12, TextColor3 = self.Window.Theme.Text, AutoButtonColor = false,
+	}, row)
+	corner(box, 1); stroke(box, self.Window.Theme.Line)
+	local value = false
+	local control: any = {}
+	function control:Set(newValue: boolean, silent: boolean?)
+		value = newValue == true
+		box.Text = value and "✓" or ""
+		box.BackgroundColor3 = value and self.Window.Theme.Accent or self.Window.Theme.Field
+		if not silent then safeCallback(options.Callback, value) end
+	end
+	function control:Get() return value end
+	function control:Destroy() row:Destroy() end
+	box.Activated:Connect(function() control:Set(not value) end)
+	control:Set(options.CurrentValue == true or options.Default == true, true)
+	return self:_register(options.Flag, control)
+end
+function Section:Checkbox(text: string, default: boolean, callback: (boolean) -> ())
+	return self:CreateCheckbox({ Name = text, Default = default, Callback = callback })
+end
+
 function Section:CreateSlider(options: {[string]: any})
 	options = options or {}
 	local range = options.Range or { options.Min or 0, options.Max or 100 }
 	local minimum, maximum = tonumber(range[1]) or 0, tonumber(range[2]) or 100
 	if maximum < minimum then minimum, maximum = maximum, minimum end
 	local step = math.max(tonumber(options.Increment or options.Step) or 1, 0.0001)
-	local row = self:_row(45)
+	local row = self:_row(36)
 	make("TextLabel", { Size = UDim2.new(1, -60, 0, 17), BackgroundTransparency = 1, Text = options.Name or options.Title or "Slider", Font = Enum.Font.Gotham, TextSize = 12, TextColor3 = self.Window.Theme.Text, TextXAlignment = Enum.TextXAlignment.Left }, row)
 	local number = make("TextLabel", { AnchorPoint = Vector2.new(1, 0), Position = UDim2.new(1, 0, 0, 0), Size = UDim2.fromOffset(56, 17), BackgroundTransparency = 1, Font = Enum.Font.Gotham, TextSize = 11, TextColor3 = self.Window.Theme.Muted, TextXAlignment = Enum.TextXAlignment.Right }, row)
-	local track = make("TextButton", { Position = UDim2.fromOffset(0, 29), Size = UDim2.new(1, 0, 0, 5), BackgroundColor3 = self.Window.Theme.Field, BorderSizePixel = 0, Text = "", AutoButtonColor = false }, row)
-	corner(track, 3)
+	local track = make("TextButton", { Position = UDim2.fromOffset(0, 24), Size = UDim2.new(1, 0, 0, 3), BackgroundColor3 = self.Window.Theme.Field, BorderSizePixel = 0, Text = "", AutoButtonColor = false }, row)
+	corner(track, 0)
 	local fill = make("Frame", { Size = UDim2.new(0, 0, 1, 0), BackgroundColor3 = self.Window.Theme.Accent, BorderSizePixel = 0 }, track)
-	corner(fill, 3)
+	corner(fill, 0)
 	local value, dragging = minimum, false
 	local control: any = {}
 	local function quantize(raw: number): number
@@ -432,8 +470,8 @@ function Section:Slider(text: string, minimum: number, maximum: number, default:
 
 function Section:CreateInput(options: {[string]: any})
 	options = options or {}
-	local input = make("TextBox", { Size = UDim2.new(1, 0, 0, 29), BackgroundColor3 = self.Window.Theme.Field, BorderSizePixel = 0, PlaceholderText = options.PlaceholderText or options.Placeholder or options.Name or "Enter text...", PlaceholderColor3 = self.Window.Theme.Muted, Text = options.Default or "", ClearTextOnFocus = false, Font = Enum.Font.Gotham, TextSize = 12, TextColor3 = self.Window.Theme.Text, TextXAlignment = Enum.TextXAlignment.Left }, self.Body)
-	corner(input, 4); stroke(input, self.Window.Theme.Line); padding(input, 8)
+	local input = make("TextBox", { Size = UDim2.new(1, 0, 0, 22), BackgroundColor3 = self.Window.Theme.Field, BorderSizePixel = 0, PlaceholderText = options.PlaceholderText or options.Placeholder or options.Name or "Enter text...", PlaceholderColor3 = self.Window.Theme.Muted, Text = options.Default or "", ClearTextOnFocus = false, Font = Enum.Font.Gotham, TextSize = 11, TextColor3 = self.Window.Theme.Text, TextXAlignment = Enum.TextXAlignment.Left }, self.Body)
+	corner(input, 1); stroke(input, self.Window.Theme.Line); padding(input, 6)
 	local control: any = {}
 	function control:Set(value: any, silent: boolean?) input.Text = tostring(value or ""); if not silent then safeCallback(options.Callback, input.Text) end end
 	function control:Get() return input.Text end
@@ -447,11 +485,12 @@ function Section:CreateDropdown(options: {[string]: any})
 	options = options or {}
 	local values = options.Options or {}
 	local multiple = options.MultipleOptions == true or options.Multi == true
-	local holder = make("Frame", { Size = UDim2.new(1, 0, 0, 30), BackgroundTransparency = 1, ClipsDescendants = false, ZIndex = 2 }, self.Body)
-	local head = make("TextButton", { Size = UDim2.new(1, 0, 0, 29), BackgroundColor3 = self.Window.Theme.Field, BorderSizePixel = 0, Text = "", Font = Enum.Font.Gotham, TextSize = 11, TextColor3 = self.Window.Theme.Text, TextXAlignment = Enum.TextXAlignment.Left, ZIndex = 2 }, holder)
-	corner(head, 4); stroke(head, self.Window.Theme.Line); padding(head, 8)
-	local list = make("Frame", { Position = UDim2.fromOffset(0, 32), Size = UDim2.new(1, 0, 0, 0), AutomaticSize = Enum.AutomaticSize.Y, BackgroundColor3 = self.Window.Theme.Panel, BorderSizePixel = 0, Visible = false, ZIndex = 10 }, holder)
-	corner(list, 4); stroke(list, self.Window.Theme.Line)
+	local holder = make("Frame", { Size = UDim2.new(1, 0, 0, 24), BackgroundTransparency = 1, ClipsDescendants = false, ZIndex = 2 }, self.Body)
+	local head = make("TextButton", { Size = UDim2.new(1, 0, 0, 23), BackgroundColor3 = self.Window.Theme.Field, BorderSizePixel = 0, Text = "", Font = Enum.Font.Gotham, TextSize = 11, TextColor3 = self.Window.Theme.Text, TextXAlignment = Enum.TextXAlignment.Left, ZIndex = 2 }, holder)
+	corner(head, 1); stroke(head, self.Window.Theme.Line); padding(head, 6)
+	make("TextLabel", { AnchorPoint = Vector2.new(1, 0.5), Position = UDim2.new(1, -6, 0.5, 0), Size = UDim2.fromOffset(12, 16), BackgroundTransparency = 1, Text = "⌄", Font = Enum.Font.GothamBold, TextSize = 13, TextColor3 = self.Window.Theme.Muted, ZIndex = 3 }, head)
+	local list = make("Frame", { Position = UDim2.fromOffset(0, 25), Size = UDim2.new(1, 0, 0, 0), AutomaticSize = Enum.AutomaticSize.Y, BackgroundColor3 = self.Window.Theme.Panel, BorderSizePixel = 0, Visible = false, ZIndex = 10 }, holder)
+	corner(list, 1); stroke(list, self.Window.Theme.Line)
 	make("UIListLayout", { SortOrder = Enum.SortOrder.LayoutOrder }, list)
 	local selected: {[any]: boolean} = {}
 	if multiple then for _, item in ipairs(options.CurrentOption or options.Default or {}) do selected[item] = true end end
@@ -467,14 +506,14 @@ function Section:CreateDropdown(options: {[string]: any})
 		local text = multiple and (#current == 0 and "Select..." or table.concat(current, ", ")) or tostring(current or "Select...")
 		head.Text = (options.Name or options.Title or "Dropdown") .. "  ·  " .. text
 	end
-	local function close() open = false; list.Visible = false; holder.Size = UDim2.new(1, 0, 0, 30) end
+	local function close() open = false; list.Visible = false; holder.Size = UDim2.new(1, 0, 0, 24) end
 	local function rebuild()
 		for _, child in ipairs(list:GetChildren()) do if child:IsA("GuiButton") then child:Destroy() end end
 		for _, item in ipairs(values) do
 			local label = tostring(item)
 			if multiple and selected[item] then label = "✓  " .. label end
-			local choice = make("TextButton", { Size = UDim2.new(1, 0, 0, 26), BackgroundColor3 = self.Window.Theme.Panel, BorderSizePixel = 0, Text = label, Font = Enum.Font.Gotham, TextSize = 11, TextColor3 = self.Window.Theme.Muted, TextXAlignment = Enum.TextXAlignment.Left, ZIndex = 11 }, list)
-			padding(choice, 8)
+			local choice = make("TextButton", { Size = UDim2.new(1, 0, 0, 22), BackgroundColor3 = self.Window.Theme.Panel, BorderSizePixel = 0, Text = label, Font = Enum.Font.Gotham, TextSize = 11, TextColor3 = self.Window.Theme.Muted, TextXAlignment = Enum.TextXAlignment.Left, ZIndex = 11 }, list)
+			padding(choice, 6)
 			choice.Activated:Connect(function()
 				if multiple then selected[item] = not selected[item] else single = item; close() end
 				refreshTitle(); rebuild(); safeCallback(options.Callback, result())
@@ -492,7 +531,7 @@ function Section:CreateDropdown(options: {[string]: any})
 		refreshTitle(); rebuild()
 	end
 	function control:Destroy() holder:Destroy() end
-	head.Activated:Connect(function() open = not open; list.Visible = open; holder.Size = UDim2.new(1, 0, 0, open and (34 + #values * 26) or 30) end)
+	head.Activated:Connect(function() open = not open; list.Visible = open; holder.Size = UDim2.new(1, 0, 0, open and (27 + #values * 22) or 24) end)
 	refreshTitle(); rebuild()
 	return self:_register(options.Flag, control)
 end
@@ -501,10 +540,10 @@ function Section:MultiDropdown(text: string, options: {any}, defaults: {any}, ca
 
 function Section:CreateKeybind(options: {[string]: any})
 	options = options or {}
-	local row = self:_row(25)
+	local row = self:_row(22)
 	make("TextLabel", { Size = UDim2.new(1, -80, 1, 0), BackgroundTransparency = 1, Text = options.Name or options.Title or "Keybind", Font = Enum.Font.Gotham, TextSize = 12, TextColor3 = self.Window.Theme.Text, TextXAlignment = Enum.TextXAlignment.Left }, row)
-	local button = make("TextButton", { AnchorPoint = Vector2.new(1, 0.5), Position = UDim2.new(1, 0, 0.5, 0), Size = UDim2.fromOffset(72, 20), BackgroundColor3 = self.Window.Theme.Field, BorderSizePixel = 0, Font = Enum.Font.Gotham, TextSize = 10, TextColor3 = self.Window.Theme.Muted }, row)
-	corner(button, 4); stroke(button, self.Window.Theme.Line)
+	local button = make("TextButton", { AnchorPoint = Vector2.new(1, 0.5), Position = UDim2.new(1, 0, 0.5, 0), Size = UDim2.fromOffset(54, 17), BackgroundColor3 = self.Window.Theme.Field, BorderSizePixel = 0, Font = Enum.Font.Gotham, TextSize = 10, TextColor3 = self.Window.Theme.Muted }, row)
+	corner(button, 1); stroke(button, self.Window.Theme.Line)
 	local value = options.CurrentKeybind or options.Default or Enum.KeyCode.Unknown
 	local listening = false
 	local control: any = {}
@@ -526,18 +565,54 @@ function Section:Bind(text: string, defaultKey: Enum.KeyCode, callback: () -> ()
 function Section:CreateColorPicker(options: {[string]: any})
 	options = options or {}
 	local color = options.Color or options.CurrentColor or options.Default or self.Window.Theme.Accent
+	local r, g, b = math.floor(color.R * 255 + 0.5), math.floor(color.G * 255 + 0.5), math.floor(color.B * 255 + 0.5)
 	local row = self:_row(25)
-	make("TextLabel", { Size = UDim2.new(1, -48, 1, 0), BackgroundTransparency = 1, Text = options.Name or options.Title or "Color", Font = Enum.Font.Gotham, TextSize = 12, TextColor3 = self.Window.Theme.Text, TextXAlignment = Enum.TextXAlignment.Left }, row)
-	local preview = make("TextButton", { AnchorPoint = Vector2.new(1, 0.5), Position = UDim2.new(1, 0, 0.5, 0), Size = UDim2.fromOffset(38, 19), BackgroundColor3 = color, BorderSizePixel = 0, Text = "" }, row)
-	corner(preview, 4); stroke(preview, self.Window.Theme.Line)
-	local palette = options.Palette or { Color3.fromRGB(160,91,255), Color3.fromRGB(93,158,255), Color3.fromRGB(78,214,155), Color3.fromRGB(255,115,148), Color3.fromRGB(255,191,87) }
+	row.ClipsDescendants = true
+	make("TextLabel", { Size = UDim2.new(1, -48, 0, 25), BackgroundTransparency = 1, Text = options.Name or options.Title or "Color", Font = Enum.Font.Gotham, TextSize = 12, TextColor3 = self.Window.Theme.Text, TextXAlignment = Enum.TextXAlignment.Left }, row)
+	local preview = make("TextButton", { AnchorPoint = Vector2.new(1, 0), Position = UDim2.new(1, 0, 0, 3), Size = UDim2.fromOffset(38, 19), BackgroundColor3 = color, BorderSizePixel = 0, Text = "" }, row)
+	corner(preview, 1); stroke(preview, self.Window.Theme.Line)
+	local channels = {}
+	local connections = {}
+	local open = false
 	local control: any = {}
+	local function repaint()
+		color = Color3.fromRGB(r, g, b)
+		preview.BackgroundColor3 = color
+		for _, channel in ipairs(channels) do
+			local value = channel.getter()
+			channel.fill.Size = UDim2.new(value / 255, 0, 1, 0)
+			channel.value.Text = tostring(value)
+		end
+	end
+	local function addChannel(letter: string, y: number, channelColor: Color3, getter: () -> number, setter: (number) -> ())
+		make("TextLabel", { Position = UDim2.fromOffset(0, y), Size = UDim2.fromOffset(16, 17), BackgroundTransparency = 1, Text = letter, Font = Enum.Font.GothamBold, TextSize = 10, TextColor3 = self.Window.Theme.Muted }, row)
+		local track = make("TextButton", { Position = UDim2.new(0, 19, 0, y + 6), Size = UDim2.new(1, -57, 0, 4), BackgroundColor3 = self.Window.Theme.Field, BorderSizePixel = 0, Text = "", AutoButtonColor = false }, row)
+		corner(track, 0)
+		local fill = make("Frame", { Size = UDim2.new(getter() / 255, 0, 1, 0), BackgroundColor3 = channelColor, BorderSizePixel = 0 }, track)
+		corner(fill, 0)
+		local valueLabel = make("TextLabel", { AnchorPoint = Vector2.new(1, 0), Position = UDim2.new(1, 0, 0, y), Size = UDim2.fromOffset(32, 17), BackgroundTransparency = 1, Text = tostring(getter()), Font = Enum.Font.Gotham, TextSize = 10, TextColor3 = self.Window.Theme.Muted, TextXAlignment = Enum.TextXAlignment.Right }, row)
+		table.insert(channels, { getter = getter, fill = fill, value = valueLabel })
+		local dragging = false
+		local function setFromPosition(position: Vector2)
+			local percent = math.clamp((position.X - track.AbsolutePosition.X) / math.max(track.AbsoluteSize.X, 1), 0, 1)
+			setter(math.floor(percent * 255 + 0.5)); repaint(); safeCallback(options.Callback, color)
+		end
+		table.insert(connections, track.InputBegan:Connect(function(input) if isPrimaryInput(input) then dragging = true; setFromPosition(input.Position) end end))
+		table.insert(connections, UserInputService.InputChanged:Connect(function(input) if dragging and (input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch) then setFromPosition(input.Position) end end))
+		table.insert(connections, UserInputService.InputEnded:Connect(function(input) if isPrimaryInput(input) then dragging = false end end))
+	end
+	addChannel("R", 32, Color3.fromRGB(255, 96, 105), function() return r end, function(value) r = value end)
+	addChannel("G", 57, Color3.fromRGB(78, 214, 155), function() return g end, function(value) g = value end)
+	addChannel("B", 82, Color3.fromRGB(93, 158, 255), function() return b end, function(value) b = value end)
 	function control:Get() return color end
-	function control:Set(newValue: Color3, silent: boolean?) color = newValue; preview.BackgroundColor3 = color; if not silent then safeCallback(options.Callback, color) end end
-	function control:Destroy() row:Destroy() end
+	function control:Set(newValue: Color3, silent: boolean?)
+		color = newValue; r = math.floor(color.R * 255 + 0.5); g = math.floor(color.G * 255 + 0.5); b = math.floor(color.B * 255 + 0.5)
+		repaint(); if not silent then safeCallback(options.Callback, color) end
+	end
+	function control:Destroy() disconnectAll(connections); row:Destroy() end
 	preview.Activated:Connect(function()
-		local index = table.find(palette, color) or 0
-		control:Set(palette[index % #palette + 1])
+		open = not open
+		row.Size = UDim2.new(1, 0, 0, open and 106 or 25)
 	end)
 	return self:_register(options.Flag, control)
 end
