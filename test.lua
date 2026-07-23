@@ -123,7 +123,8 @@ function XevorUI.CreateWindow(first: any, second: any?)
 		VerticalAlignment = Enum.VerticalAlignment.Top, SortOrder = Enum.SortOrder.LayoutOrder,
 	}, self.Notifications)
 
-	local size = options.Size or UDim2.fromOffset(760, 500)
+	-- Compact default proportions: a focused menu rather than a full-screen panel.
+	local size = options.Size or UDim2.fromOffset(720, 470)
 	local window = make("Frame", {
 		Name = "Window", AnchorPoint = Vector2.new(0.5, 0.5), Position = options.Position or UDim2.fromScale(0.5, 0.5),
 		Size = size, BackgroundColor3 = theme.Background, BorderSizePixel = 0, ClipsDescendants = true,
@@ -155,13 +156,13 @@ function XevorUI.CreateWindow(first: any, second: any?)
 	close.Activated:Connect(function() self:SetVisible(false) end)
 
 	self.Sidebar = make("ScrollingFrame", {
-		Position = UDim2.fromOffset(0, 34), Size = UDim2.new(0, 185, 1, -34), BackgroundColor3 = theme.Sidebar,
-		BorderSizePixel = 0, ScrollBarThickness = 3, ScrollBarImageColor3 = theme.Line,
+		Position = UDim2.fromOffset(0, 34), Size = UDim2.new(0, 178, 1, -34), BackgroundColor3 = theme.Sidebar,
+		BorderSizePixel = 0, ScrollBarThickness = 2, ScrollBarImageColor3 = theme.Line,
 		AutomaticCanvasSize = Enum.AutomaticSize.Y, CanvasSize = UDim2.new(),
 	}, window)
 	padding(self.Sidebar, 7)
 	make("UIListLayout", { Padding = UDim.new(0, 5), SortOrder = Enum.SortOrder.LayoutOrder }, self.Sidebar)
-	self.Content = make("Frame", { Position = UDim2.fromOffset(185, 34), Size = UDim2.new(1, -185, 1, -34), BackgroundTransparency = 1 }, window)
+	self.Content = make("Frame", { Position = UDim2.fromOffset(178, 34), Size = UDim2.new(1, -178, 1, -34), BackgroundTransparency = 1 }, window)
 
 	-- Dragging is intentionally attached to the top bar only, so controls remain usable on touch devices.
 	local dragging, dragStart, startPosition = false, Vector2.zero, UDim2.new()
@@ -271,16 +272,18 @@ function Window:CreateTab(options: any)
 	local tab = setmetatable({ Window = self, Name = name, Sections = {} }, Tab)
 	tab.Page = make("ScrollingFrame", {
 		Name = name, Size = UDim2.fromScale(1, 1), BackgroundTransparency = 1, Visible = false,
-		ScrollBarThickness = 4, ScrollBarImageColor3 = self.Theme.Line, AutomaticCanvasSize = Enum.AutomaticSize.Y, CanvasSize = UDim2.new(),
+		ScrollBarThickness = 3, ScrollBarImageColor3 = self.Theme.Line, AutomaticCanvasSize = Enum.AutomaticSize.Y, CanvasSize = UDim2.new(),
 	}, self.Content)
-	padding(tab.Page, 16)
+	padding(tab.Page, 17)
 	make("UIListLayout", { Padding = UDim.new(0, 12), SortOrder = Enum.SortOrder.LayoutOrder }, tab.Page)
 	tab.Button = make("TextButton", {
-		Size = UDim2.new(1, 0, 0, 32), BackgroundColor3 = self.Theme.Sidebar, BorderSizePixel = 0, Text = name,
-		Font = Enum.Font.GothamMedium, TextSize = 12, TextColor3 = self.Theme.Text, TextXAlignment = Enum.TextXAlignment.Left,
+		Size = UDim2.new(1, 0, 0, 31), BackgroundColor3 = self.Theme.Sidebar, BorderSizePixel = 0, Text = "   " .. name,
+		Font = Enum.Font.GothamMedium, TextSize = 12, TextColor3 = self.Theme.Text, TextXAlignment = Enum.TextXAlignment.Left, ClipsDescendants = true,
 	}, self.Sidebar)
-	corner(tab.Button, 5); padding(tab.Button, 10)
-	tab.Indicator = make("Frame", { AnchorPoint = Vector2.new(0, 0.5), Position = UDim2.new(0, 0, 0.5, 0), Size = UDim2.fromOffset(3, 22), BackgroundColor3 = self.Theme.Accent, BorderSizePixel = 0, Visible = false }, tab.Button)
+	corner(tab.Button, 3)
+	-- Keep the marker inside the tile, with a fixed inset. This prevents the
+	-- purple stripe from looking detached or clipping through the side bar.
+	tab.Indicator = make("Frame", { Position = UDim2.fromOffset(0, 5), Size = UDim2.fromOffset(3, 21), BackgroundColor3 = self.Theme.Accent, BorderSizePixel = 0, Visible = false }, tab.Button)
 	tab.Button.Activated:Connect(function() self:SelectTab(tab) end)
 	table.insert(self.Tabs, tab)
 	if #self.Tabs == 1 then self:SelectTab(tab, true) end
@@ -303,7 +306,9 @@ end
 function Tab:CreateSection(options: any)
 	if type(options) ~= "table" then options = { Name = options } end
 	local section = setmetatable({ Tab = self, Window = self.Window, Controls = {} }, Section)
-	section.Frame = make("Frame", { Name = options.Name or options.Title or "Section", Size = UDim2.new(1, 0, 0, 0), AutomaticSize = Enum.AutomaticSize.Y, BackgroundColor3 = self.Window.Theme.Panel, BorderSizePixel = 0 }, self.Page)
+	-- Cards deliberately have a compact fixed width like the reference UI.
+	-- Override it per section with Width = 300 when a wider control is needed.
+	section.Frame = make("Frame", { Name = options.Name or options.Title or "Section", Size = UDim2.fromOffset(options.Width or 248, 0), AutomaticSize = Enum.AutomaticSize.Y, BackgroundColor3 = self.Window.Theme.Panel, BorderSizePixel = 0 }, self.Page)
 	corner(section.Frame, 6); stroke(section.Frame, self.Window.Theme.Line)
 	make("TextLabel", { Size = UDim2.new(1, -20, 0, 34), Position = UDim2.fromOffset(10, 0), BackgroundTransparency = 1, Text = string.upper(options.Name or options.Title or "SECTION"), Font = Enum.Font.GothamBold, TextSize = 11, TextColor3 = self.Window.Theme.Text, TextXAlignment = Enum.TextXAlignment.Left }, section.Frame)
 	make("Frame", { Position = UDim2.fromOffset(10, 33), Size = UDim2.new(1, -20, 0, 2), BackgroundColor3 = self.Window.Theme.Accent, BorderSizePixel = 0 }, section.Frame)
