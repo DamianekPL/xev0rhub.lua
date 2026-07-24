@@ -213,23 +213,6 @@ do
 	page.__index = page
 	section.__index = section
 
-	function library:RefreshResponsiveSize()
-		if self.minimized then
-			return
-		end
-
-		local camera = workspace.CurrentCamera
-		if not camera then
-			return
-		end
-
-		local viewport = camera.ViewportSize
-		local margin = self.touchMode and 16 or 32
-		local width = math.max(1, math.min(511, viewport.X - margin))
-		local height = math.max(self.topbarHeight, math.min(428, viewport.Y - margin))
-		self.container.Main.Size = UDim2.fromOffset(width, height)
-	end
-
 	function library:SetToggleKey(key)
 		if self.toggleKeyConnection then
 			self.toggleKeyConnection:Disconnect()
@@ -347,9 +330,6 @@ do
 		if self.toggleKeyConnection then
 			self.toggleKeyConnection:Disconnect()
 		end
-		if self.viewportConnection then
-			self.viewportConnection:Disconnect()
-		end
 		if self.watermarkConnection then
 			self.watermarkConnection:Disconnect()
 		end
@@ -363,13 +343,9 @@ do
 	
 	function library.new(title, options)
 		options = options or {}
-		local touchMode = options.TouchMode
-		if touchMode == nil then
-			touchMode = input.TouchEnabled
-		end
-
-		local topbarHeight = touchMode and 46 or 38
-		local navigationWidth = touchMode and 140 or 126
+		-- Desktop-only layout. Mobile/touch scaling is intentionally disabled.
+		local topbarHeight = 38
+		local navigationWidth = 126
 		local contentLeft = navigationWidth + 8
 		local playerGui = player:WaitForChild("PlayerGui")
 		local watermarkOptions = options.Watermark
@@ -382,15 +358,15 @@ do
 		local watermarkEnabled = watermarkOptions.Enabled ~= false
 		local watermarkAnchor = typeof(watermarkOptions.AnchorPoint) == "Vector2" and watermarkOptions.AnchorPoint or Vector2.new(1, 0)
 		local watermarkPosition = typeof(watermarkOptions.Position) == "UDim2" and watermarkOptions.Position or UDim2.new(1, -16, 0, 16)
-		local watermarkSize = typeof(watermarkOptions.Size) == "UDim2" and watermarkOptions.Size or UDim2.new(0, touchMode and 440 or 390, 0, touchMode and 64 or 58)
+		local watermarkSize = typeof(watermarkOptions.Size) == "UDim2" and watermarkOptions.Size or UDim2.new(0, 390, 0, 58)
 		local watermarkBackground = typeof(watermarkOptions.BackgroundColor) == "Color3" and watermarkOptions.BackgroundColor or themes.Background
 		local watermarkTopBar = typeof(watermarkOptions.TopBarColor) == "Color3" and watermarkOptions.TopBarColor or themes.Accent
 		local watermarkStatus = typeof(watermarkOptions.StatusColor) == "Color3" and watermarkOptions.StatusColor or themes.DarkContrast
 		local watermarkGlow = typeof(watermarkOptions.GlowColor) == "Color3" and watermarkOptions.GlowColor or themes.Glow
 		local watermarkAccent = typeof(watermarkOptions.AccentColor) == "Color3" and watermarkOptions.AccentColor or themes.LightContrast
 		local watermarkText = typeof(watermarkOptions.TextColor) == "Color3" and watermarkOptions.TextColor or themes.TextColor
-		local watermarkTextSize = tonumber(watermarkOptions.TextSize) or (touchMode and 14 or 13)
-		local watermarkTopbarHeight = math.clamp(tonumber(watermarkOptions.TopBarHeight) or (touchMode and 30 or 27), 22, 40)
+		local watermarkTextSize = tonumber(watermarkOptions.TextSize) or 13
+		local watermarkTopbarHeight = math.clamp(tonumber(watermarkOptions.TopBarHeight) or 27, 22, 40)
 		local watermarkShowGlow = watermarkOptions.Glow ~= false
 		local watermarkShowAccent = watermarkOptions.AccentLine ~= false
 		local watermarkDisplayOrder = tonumber(watermarkOptions.DisplayOrder) or 100
@@ -612,19 +588,11 @@ do
 			pagesContainer = container.Main.Pages.Pages_Container,
 			pages = {},
 			watermark = watermark,
-			touchMode = touchMode,
 			topbarHeight = topbarHeight,
 			navigationWidth = navigationWidth,
 			contentLeft = contentLeft
 		}, library)
 
-		window:RefreshResponsiveSize()
-		local camera = workspace.CurrentCamera
-		if camera then
-			window.viewportConnection = camera:GetPropertyChangedSignal("ViewportSize"):Connect(function()
-				window:RefreshResponsiveSize()
-			end)
-		end
 		window:SetToggleKey(options.ToggleKey or Enum.KeyCode.RightShift)
 
 		local frameCount = 0
@@ -668,7 +636,7 @@ do
 			Parent = library.pagesContainer,
 			BackgroundTransparency = 1,
 			BorderSizePixel = 0,
-			Size = UDim2.new(1, 0, 0, library.touchMode and 36 or 26),
+			Size = UDim2.new(1, 0, 0, 26),
 			ZIndex = 3,
 			AutoButtonColor = false,
 			Font = Enum.Font.Gotham,
@@ -712,7 +680,7 @@ do
 			Position = UDim2.new(0, library.contentLeft, 0, library.topbarHeight + 8),
 			Size = UDim2.new(1, -(library.contentLeft + 8), 1, -(library.topbarHeight + 18)),
 			CanvasSize = UDim2.new(0, 0, 0, 466),
-			ScrollBarThickness = library.touchMode and 6 or 3,
+			ScrollBarThickness = 3,
 			ScrollBarImageColor3 = themes.DarkContrast,
 			Visible = false
 		}, {
@@ -1028,7 +996,7 @@ do
 			Parent = self.container,
 			BackgroundTransparency = 1,
 			BorderSizePixel = 0,
-			Size = UDim2.new(1, 0, 0, self.page.library.touchMode and 40 or 30),
+			Size = UDim2.new(1, 0, 0, 30),
 			ZIndex = 2,
 			Image = "rbxassetid://5028857472",
 			ImageColor3 = themes.DarkContrast,
@@ -1088,7 +1056,7 @@ do
 			Parent = self.container,
 			BackgroundTransparency = 1,
 			BorderSizePixel = 0,
-			Size = UDim2.new(1, 0, 0, self.page.library.touchMode and 40 or 30),
+			Size = UDim2.new(1, 0, 0, 30),
 			ZIndex = 2,
 			Image = "rbxassetid://5028857472",
 			ImageColor3 = themes.DarkContrast,
@@ -1161,7 +1129,7 @@ do
 			Parent = self.container,
 			BackgroundTransparency = 1,
 			BorderSizePixel = 0,
-			Size = UDim2.new(1, 0, 0, self.page.library.touchMode and 40 or 30),
+			Size = UDim2.new(1, 0, 0, 30),
 			ZIndex = 2,
 			Image = "rbxassetid://5028857472",
 			ImageColor3 = themes.DarkContrast,
@@ -1269,7 +1237,7 @@ do
 			Parent = self.container,
 			BackgroundTransparency = 1,
 			BorderSizePixel = 0,
-			Size = UDim2.new(1, 0, 0, self.page.library.touchMode and 40 or 30),
+			Size = UDim2.new(1, 0, 0, 30),
 			ZIndex = 2,
 			Image = "rbxassetid://5028857472",
 			ImageColor3 = themes.DarkContrast,
@@ -1374,7 +1342,7 @@ do
 			Parent = self.container,
 			BackgroundTransparency = 1,
 			BorderSizePixel = 0,
-			Size = UDim2.new(1, 0, 0, self.page.library.touchMode and 40 or 30),
+			Size = UDim2.new(1, 0, 0, 30),
 			ZIndex = 2,
 			Image = "rbxassetid://5028857472",
 			ImageColor3 = themes.DarkContrast,
@@ -3256,4 +3224,3 @@ keySystem.Main.RightPanel.DiscordBtn.MouseButton1Click:Connect(function()
 end)
 
 print("XEVOR Key System Loaded - Black/Gray themed with changelogs")
-
