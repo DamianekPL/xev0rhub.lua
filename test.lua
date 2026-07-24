@@ -6,6 +6,7 @@ local mouse = player:GetMouse()
 local input = game:GetService("UserInputService")
 local run = game:GetService("RunService")
 local tween = game:GetService("TweenService")
+local stats = game:GetService("Stats")
 local tweeninfo = TweenInfo.new
 
 -- additional
@@ -262,6 +263,12 @@ do
 		if self.viewportConnection then
 			self.viewportConnection:Disconnect()
 		end
+		if self.watermarkConnection then
+			self.watermarkConnection:Disconnect()
+		end
+		if self.watermark then
+			self.watermark:Destroy()
+		end
 		self.container:Destroy()
 	end
 	
@@ -384,6 +391,51 @@ do
 			})
 		})
 		})
+
+		-- Kept in its own ScreenGui so it remains visible when the menu is hidden.
+		local watermark = utility:Create("ScreenGui", {
+			Name = title .. "_Watermark",
+			Parent = playerGui,
+			IgnoreGuiInset = true,
+			ResetOnSpawn = false,
+			DisplayOrder = 10,
+			ZIndexBehavior = Enum.ZIndexBehavior.Sibling
+		}, {
+			utility:Create("ImageLabel", {
+				Name = "Watermark",
+				AnchorPoint = Vector2.new(1, 0),
+				BackgroundTransparency = 1,
+				Position = UDim2.new(1, -12, 0, 12),
+				Size = UDim2.new(0, touchMode and 340 or 290, 0, touchMode and 40 or 34),
+				Image = "rbxassetid://5028857472",
+				ImageColor3 = themes.Background,
+				ScaleType = Enum.ScaleType.Slice,
+				SliceCenter = Rect.new(4, 4, 296, 296)
+			}, {
+				utility:Create("ImageLabel", {
+					Name = "AccentLine",
+					BackgroundTransparency = 1,
+					Position = UDim2.new(0, 0, 0, 0),
+					Size = UDim2.new(0, 3, 1, 0),
+					Image = "rbxassetid://5028857472",
+					ImageColor3 = themes.Accent,
+					ScaleType = Enum.ScaleType.Slice,
+					SliceCenter = Rect.new(2, 2, 298, 298)
+				}),
+				utility:Create("TextLabel", {
+					Name = "Info",
+					BackgroundTransparency = 1,
+					Position = UDim2.new(0, 12, 0, 0),
+					Size = UDim2.new(1, -24, 1, 0),
+					Font = Enum.Font.GothamSemibold,
+					Text = title .. " | " .. player.Name .. " | -- FPS | -- ms",
+					TextColor3 = themes.TextColor,
+					TextSize = touchMode and 13 or 12,
+					TextTruncate = Enum.TextTruncate.AtEnd,
+					TextXAlignment = Enum.TextXAlignment.Left
+				})
+			})
+		})
 		
 		utility:InitializeKeybind()
 		utility:DraggingEnabled(container.Main.TopBar, container.Main)
@@ -392,6 +444,7 @@ do
 			container = container,
 			pagesContainer = container.Main.Pages.Pages_Container,
 			pages = {},
+			watermark = watermark,
 			touchMode = touchMode,
 			topbarHeight = topbarHeight,
 			navigationWidth = navigationWidth,
@@ -406,6 +459,31 @@ do
 			end)
 		end
 		window:SetToggleKey(options.ToggleKey or Enum.KeyCode.RightShift)
+
+		local frameCount = 0
+		local lastSample = os.clock()
+		window.watermarkConnection = run.RenderStepped:Connect(function()
+			frameCount = frameCount + 1
+
+			local now = os.clock()
+			local elapsed = now - lastSample
+			if elapsed < 1 then
+				return
+			end
+
+			local ping = 0
+			local success, value = pcall(function()
+				return stats.Network.ServerStatsItem["Data Ping"]:GetValue()
+			end)
+			if success and tonumber(value) then
+				ping = math.floor(tonumber(value) + 0.5)
+			end
+
+			local fps = math.floor((frameCount / elapsed) + 0.5)
+			watermark.Watermark.Info.Text = string.format("%s | %s | %d FPS | %d ms", title, player.Name, fps, ping)
+			frameCount = 0
+			lastSample = now
+		end)
 
 		container.Main.TopBar.Minimize.MouseButton1Click:Connect(function()
 			window:toggle()
