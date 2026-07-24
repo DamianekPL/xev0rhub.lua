@@ -398,7 +398,9 @@ do
 			Parent = playerGui,
 			IgnoreGuiInset = true,
 			ResetOnSpawn = false,
-			DisplayOrder = 10,
+			-- Separate, high-priority layer: it stays above the menu and remains
+			-- visible when library:SetVisible(false) hides the main ScreenGui.
+			DisplayOrder = 100,
 			ZIndexBehavior = Enum.ZIndexBehavior.Sibling
 		}, {
 			utility:Create("ImageLabel", {
