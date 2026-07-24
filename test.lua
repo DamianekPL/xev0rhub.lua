@@ -1,7 +1,3 @@
---!strict
--- XevorUI v2
--- Place this ModuleScript in ReplicatedStorage and require it from a LocalScript.
--- The callbacks below are intended for settings and UI in experiences you own.
 
 local Players = game:GetService("Players")
 local UserInputService = game:GetService("UserInputService")
@@ -43,6 +39,43 @@ local function make(className: string, properties: {[string]: any}?, parent: Ins
 	end
 	instance.Parent = parent
 	return instance
+end
+
+local function getPlayerGui(silent: boolean?)
+	local player = Players.LocalPlayer
+	if player then
+		local playerGui = player:FindFirstChild("PlayerGui")
+		if playerGui then
+			return playerGui
+		end
+	end
+
+	local root = nil
+	if gethui then
+		root = gethui()
+	end
+	if not root then
+		root = game:GetService("CoreGui")
+	end
+
+	if not root then
+		if silent then return nil end
+		return nil
+	end
+
+	local existing = root:FindFirstChild("XevorUI_Root")
+	if existing and existing:IsA("ScreenGui") then
+		return existing
+	end
+
+	local screenGui = Instance.new("ScreenGui")
+	screenGui.Name = "XevorUI_Root"
+	screenGui.ResetOnSpawn = false
+	if syn and syn.protect_gui then
+		syn.protect_gui(screenGui)
+	end
+	screenGui.Parent = root
+	return screenGui
 end
 
 local function corner(parent: Instance, radius: number?)
@@ -157,7 +190,11 @@ function XevorUI.CreateWindow(first: any, second: any?)
 		Destroyed = false,
 	}, Window)
 
-	local playerGui = Players.LocalPlayer:WaitForChild("PlayerGui")
+	local playerGui = getPlayerGui(false)
+	if not playerGui then
+		warn("[XevorUI] Window creation skipped because no GUI parent was available.")
+		return nil
+	end
 	local old = playerGui:FindFirstChild("XevorUI")
 	if old then old:Destroy() end
 
@@ -243,9 +280,8 @@ function XevorUI.new(title: string) return XevorUI.CreateWindow({ Title = title 
 
 function XevorUI.LoadingScreen(options: {[string]: any}?)
 	options = options or {}
-	local player = Players.LocalPlayer
-	if not player then return end
-	local playerGui = player:WaitForChild("PlayerGui")
+	local playerGui = getPlayerGui(true)
+	if not playerGui then return end
 
 	local BLACK = Color3.fromRGB(8, 6, 14)
 	local PURPLE = Color3.fromRGB(138, 43, 226)
@@ -498,9 +534,8 @@ end
 
 function XevorUI.ShowKeySystem(options: {[string]: any}?)
 	options = options or {}
-	local player = Players.LocalPlayer
-	if not player then return end
-	local playerGui = player:WaitForChild("PlayerGui")
+	local playerGui = getPlayerGui(true)
+	if not playerGui then return end
 	local old = playerGui:FindFirstChild("XevorPurpleKeySystem")
 	if old then old:Destroy() end
 
@@ -1681,4 +1716,12 @@ function Window:Destroy()
 	table.clear(self.Controls)
 end
 
-return XevorUI
+function XevorUI.Init(options: any)
+	return XevorUI.CreateWindow(options)
+end
+
+return setmetatable(XevorUI, {
+	__call = function(_, options: any)
+		return XevorUI.CreateWindow(options)
+	end,
+})
