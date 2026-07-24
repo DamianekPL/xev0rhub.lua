@@ -256,6 +256,73 @@ do
 		self.container.Enabled = visible
 	end
 
+	function library:SetWatermarkVisible(visible)
+		if self.watermark then
+			self.watermark.Enabled = visible == true
+		end
+	end
+
+	-- Updates only the supplied watermark values, so it is safe to call from
+	-- sliders and color-picker callbacks while the hub is open.
+	function library:SetWatermarkStyle(style)
+		if type(style) ~= "table" or not self.watermark then
+			return
+		end
+
+		local watermarkFrame = self.watermark:FindFirstChild("Watermark")
+		if not watermarkFrame then
+			return
+		end
+
+		local glow = watermarkFrame:FindFirstChild("Glow")
+		local accentLine = watermarkFrame:FindFirstChild("AccentLine")
+		local info = watermarkFrame:FindFirstChild("Info")
+
+		if style.Enabled ~= nil then
+			self.watermark.Enabled = style.Enabled == true
+		end
+		if typeof(style.Position) == "UDim2" then
+			watermarkFrame.Position = style.Position
+		end
+		if typeof(style.AnchorPoint) == "Vector2" then
+			watermarkFrame.AnchorPoint = style.AnchorPoint
+		end
+		if typeof(style.Size) == "UDim2" then
+			watermarkFrame.Size = style.Size
+		end
+		if tonumber(style.DisplayOrder) then
+			self.watermark.DisplayOrder = tonumber(style.DisplayOrder)
+		end
+
+		if typeof(style.BackgroundColor) == "Color3" then
+			watermarkFrame.ImageColor3 = style.BackgroundColor
+		end
+		if glow then
+			if style.Glow ~= nil then
+				glow.Visible = style.Glow == true
+			end
+			if typeof(style.GlowColor) == "Color3" then
+				glow.ImageColor3 = style.GlowColor
+			end
+		end
+		if accentLine then
+			if style.AccentLine ~= nil then
+				accentLine.Visible = style.AccentLine == true
+			end
+			if typeof(style.AccentColor) == "Color3" then
+				accentLine.ImageColor3 = style.AccentColor
+			end
+		end
+		if info then
+			if typeof(style.TextColor) == "Color3" then
+				info.TextColor3 = style.TextColor
+			end
+			if tonumber(style.TextSize) then
+				info.TextSize = math.clamp(tonumber(style.TextSize), 8, 32)
+			end
+		end
+	end
+
 	function library:Destroy()
 		if self.toggleKeyConnection then
 			self.toggleKeyConnection:Disconnect()
@@ -285,6 +352,25 @@ do
 		local navigationWidth = touchMode and 140 or 126
 		local contentLeft = navigationWidth + 8
 		local playerGui = player:WaitForChild("PlayerGui")
+		local watermarkOptions = options.Watermark
+		if type(watermarkOptions) ~= "table" then
+			watermarkOptions = {}
+		end
+
+		-- Watermark styling is deliberately independent from the window options.
+		-- All fields are optional; these values preserve the menu-themed default.
+		local watermarkEnabled = watermarkOptions.Enabled ~= false
+		local watermarkAnchor = typeof(watermarkOptions.AnchorPoint) == "Vector2" and watermarkOptions.AnchorPoint or Vector2.new(1, 0)
+		local watermarkPosition = typeof(watermarkOptions.Position) == "UDim2" and watermarkOptions.Position or UDim2.new(1, -16, 0, 16)
+		local watermarkSize = typeof(watermarkOptions.Size) == "UDim2" and watermarkOptions.Size or UDim2.new(0, touchMode and 430 or 380, 0, touchMode and 50 or 44)
+		local watermarkBackground = typeof(watermarkOptions.BackgroundColor) == "Color3" and watermarkOptions.BackgroundColor or themes.Background
+		local watermarkGlow = typeof(watermarkOptions.GlowColor) == "Color3" and watermarkOptions.GlowColor or themes.Glow
+		local watermarkAccent = typeof(watermarkOptions.AccentColor) == "Color3" and watermarkOptions.AccentColor or themes.LightContrast
+		local watermarkText = typeof(watermarkOptions.TextColor) == "Color3" and watermarkOptions.TextColor or themes.TextColor
+		local watermarkTextSize = tonumber(watermarkOptions.TextSize) or (touchMode and 15 or 14)
+		local watermarkShowGlow = watermarkOptions.Glow ~= false
+		local watermarkShowAccent = watermarkOptions.AccentLine ~= false
+		local watermarkDisplayOrder = tonumber(watermarkOptions.DisplayOrder) or 100
 
 		local container = utility:Create("ScreenGui", {
 			Name = title,
@@ -396,43 +482,61 @@ do
 		local watermark = utility:Create("ScreenGui", {
 			Name = title .. "_Watermark",
 			Parent = playerGui,
+			Enabled = watermarkEnabled,
 			IgnoreGuiInset = true,
 			ResetOnSpawn = false,
 			-- Separate, high-priority layer: it stays above the menu and remains
 			-- visible when library:SetVisible(false) hides the main ScreenGui.
-			DisplayOrder = 100,
+			DisplayOrder = watermarkDisplayOrder,
 			ZIndexBehavior = Enum.ZIndexBehavior.Sibling
 		}, {
 			utility:Create("ImageLabel", {
 				Name = "Watermark",
-				AnchorPoint = Vector2.new(1, 0),
+				AnchorPoint = watermarkAnchor,
 				BackgroundTransparency = 1,
-				Position = UDim2.new(1, -12, 0, 12),
-				Size = UDim2.new(0, touchMode and 340 or 290, 0, touchMode and 40 or 34),
-				Image = "rbxassetid://5028857472",
-				ImageColor3 = themes.Background,
+				Position = watermarkPosition,
+				Size = watermarkSize,
+				ZIndex = 2,
+				Image = "rbxassetid://4641149554",
+				ImageColor3 = watermarkBackground,
 				ScaleType = Enum.ScaleType.Slice,
 				SliceCenter = Rect.new(4, 4, 296, 296)
 			}, {
+				-- Same soft rounded glow used by the main menu.
+				utility:Create("ImageLabel", {
+					Name = "Glow",
+					BackgroundTransparency = 1,
+					Position = UDim2.new(0, -7, 0, -7),
+					Size = UDim2.new(1, 14, 1, 14),
+					ZIndex = 1,
+					Visible = watermarkShowGlow,
+					Image = "rbxassetid://5028857084",
+					ImageColor3 = watermarkGlow,
+					ScaleType = Enum.ScaleType.Slice,
+					SliceCenter = Rect.new(24, 24, 276, 276)
+				}),
 				utility:Create("ImageLabel", {
 					Name = "AccentLine",
 					BackgroundTransparency = 1,
-					Position = UDim2.new(0, 0, 0, 0),
-					Size = UDim2.new(0, 3, 1, 0),
-					Image = "rbxassetid://5028857472",
-					ImageColor3 = themes.Accent,
+					Position = UDim2.new(0, 12, 1, -3),
+					Size = UDim2.new(1, -24, 0, 1),
+					ZIndex = 3,
+					Visible = watermarkShowAccent,
+					Image = "rbxassetid://4595286933",
+					ImageColor3 = watermarkAccent,
 					ScaleType = Enum.ScaleType.Slice,
-					SliceCenter = Rect.new(2, 2, 298, 298)
+					SliceCenter = Rect.new(4, 4, 296, 296)
 				}),
 				utility:Create("TextLabel", {
 					Name = "Info",
 					BackgroundTransparency = 1,
-					Position = UDim2.new(0, 12, 0, 0),
-					Size = UDim2.new(1, -24, 1, 0),
+					Position = UDim2.new(0, 18, 0, 0),
+					Size = UDim2.new(1, -36, 1, -3),
+					ZIndex = 4,
 					Font = Enum.Font.GothamSemibold,
 					Text = title .. " | " .. player.Name .. " | -- FPS | -- ms",
-					TextColor3 = themes.TextColor,
-					TextSize = touchMode and 13 or 12,
+					TextColor3 = watermarkText,
+					TextSize = watermarkTextSize,
 					TextTruncate = Enum.TextTruncate.AtEnd,
 					TextXAlignment = Enum.TextXAlignment.Left
 				})
