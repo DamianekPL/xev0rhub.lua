@@ -14,12 +14,12 @@ local utility = {}
 -- themes
 local objects = {}
 local themes = {
-	Background = Color3.fromRGB(24, 24, 24), 
-	Glow = Color3.fromRGB(0, 0, 0), 
-	Accent = Color3.fromRGB(10, 10, 10), 
-	LightContrast = Color3.fromRGB(20, 20, 20), 
-	DarkContrast = Color3.fromRGB(14, 14, 14),  
-	TextColor = Color3.fromRGB(255, 255, 255)
+	Background = Color3.fromRGB(250, 250, 250), 
+	Glow = Color3.fromRGB(230, 230, 230), 
+	Accent = Color3.fromRGB(20, 20, 20), 
+	LightContrast = Color3.fromRGB(240, 240, 240), 
+	DarkContrast = Color3.fromRGB(230, 230, 230),  
+	TextColor = Color3.fromRGB(10, 10, 10)
 }
 
 do
@@ -198,6 +198,260 @@ do
 	
 end
 
+function utility:CreateLoadingScreen()
+	local playerGui = player:WaitForChild("PlayerGui")
+	local gui = utility:Create("ScreenGui", {
+		Name = "XevorLoadingScreen",
+		IgnoreGuiInset = true,
+		ResetOnSpawn = false,
+		Parent = playerGui,
+		ZIndexBehavior = Enum.ZIndexBehavior.Sibling
+	}, {
+		utility:Create("Frame", {
+			Name = "Backdrop",
+			Size = UDim2.fromScale(1, 1),
+			BackgroundColor3 = themes.Background,
+			BorderSizePixel = 0
+		}, {
+			utility:Create("UIGradient", {
+				Color = ColorSequence.new({
+					ColorSequenceKeypoint.new(0, Color3.fromRGB(255, 255, 255)),
+					ColorSequenceKeypoint.new(0.5, Color3.fromRGB(240, 240, 240)),
+					ColorSequenceKeypoint.new(1, Color3.fromRGB(220, 220, 220))
+				}),
+				Rotation = 45
+			}),
+			utility:Create("Frame", {
+				Name = "Grid",
+				Size = UDim2.fromScale(1, 1),
+				BackgroundTransparency = 1
+			})
+		}),
+		utility:Create("Frame", {
+			Name = "Container",
+			Size = UDim2.fromOffset(520, 360),
+			Position = UDim2.fromScale(0.5, 0.5),
+			AnchorPoint = Vector2.new(0.5, 0.5),
+			BackgroundTransparency = 1
+		}, {
+			utility:Create("TextLabel", {
+				Name = "Title",
+				Size = UDim2.new(1, 0, 0, 40),
+				Position = UDim2.fromOffset(0, 0),
+				BackgroundTransparency = 1,
+				Font = Enum.Font.Code,
+				Text = "",
+				TextColor3 = Color3.fromRGB(20, 20, 20),
+				TextSize = 26,
+				TextXAlignment = Enum.TextXAlignment.Center
+			}),
+			utility:Create("TextLabel", {
+				Name = "Status",
+				Size = UDim2.new(1, 0, 0, 22),
+				Position = UDim2.fromOffset(0, 44),
+				BackgroundTransparency = 1,
+				Font = Enum.Font.Code,
+				Text = "Initializing...",
+				TextColor3 = Color3.fromRGB(40, 40, 40),
+				TextSize = 15,
+				TextXAlignment = Enum.TextXAlignment.Center
+			}),
+			utility:Create("Frame", {
+				Name = "BarBg",
+				Size = UDim2.new(1, 0, 0, 12),
+				Position = UDim2.fromOffset(0, 76),
+				BackgroundColor3 = Color3.fromRGB(210, 210, 210),
+				BorderSizePixel = 0
+			}, {
+				utility:Create("UICorner", {
+					CornerRadius = UDim.new(0, 6)
+				}),
+				utility:Create("Frame", {
+					Name = "BarFill",
+					Size = UDim2.fromScale(0, 1),
+					BackgroundColor3 = Color3.fromRGB(20, 20, 20),
+					BorderSizePixel = 0
+				}, {
+					utility:Create("UICorner", {
+						CornerRadius = UDim.new(0, 6)
+					}),
+					utility:Create("UIGradient", {
+						Color = ColorSequence.new({
+							ColorSequenceKeypoint.new(0, Color3.fromRGB(20, 20, 20)),
+							ColorSequenceKeypoint.new(0.5, Color3.fromRGB(70, 70, 70)),
+							ColorSequenceKeypoint.new(1, Color3.fromRGB(20, 20, 20))
+						})
+					})
+				})
+			}),
+			utility:Create("TextLabel", {
+				Name = "ProgressText",
+				Size = UDim2.new(1, 0, 0, 18),
+				Position = UDim2.fromOffset(0, 92),
+				BackgroundTransparency = 1,
+				Font = Enum.Font.Code,
+				Text = "0%",
+				TextColor3 = Color3.fromRGB(90, 90, 90),
+				TextSize = 13,
+				TextXAlignment = Enum.TextXAlignment.Center
+			}),
+			utility:Create("Frame", {
+				Name = "Console",
+				Size = UDim2.new(1, 0, 0, 160),
+				Position = UDim2.fromOffset(0, 120),
+				BackgroundColor3 = Color3.fromRGB(245, 245, 245),
+				BackgroundTransparency = 0.15,
+				BorderSizePixel = 0
+			}, {
+				utility:Create("UICorner", {
+					CornerRadius = UDim.new(0, 8)
+				}),
+				utility:Create("UIStroke", {
+					Color = Color3.fromRGB(210, 210, 210),
+					Thickness = 1,
+					Transparency = 0.3
+				}),
+				utility:Create("Frame", {
+					Name = "Header",
+					Size = UDim2.new(1, 0, 0, 24),
+					BackgroundColor3 = Color3.fromRGB(235, 235, 235),
+					BorderSizePixel = 0
+				}, {
+					utility:Create("UICorner", {
+						CornerRadius = UDim.new(0, 8)
+					})
+				}),
+				utility:Create("TextLabel", {
+					Name = "HeaderTitle",
+					Size = UDim2.new(1, -60, 1, 0),
+					Position = UDim2.fromOffset(60, 0),
+					BackgroundTransparency = 1,
+					Font = Enum.Font.Code,
+					Text = "loading_console.sh",
+					TextColor3 = Color3.fromRGB(90, 90, 90),
+					TextSize = 12,
+					TextXAlignment = Enum.TextXAlignment.Left
+				}),
+				utility:Create("ScrollingFrame", {
+					Name = "Log",
+					Size = UDim2.new(1, -16, 1, -32),
+					Position = UDim2.fromOffset(8, 28),
+					BackgroundTransparency = 1,
+					BorderSizePixel = 0,
+					ScrollBarThickness = 2,
+					ScrollBarImageColor3 = Color3.fromRGB(20, 20, 20),
+					AutomaticCanvasSize = Enum.AutomaticSize.Y,
+					CanvasSize = UDim2.new(0, 0, 0, 0)
+				}, {
+					utility:Create("UIListLayout", {
+						SortOrder = Enum.SortOrder.LayoutOrder,
+						Padding = UDim.new(0, 2)
+					})
+				})
+			})
+		})
+	})
+
+	local backdrop = gui.Backdrop
+	local container = gui.Container
+	local title = container.Title
+	local statusLabel = container.Status
+	local barFill = container.BarBg.BarFill
+	local progressText = container.ProgressText
+	local consoleScroller = container.Console.Log
+	local consoleLines = {}
+	local lineOrder = 0
+
+	local function addConsoleLine(text, color)
+		lineOrder += 1
+		local label = utility:Create("TextLabel", {
+			Name = "Line" .. lineOrder,
+			Size = UDim2.new(1, 0, 0, 16),
+			BackgroundTransparency = 1,
+			Font = Enum.Font.Code,
+			Text = text,
+			TextColor3 = color or Color3.fromRGB(90, 90, 90),
+			TextSize = 12,
+			TextXAlignment = Enum.TextXAlignment.Left,
+			TextWrapped = true,
+			LayoutOrder = lineOrder,
+			Parent = consoleScroller
+		})
+		table.insert(consoleLines, label)
+		consoleScroller.CanvasPosition = Vector2.new(0, math.huge)
+	end
+
+	local function typewriter(label, text, speed)
+		speed = speed or 0.02
+		label.Text = ""
+		for i = 1, #text do
+			label.Text = string.sub(text, 1, i)
+			task.wait(speed)
+		end
+	end
+
+	local function setProgress(pct)
+		pct = math.clamp(pct, 0, 100)
+		utility:Tween(barFill, {Size = UDim2.fromScale(pct / 100, 1)}, 0.3, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
+		progressText.Text = string.format("%d%%", math.floor(pct))
+	end
+
+	local loadingSteps = {
+		{text = "[INFO] Booting loading sequence...", color = Color3.fromRGB(70, 70, 70), status = "Initializing...", progress = 5},
+		{text = "[INFO] Getting system info...", color = Color3.fromRGB(70, 70, 70), status = "Getting info...", progress = 12},
+		{text = "[INFO] Platform: Roblox Client", color = Color3.fromRGB(90, 90, 90), status = "Getting info...", progress = 18},
+		{text = "[INFO] SUNC: Retrieved successfully", color = Color3.fromRGB(30, 30, 30), status = "Getting SUNC...", progress = 28},
+		{text = "[INFO] UNC: Retrieved successfully", color = Color3.fromRGB(30, 30, 30), status = "Getting UNC...", progress = 38},
+		{text = "[INFO] Executor environment validated", color = Color3.fromRGB(30, 30, 30), status = "Validating environment...", progress = 45},
+		{text = "[INFO] Downloading assets...", color = Color3.fromRGB(70, 70, 70), status = "Downloading assets...", progress = 52},
+		{text = "[INFO] Fetching textures...", color = Color3.fromRGB(90, 90, 90), status = "Downloading assets...", progress = 60},
+		{text = "[INFO] Fetching meshes...", color = Color3.fromRGB(90, 90, 90), status = "Downloading assets...", progress = 68},
+		{text = "[INFO] Fetching audio...", color = Color3.fromRGB(90, 90, 90), status = "Downloading assets...", progress = 75},
+		{text = "[INFO] Verifying integrity...", color = Color3.fromRGB(70, 70, 70), status = "Verifying load...", progress = 88},
+		{text = "[OK] Everything loaded successfully!", color = Color3.fromRGB(10, 10, 10), status = "Load complete!", progress = 100}
+	}
+
+	task.spawn(function()
+		typewriter(title, "> Loading_Xevor.lua", 0.04)
+	end)
+
+	for _, step in ipairs(loadingSteps) do
+		statusLabel.Text = step.status
+		addConsoleLine(step.text, step.color)
+		setProgress(step.progress)
+		task.wait(math.random(25, 60) / 100)
+	end
+
+	statusLabel.Text = "Ready!"
+	task.wait(1)
+
+	local fadeInfo = TweenInfo.new(1, Enum.EasingStyle.Quad, Enum.EasingDirection.InOut)
+	local fadeTweens = {}
+	for _, desc in ipairs(backdrop:GetDescendants()) do
+		if desc:IsA("TextLabel") then
+			local originalTrans = desc.TextTransparency
+			if originalTrans < 1 then
+				table.insert(fadeTweens, tween:Create(desc, fadeInfo, {TextTransparency = 1}))
+			end
+		elseif desc:IsA("Frame") then
+			local originalTrans = desc.BackgroundTransparency
+			if originalTrans < 1 then
+				table.insert(fadeTweens, tween:Create(desc, fadeInfo, {BackgroundTransparency = 1}))
+			end
+		elseif desc:IsA("UIStroke") then
+			table.insert(fadeTweens, tween:Create(desc, fadeInfo, {Transparency = 1}))
+		end
+	end
+
+	table.insert(fadeTweens, tween:Create(backdrop, fadeInfo, {BackgroundTransparency = 1}))
+	for _, tw in ipairs(fadeTweens) do
+		tw:Play()
+	end
+	task.wait(1.1)
+	gui:Destroy()
+	return gui
+end
+
 -- classes
 
 local library = {} -- main
@@ -212,6 +466,8 @@ do
 	-- new classes
 	
 	function library.new(title)
+		utility:CreateLoadingScreen()
+
 		local container = utility:Create("ScreenGui", {
 			Name = title,
 			Parent = game.CoreGui
