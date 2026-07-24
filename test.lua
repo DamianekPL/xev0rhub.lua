@@ -14,12 +14,12 @@ local utility = {}
 -- themes
 local objects = {}
 local themes = {
-	Background = Color3.fromRGB(250, 250, 250), 
-	Glow = Color3.fromRGB(230, 230, 230), 
-	Accent = Color3.fromRGB(20, 20, 20), 
-	LightContrast = Color3.fromRGB(240, 240, 240), 
-	DarkContrast = Color3.fromRGB(230, 230, 230),  
-	TextColor = Color3.fromRGB(10, 10, 10)
+	Background = Color3.fromRGB(24, 24, 24), 
+	Glow = Color3.fromRGB(0, 0, 0), 
+	Accent = Color3.fromRGB(10, 10, 10), 
+	LightContrast = Color3.fromRGB(20, 20, 20), 
+	DarkContrast = Color3.fromRGB(14, 14, 14),  
+	TextColor = Color3.fromRGB(255, 255, 255)
 }
 
 do
@@ -156,300 +156,49 @@ do
 	end
 	
 	function utility:DraggingEnabled(frame, parent)
-	
 		parent = parent or frame
-		
-		-- stolen from wally or kiriot, kek
-		local dragging = false
-		local dragInput, mousePos, framePos
 
-		frame.InputBegan:Connect(function(input)
-			if input.UserInputType == Enum.UserInputType.MouseButton1 then
+		-- Works with both mouse and touch input.
+		local dragging = false
+		local dragInput, startPosition, parentPosition
+
+		frame.InputBegan:Connect(function(userInput)
+			if userInput.UserInputType == Enum.UserInputType.MouseButton1
+				or userInput.UserInputType == Enum.UserInputType.Touch then
 				dragging = true
-				mousePos = input.Position
-				framePos = parent.Position
-				
-				input.Changed:Connect(function()
-					if input.UserInputState == Enum.UserInputState.End then
+				startPosition = userInput.Position
+				parentPosition = parent.Position
+
+				userInput.Changed:Connect(function()
+					if userInput.UserInputState == Enum.UserInputState.End then
 						dragging = false
 					end
 				end)
 			end
 		end)
 
-		frame.InputChanged:Connect(function(input)
-			if input.UserInputType == Enum.UserInputType.MouseMovement then
-				dragInput = input
+		frame.InputChanged:Connect(function(userInput)
+			if userInput.UserInputType == Enum.UserInputType.MouseMovement
+				or userInput.UserInputType == Enum.UserInputType.Touch then
+				dragInput = userInput
 			end
 		end)
 
-		input.InputChanged:Connect(function(input)
-			if input == dragInput and dragging then
-				local delta = input.Position - mousePos
-				parent.Position  = UDim2.new(framePos.X.Scale, framePos.X.Offset + delta.X, framePos.Y.Scale, framePos.Y.Offset + delta.Y)
+		input.InputChanged:Connect(function(userInput)
+			if userInput == dragInput and dragging then
+				local delta = userInput.Position - startPosition
+				parent.Position = UDim2.new(
+					parentPosition.X.Scale, parentPosition.X.Offset + delta.X,
+					parentPosition.Y.Scale, parentPosition.Y.Offset + delta.Y
+				)
 			end
 		end)
-
 	end
 	
 	function utility:DraggingEnded(callback)
 		table.insert(self.ended, callback)
 	end
 	
-end
-
-function utility:CreateLoadingScreen()
-	local playerGui = player:WaitForChild("PlayerGui")
-	local gui = utility:Create("ScreenGui", {
-		Name = "XevorLoadingScreen",
-		IgnoreGuiInset = true,
-		ResetOnSpawn = false,
-		Parent = playerGui,
-		ZIndexBehavior = Enum.ZIndexBehavior.Sibling
-	}, {
-		utility:Create("Frame", {
-			Name = "Backdrop",
-			Size = UDim2.fromScale(1, 1),
-			BackgroundColor3 = themes.Background,
-			BorderSizePixel = 0
-		}, {
-			utility:Create("UIGradient", {
-				Color = ColorSequence.new({
-					ColorSequenceKeypoint.new(0, Color3.fromRGB(255, 255, 255)),
-					ColorSequenceKeypoint.new(0.5, Color3.fromRGB(240, 240, 240)),
-					ColorSequenceKeypoint.new(1, Color3.fromRGB(220, 220, 220))
-				}),
-				Rotation = 45
-			}),
-			utility:Create("Frame", {
-				Name = "Grid",
-				Size = UDim2.fromScale(1, 1),
-				BackgroundTransparency = 1
-			})
-		}),
-		utility:Create("Frame", {
-			Name = "Container",
-			Size = UDim2.fromOffset(520, 360),
-			Position = UDim2.fromScale(0.5, 0.5),
-			AnchorPoint = Vector2.new(0.5, 0.5),
-			BackgroundTransparency = 1
-		}, {
-			utility:Create("TextLabel", {
-				Name = "Title",
-				Size = UDim2.new(1, 0, 0, 40),
-				Position = UDim2.fromOffset(0, 0),
-				BackgroundTransparency = 1,
-				Font = Enum.Font.Code,
-				Text = "",
-				TextColor3 = Color3.fromRGB(20, 20, 20),
-				TextSize = 26,
-				TextXAlignment = Enum.TextXAlignment.Center
-			}),
-			utility:Create("TextLabel", {
-				Name = "Status",
-				Size = UDim2.new(1, 0, 0, 22),
-				Position = UDim2.fromOffset(0, 44),
-				BackgroundTransparency = 1,
-				Font = Enum.Font.Code,
-				Text = "Initializing...",
-				TextColor3 = Color3.fromRGB(40, 40, 40),
-				TextSize = 15,
-				TextXAlignment = Enum.TextXAlignment.Center
-			}),
-			utility:Create("Frame", {
-				Name = "BarBg",
-				Size = UDim2.new(1, 0, 0, 12),
-				Position = UDim2.fromOffset(0, 76),
-				BackgroundColor3 = Color3.fromRGB(210, 210, 210),
-				BorderSizePixel = 0
-			}, {
-				utility:Create("UICorner", {
-					CornerRadius = UDim.new(0, 6)
-				}),
-				utility:Create("Frame", {
-					Name = "BarFill",
-					Size = UDim2.fromScale(0, 1),
-					BackgroundColor3 = Color3.fromRGB(20, 20, 20),
-					BorderSizePixel = 0
-				}, {
-					utility:Create("UICorner", {
-						CornerRadius = UDim.new(0, 6)
-					}),
-					utility:Create("UIGradient", {
-						Color = ColorSequence.new({
-							ColorSequenceKeypoint.new(0, Color3.fromRGB(20, 20, 20)),
-							ColorSequenceKeypoint.new(0.5, Color3.fromRGB(70, 70, 70)),
-							ColorSequenceKeypoint.new(1, Color3.fromRGB(20, 20, 20))
-						})
-					})
-				})
-			}),
-			utility:Create("TextLabel", {
-				Name = "ProgressText",
-				Size = UDim2.new(1, 0, 0, 18),
-				Position = UDim2.fromOffset(0, 92),
-				BackgroundTransparency = 1,
-				Font = Enum.Font.Code,
-				Text = "0%",
-				TextColor3 = Color3.fromRGB(90, 90, 90),
-				TextSize = 13,
-				TextXAlignment = Enum.TextXAlignment.Center
-			}),
-			utility:Create("Frame", {
-				Name = "Console",
-				Size = UDim2.new(1, 0, 0, 160),
-				Position = UDim2.fromOffset(0, 120),
-				BackgroundColor3 = Color3.fromRGB(245, 245, 245),
-				BackgroundTransparency = 0.15,
-				BorderSizePixel = 0
-			}, {
-				utility:Create("UICorner", {
-					CornerRadius = UDim.new(0, 8)
-				}),
-				utility:Create("UIStroke", {
-					Color = Color3.fromRGB(210, 210, 210),
-					Thickness = 1,
-					Transparency = 0.3
-				}),
-				utility:Create("Frame", {
-					Name = "Header",
-					Size = UDim2.new(1, 0, 0, 24),
-					BackgroundColor3 = Color3.fromRGB(235, 235, 235),
-					BorderSizePixel = 0
-				}, {
-					utility:Create("UICorner", {
-						CornerRadius = UDim.new(0, 8)
-					})
-				}),
-				utility:Create("TextLabel", {
-					Name = "HeaderTitle",
-					Size = UDim2.new(1, -60, 1, 0),
-					Position = UDim2.fromOffset(60, 0),
-					BackgroundTransparency = 1,
-					Font = Enum.Font.Code,
-					Text = "loading_console.sh",
-					TextColor3 = Color3.fromRGB(90, 90, 90),
-					TextSize = 12,
-					TextXAlignment = Enum.TextXAlignment.Left
-				}),
-				utility:Create("ScrollingFrame", {
-					Name = "Log",
-					Size = UDim2.new(1, -16, 1, -32),
-					Position = UDim2.fromOffset(8, 28),
-					BackgroundTransparency = 1,
-					BorderSizePixel = 0,
-					ScrollBarThickness = 2,
-					ScrollBarImageColor3 = Color3.fromRGB(20, 20, 20),
-					AutomaticCanvasSize = Enum.AutomaticSize.Y,
-					CanvasSize = UDim2.new(0, 0, 0, 0)
-				}, {
-					utility:Create("UIListLayout", {
-						SortOrder = Enum.SortOrder.LayoutOrder,
-						Padding = UDim.new(0, 2)
-					})
-				})
-			})
-		})
-	})
-
-	local backdrop = gui.Backdrop
-	local container = gui.Container
-	local title = container.Title
-	local statusLabel = container.Status
-	local barFill = container.BarBg.BarFill
-	local progressText = container.ProgressText
-	local consoleScroller = container.Console.Log
-	local consoleLines = {}
-	local lineOrder = 0
-
-	local function addConsoleLine(text, color)
-		lineOrder += 1
-		local label = utility:Create("TextLabel", {
-			Name = "Line" .. lineOrder,
-			Size = UDim2.new(1, 0, 0, 16),
-			BackgroundTransparency = 1,
-			Font = Enum.Font.Code,
-			Text = text,
-			TextColor3 = color or Color3.fromRGB(90, 90, 90),
-			TextSize = 12,
-			TextXAlignment = Enum.TextXAlignment.Left,
-			TextWrapped = true,
-			LayoutOrder = lineOrder,
-			Parent = consoleScroller
-		})
-		table.insert(consoleLines, label)
-		consoleScroller.CanvasPosition = Vector2.new(0, math.huge)
-	end
-
-	local function typewriter(label, text, speed)
-		speed = speed or 0.02
-		label.Text = ""
-		for i = 1, #text do
-			label.Text = string.sub(text, 1, i)
-			task.wait(speed)
-		end
-	end
-
-	local function setProgress(pct)
-		pct = math.clamp(pct, 0, 100)
-		utility:Tween(barFill, {Size = UDim2.fromScale(pct / 100, 1)}, 0.3, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
-		progressText.Text = string.format("%d%%", math.floor(pct))
-	end
-
-	local loadingSteps = {
-		{text = "[INFO] Booting loading sequence...", color = Color3.fromRGB(70, 70, 70), status = "Initializing...", progress = 5},
-		{text = "[INFO] Getting system info...", color = Color3.fromRGB(70, 70, 70), status = "Getting info...", progress = 12},
-		{text = "[INFO] Platform: Roblox Client", color = Color3.fromRGB(90, 90, 90), status = "Getting info...", progress = 18},
-		{text = "[INFO] SUNC: Retrieved successfully", color = Color3.fromRGB(30, 30, 30), status = "Getting SUNC...", progress = 28},
-		{text = "[INFO] UNC: Retrieved successfully", color = Color3.fromRGB(30, 30, 30), status = "Getting UNC...", progress = 38},
-		{text = "[INFO] Executor environment validated", color = Color3.fromRGB(30, 30, 30), status = "Validating environment...", progress = 45},
-		{text = "[INFO] Downloading assets...", color = Color3.fromRGB(70, 70, 70), status = "Downloading assets...", progress = 52},
-		{text = "[INFO] Fetching textures...", color = Color3.fromRGB(90, 90, 90), status = "Downloading assets...", progress = 60},
-		{text = "[INFO] Fetching meshes...", color = Color3.fromRGB(90, 90, 90), status = "Downloading assets...", progress = 68},
-		{text = "[INFO] Fetching audio...", color = Color3.fromRGB(90, 90, 90), status = "Downloading assets...", progress = 75},
-		{text = "[INFO] Verifying integrity...", color = Color3.fromRGB(70, 70, 70), status = "Verifying load...", progress = 88},
-		{text = "[OK] Everything loaded successfully!", color = Color3.fromRGB(10, 10, 10), status = "Load complete!", progress = 100}
-	}
-
-	task.spawn(function()
-		typewriter(title, "> Loading_Xevor.lua", 0.04)
-	end)
-
-	for _, step in ipairs(loadingSteps) do
-		statusLabel.Text = step.status
-		addConsoleLine(step.text, step.color)
-		setProgress(step.progress)
-		task.wait(math.random(25, 60) / 100)
-	end
-
-	statusLabel.Text = "Ready!"
-	task.wait(1)
-
-	local fadeInfo = TweenInfo.new(1, Enum.EasingStyle.Quad, Enum.EasingDirection.InOut)
-	local fadeTweens = {}
-	for _, desc in ipairs(backdrop:GetDescendants()) do
-		if desc:IsA("TextLabel") then
-			local originalTrans = desc.TextTransparency
-			if originalTrans < 1 then
-				table.insert(fadeTweens, tween:Create(desc, fadeInfo, {TextTransparency = 1}))
-			end
-		elseif desc:IsA("Frame") then
-			local originalTrans = desc.BackgroundTransparency
-			if originalTrans < 1 then
-				table.insert(fadeTweens, tween:Create(desc, fadeInfo, {BackgroundTransparency = 1}))
-			end
-		elseif desc:IsA("UIStroke") then
-			table.insert(fadeTweens, tween:Create(desc, fadeInfo, {Transparency = 1}))
-		end
-	end
-
-	table.insert(fadeTweens, tween:Create(backdrop, fadeInfo, {BackgroundTransparency = 1}))
-	for _, tw in ipairs(fadeTweens) do
-		tw:Play()
-	end
-	task.wait(1.1)
-	gui:Destroy()
-	return gui
 end
 
 -- classes
@@ -462,20 +211,86 @@ do
 	library.__index = library
 	page.__index = page
 	section.__index = section
+
+	function library:RefreshResponsiveSize()
+		if self.minimized then
+			return
+		end
+
+		local camera = workspace.CurrentCamera
+		if not camera then
+			return
+		end
+
+		local viewport = camera.ViewportSize
+		local margin = self.touchMode and 16 or 32
+		local width = math.max(1, math.min(511, viewport.X - margin))
+		local height = math.max(self.topbarHeight, math.min(428, viewport.Y - margin))
+		self.container.Main.Size = UDim2.fromOffset(width, height)
+	end
+
+	function library:SetToggleKey(key)
+		if self.toggleKeyConnection then
+			self.toggleKeyConnection:Disconnect()
+			self.toggleKeyConnection = nil
+		end
+
+		self.toggleKey = key
+		if not key then
+			return
+		end
+
+		self.toggleKeyConnection = input.InputBegan:Connect(function(userInput, gameProcessed)
+			if gameProcessed or input:GetFocusedTextBox() then
+				return
+			end
+
+			if userInput.KeyCode == self.toggleKey then
+				self:SetVisible(not self.container.Enabled)
+			end
+		end)
+	end
+
+	function library:SetVisible(visible)
+		self.container.Enabled = visible
+	end
+
+	function library:Destroy()
+		if self.toggleKeyConnection then
+			self.toggleKeyConnection:Disconnect()
+		end
+		if self.viewportConnection then
+			self.viewportConnection:Disconnect()
+		end
+		self.container:Destroy()
+	end
 	
 	-- new classes
 	
-	function library.new(title)
-		utility:CreateLoadingScreen()
+	function library.new(title, options)
+		options = options or {}
+		local touchMode = options.TouchMode
+		if touchMode == nil then
+			touchMode = input.TouchEnabled
+		end
+
+		local topbarHeight = touchMode and 46 or 38
+		local navigationWidth = touchMode and 140 or 126
+		local contentLeft = navigationWidth + 8
+		local playerGui = player:WaitForChild("PlayerGui")
 
 		local container = utility:Create("ScreenGui", {
 			Name = title,
-			Parent = game.CoreGui
+			Parent = playerGui,
+			IgnoreGuiInset = true,
+			ResetOnSpawn = false,
+			ZIndexBehavior = Enum.ZIndexBehavior.Sibling
 		}, {
 			utility:Create("ImageLabel", {
 				Name = "Main",
+				AnchorPoint = Vector2.new(0.5, 0.5),
 				BackgroundTransparency = 1,
-				Position = UDim2.new(0.25, 0, 0.052435593, 0),
+				Position = UDim2.new(0.5, 0, 0.5, 0),
 				Size = UDim2.new(0, 511, 0, 428),
 				Image = "rbxassetid://4641149554",
 				ImageColor3 = themes.Background,
@@ -494,11 +309,11 @@ do
 					SliceCenter = Rect.new(24, 24, 276, 276)
 				}),
 				utility:Create("ImageLabel", {
-					Name = "Pages",
-					BackgroundTransparency = 1,
-					ClipsDescendants = true,
-					Position = UDim2.new(0, 0, 0, 38),
-					Size = UDim2.new(0, 126, 1, -38),
+				Name = "Pages",
+				BackgroundTransparency = 1,
+				ClipsDescendants = true,
+				Position = UDim2.new(0, 0, 0, topbarHeight),
+				Size = UDim2.new(0, navigationWidth, 1, -topbarHeight),
 					ZIndex = 3,
 					Image = "rbxassetid://5012534273",
 					ImageColor3 = themes.DarkContrast,
@@ -521,10 +336,10 @@ do
 					})
 				}),
 				utility:Create("ImageLabel", {
-					Name = "TopBar",
-					BackgroundTransparency = 1,
-					ClipsDescendants = true,
-					Size = UDim2.new(1, 0, 0, 38),
+				Name = "TopBar",
+				BackgroundTransparency = 1,
+				ClipsDescendants = true,
+				Size = UDim2.new(1, 0, 0, topbarHeight),
 					ZIndex = 5,
 					Image = "rbxassetid://4595286933",
 					ImageColor3 = themes.Accent,
@@ -532,244 +347,74 @@ do
 					SliceCenter = Rect.new(4, 4, 296, 296)
 				}, {
 					utility:Create("TextLabel", { -- title
-						Name = "Title",
-						AnchorPoint = Vector2.new(0, 0.5),
-						BackgroundTransparency = 1,
-						Position = UDim2.new(0, 12, 0, 19),
-						Size = UDim2.new(1, -46, 0, 16),
-						ZIndex = 5,
-						Font = Enum.Font.GothamBold,
-						Text = title,
-						TextColor3 = themes.TextColor,
-						TextSize = 14,
-						TextXAlignment = Enum.TextXAlignment.Left
-					})
+					Name = "Title",
+					AnchorPoint = Vector2.new(0, 0.5),
+					BackgroundTransparency = 1,
+					Position = UDim2.new(0, 12, 0.5, 0),
+					Size = UDim2.new(1, -94, 0, 16),
+					ZIndex = 5,
+					Font = Enum.Font.GothamBold,
+					Text = title,
+					TextColor3 = themes.TextColor,
+					TextSize = 14,
+					TextXAlignment = Enum.TextXAlignment.Left
+				}),
+				utility:Create("TextButton", {
+					Name = "Minimize",
+					BackgroundTransparency = 1,
+					Position = UDim2.new(1, -62, 0, 0),
+					Size = UDim2.new(0, 30, 1, 0),
+					ZIndex = 6,
+					Font = Enum.Font.GothamBold,
+					Text = "-",
+					TextColor3 = themes.TextColor,
+					TextSize = 20
+				}),
+				utility:Create("TextButton", {
+					Name = "Close",
+					BackgroundTransparency = 1,
+					Position = UDim2.new(1, -32, 0, 0),
+					Size = UDim2.new(0, 30, 1, 0),
+					ZIndex = 6,
+					Font = Enum.Font.GothamBold,
+					Text = "X",
+					TextColor3 = themes.TextColor,
+					TextSize = 16
 				})
 			})
+		})
 		})
 		
 		utility:InitializeKeybind()
 		utility:DraggingEnabled(container.Main.TopBar, container.Main)
-
-		local watermark = utility:Create("Frame", {
-			Name = "Watermark",
-			AnchorPoint = Vector2.new(1, 1),
-			BackgroundColor3 = themes.DarkContrast,
-			BackgroundTransparency = 0.08,
-			Position = UDim2.new(1, -12, 1, -12),
-			Size = UDim2.new(0, 260, 0, 30),
-			Parent = container.Main,
-			ZIndex = 10
-		}, {
-			utility:Create("UICorner", {
-				CornerRadius = UDim.new(0, 10)
-			}),
-			utility:Create("UIStroke", {
-				Color = themes.Accent,
-				Transparency = 0.15,
-				Thickness = 1
-			}),
-			utility:Create("TextLabel", {
-				Name = "Text",
-				BackgroundTransparency = 1,
-				Position = UDim2.new(0, 8, 0, 0),
-				Size = UDim2.new(1, -16, 1, 0),
-				ZIndex = 10,
-				Font = Enum.Font.GothamSemibold,
-				Text = "Xevor | " .. player.Name .. " | FPS: -- | Ping: --",
-				TextColor3 = themes.TextColor,
-				TextSize = 12,
-				TextXAlignment = Enum.TextXAlignment.Left
-			})
-		})
-
-		local watermarkText = watermark.Text
-		local frameCount = 0
-		local lastFpsUpdate = os.clock()
-		local function updateWatermark()
-			frameCount += 1
-			local now = os.clock()
-
-			if now - lastFpsUpdate >= 1 then
-				local fpsValue = math.floor(frameCount / (now - lastFpsUpdate) + 0.5)
-				frameCount = 0
-				lastFpsUpdate = now
-				local pingValue = math.max(1, math.floor(player:GetNetworkPing() * 1000 + 0.5))
-				watermarkText.Text = string.format("Xevor | %s | FPS: %d | Ping: %d", player.Name, fpsValue, pingValue)
-			end
-		end
-
-		run.RenderStepped:Connect(updateWatermark)
-
-		local keyWindow = utility:Create("Frame", {
-			Name = "KeyWindow",
-			Parent = container.Main,
-			BackgroundColor3 = themes.DarkContrast,
-			BackgroundTransparency = 0.04,
-			Position = UDim2.new(0, 16, 0, 46),
-			Size = UDim2.new(1, -32, 1, -62),
-			ZIndex = 20
-		}, {
-			utility:Create("UICorner", {
-				CornerRadius = UDim.new(0, 12)
-			}),
-			utility:Create("UIStroke", {
-				Color = themes.Accent,
-				Transparency = 0.15,
-				Thickness = 1
-			}),
-			utility:Create("TextLabel", {
-				Name = "Title",
-				BackgroundTransparency = 1,
-				Position = UDim2.new(0, 18, 0, 14),
-				Size = UDim2.new(1, -36, 0, 22),
-				ZIndex = 20,
-				Font = Enum.Font.GothamBold,
-				Text = "Xevor Hub Key System",
-				TextColor3 = themes.TextColor,
-				TextSize = 18,
-				TextXAlignment = Enum.TextXAlignment.Left
-			}),
-			utility:Create("TextLabel", {
-				Name = "Description",
-				BackgroundTransparency = 1,
-				Position = UDim2.new(0, 18, 0, 42),
-				Size = UDim2.new(1, -36, 0, 34),
-				ZIndex = 20,
-				Font = Enum.Font.Gotham,
-				Text = "Enter your key below to unlock the hub. New updates and fixes will be posted here.",
-				TextColor3 = themes.TextColor,
-				TextSize = 12,
-				TextWrapped = true,
-				TextTransparency = 0.15
-			}),
-			utility:Create("TextLabel", {
-				Name = "ChangelogTitle",
-				BackgroundTransparency = 1,
-				Position = UDim2.new(0, 18, 0, 86),
-				Size = UDim2.new(1, -36, 0, 18),
-				ZIndex = 20,
-				Font = Enum.Font.GothamBold,
-				Text = "Changelog",
-				TextColor3 = themes.TextColor,
-				TextSize = 13,
-				TextXAlignment = Enum.TextXAlignment.Left
-			}),
-			utility:Create("TextLabel", {
-				Name = "Changelog",
-				BackgroundTransparency = 1,
-				Position = UDim2.new(0, 18, 0, 108),
-				Size = UDim2.new(1, -36, 0, 110),
-				ZIndex = 20,
-				Font = Enum.Font.Gotham,
-				Text = "• Redesigned UI theme\n• Added rounded watermark\n• Improved key system layout\n• Better performance stats",
-				TextColor3 = themes.TextColor,
-				TextSize = 12,
-				TextWrapped = true,
-				TextTransparency = 0.1
-			}),
-			utility:Create("TextBox", {
-				Name = "KeyInput",
-				BackgroundColor3 = themes.Accent,
-				BackgroundTransparency = 0.1,
-				Position = UDim2.new(0, 18, 0, 232),
-				Size = UDim2.new(1, -36, 0, 34),
-				ZIndex = 20,
-				Font = Enum.Font.Gotham,
-				PlaceholderText = "Enter key here",
-				Text = "",
-				TextColor3 = themes.TextColor,
-				TextSize = 13,
-				ClearTextOnFocus = false
-			}),
-			utility:Create("TextButton", {
-				Name = "VerifyButton",
-				BackgroundColor3 = themes.Accent,
-				BackgroundTransparency = 0.05,
-				Position = UDim2.new(0, 18, 0, 280),
-				Size = UDim2.new(0.5, -24, 0, 34),
-				ZIndex = 20,
-				Font = Enum.Font.GothamBold,
-				Text = "Verify Key",
-				TextColor3 = themes.TextColor,
-				TextSize = 13
-			}),
-			utility:Create("TextButton", {
-				Name = "GetKeyButton",
-				BackgroundColor3 = themes.DarkContrast,
-				BackgroundTransparency = 0.08,
-				Position = UDim2.new(0.5, 6, 0, 280),
-				Size = UDim2.new(0.5, -24, 0, 34),
-				ZIndex = 20,
-				Font = Enum.Font.GothamBold,
-				Text = "Get Key",
-				TextColor3 = themes.TextColor,
-				TextSize = 13
-			}),
-			utility:Create("TextButton", {
-				Name = "DiscordButton",
-				BackgroundColor3 = themes.Accent,
-				BackgroundTransparency = 0.05,
-				Position = UDim2.new(0, 18, 0, 326),
-				Size = UDim2.new(1, -36, 0, 34),
-				ZIndex = 20,
-				Font = Enum.Font.GothamBold,
-				Text = "Join Discord",
-				TextColor3 = themes.TextColor,
-				TextSize = 13
-			}),
-			utility:Create("TextLabel", {
-				Name = "Status",
-				BackgroundTransparency = 1,
-				Position = UDim2.new(0, 18, 0, 372),
-				Size = UDim2.new(1, -36, 0, 20),
-				ZIndex = 20,
-				Font = Enum.Font.Gotham,
-				Text = "Waiting for key...",
-				TextColor3 = themes.TextColor,
-				TextSize = 12,
-				TextTransparency = 0.2
-			})
-		})
-
-		local keyInput = keyWindow.KeyInput
-		local statusLabel = keyWindow.Status
-		local validKeys = {
-			["xevor"] = true,
-			["xev0r"] = true,
-			["xevorhub"] = true
-		}
-		local discordInvite = "https://discord.gg/yourserver"
-
-		keyWindow.VerifyButton.MouseButton1Click:Connect(function()
-			local enteredKey = string.lower(keyInput.Text or "")
-			if validKeys[enteredKey] then
-				statusLabel.Text = "Key accepted. Welcome to Xevor Hub."
-				keyWindow.Visible = false
-			else
-				statusLabel.Text = "Invalid key. Get a key from the Discord server."
-			end
-		end)
-
-		keyWindow.GetKeyButton.MouseButton1Click:Connect(function()
-			statusLabel.Text = "Opening the Discord invite..."
-			pcall(function()
-				setclipboard(discordInvite)
-			end)
-		end)
-
-		keyWindow.DiscordButton.MouseButton1Click:Connect(function()
-			statusLabel.Text = "Joining Discord..."
-			pcall(function()
-				setclipboard(discordInvite)
-			end)
-		end)
 		
-		return setmetatable({
+		local window = setmetatable({
 			container = container,
 			pagesContainer = container.Main.Pages.Pages_Container,
-			pages = {}
+			pages = {},
+			touchMode = touchMode,
+			topbarHeight = topbarHeight,
+			navigationWidth = navigationWidth,
+			contentLeft = contentLeft
 		}, library)
+
+		window:RefreshResponsiveSize()
+		local camera = workspace.CurrentCamera
+		if camera then
+			window.viewportConnection = camera:GetPropertyChangedSignal("ViewportSize"):Connect(function()
+				window:RefreshResponsiveSize()
+			end)
+		end
+		window:SetToggleKey(options.ToggleKey or Enum.KeyCode.RightShift)
+
+		container.Main.TopBar.Minimize.MouseButton1Click:Connect(function()
+			window:toggle()
+		end)
+		container.Main.TopBar.Close.MouseButton1Click:Connect(function()
+			window:Destroy()
+		end)
+		
+		return window
 	end
 	
 	function page.new(library, title, icon)
@@ -778,7 +423,7 @@ do
 			Parent = library.pagesContainer,
 			BackgroundTransparency = 1,
 			BorderSizePixel = 0,
-			Size = UDim2.new(1, 0, 0, 26),
+			Size = UDim2.new(1, 0, 0, library.touchMode and 36 or 26),
 			ZIndex = 3,
 			AutoButtonColor = false,
 			Font = Enum.Font.Gotham,
@@ -819,10 +464,10 @@ do
 			Active = true,
 			BackgroundTransparency = 1,
 			BorderSizePixel = 0,
-			Position = UDim2.new(0, 134, 0, 46),
-			Size = UDim2.new(1, -142, 1, -56),
+			Position = UDim2.new(0, library.contentLeft, 0, library.topbarHeight + 8),
+			Size = UDim2.new(1, -(library.contentLeft + 8), 1, -(library.topbarHeight + 18)),
 			CanvasSize = UDim2.new(0, 0, 0, 466),
-			ScrollBarThickness = 3,
+			ScrollBarThickness = library.touchMode and 6 or 3,
 			ScrollBarImageColor3 = themes.DarkContrast,
 			Visible = false
 		}, {
@@ -939,30 +584,32 @@ do
 		local container = self.container.Main
 		local topbar = container.TopBar
 		
-		if self.position then
+		if self.minimized then
+			local expandedSize = self.expandedSize
+			local yOffset = (expandedSize.Y.Offset - self.topbarHeight) / 2
+
 			utility:Tween(container, {
-				Size = UDim2.new(0, 511, 0, 428),
-				Position = self.position
+				Size = expandedSize,
+				Position = container.Position - UDim2.fromOffset(0, yOffset)
 			}, 0.2)
 			wait(0.2)
-			
-			utility:Tween(topbar, {Size = UDim2.new(1, 0, 0, 38)}, 0.2)
-			wait(0.2)
-			
+
+			utility:Tween(topbar, {Size = UDim2.new(1, 0, 0, self.topbarHeight)}, 0.15)
 			container.ClipsDescendants = false
-			self.position = nil
+			self.minimized = false
 		else
-			self.position = container.Position
+			self.expandedSize = container.Size
+			local yOffset = (self.expandedSize.Y.Offset - self.topbarHeight) / 2
+
 			container.ClipsDescendants = true
-			
-			utility:Tween(topbar, {Size = UDim2.new(1, 0, 1, 0)}, 0.2)
-			wait(0.2)
-			
+			utility:Tween(topbar, {Size = UDim2.new(1, 0, 1, 0)}, 0.15)
+			wait(0.15)
+
 			utility:Tween(container, {
-				Size = UDim2.new(0, 511, 0, 0),
-				Position = self.position + UDim2.new(0, 0, 0, 428)
+				Size = UDim2.fromOffset(self.expandedSize.X.Offset, self.topbarHeight),
+				Position = container.Position + UDim2.fromOffset(0, yOffset)
 			}, 0.2)
-			wait(0.2)
+			self.minimized = true
 		end
 		
 		self.toggling = false
@@ -1136,7 +783,7 @@ do
 			Parent = self.container,
 			BackgroundTransparency = 1,
 			BorderSizePixel = 0,
-			Size = UDim2.new(1, 0, 0, 30),
+			Size = UDim2.new(1, 0, 0, self.page.library.touchMode and 40 or 30),
 			ZIndex = 2,
 			Image = "rbxassetid://5028857472",
 			ImageColor3 = themes.DarkContrast,
@@ -1196,7 +843,7 @@ do
 			Parent = self.container,
 			BackgroundTransparency = 1,
 			BorderSizePixel = 0,
-			Size = UDim2.new(1, 0, 0, 30),
+			Size = UDim2.new(1, 0, 0, self.page.library.touchMode and 40 or 30),
 			ZIndex = 2,
 			Image = "rbxassetid://5028857472",
 			ImageColor3 = themes.DarkContrast,
@@ -1269,7 +916,7 @@ do
 			Parent = self.container,
 			BackgroundTransparency = 1,
 			BorderSizePixel = 0,
-			Size = UDim2.new(1, 0, 0, 30),
+			Size = UDim2.new(1, 0, 0, self.page.library.touchMode and 40 or 30),
 			ZIndex = 2,
 			Image = "rbxassetid://5028857472",
 			ImageColor3 = themes.DarkContrast,
@@ -1377,7 +1024,7 @@ do
 			Parent = self.container,
 			BackgroundTransparency = 1,
 			BorderSizePixel = 0,
-			Size = UDim2.new(1, 0, 0, 30),
+			Size = UDim2.new(1, 0, 0, self.page.library.touchMode and 40 or 30),
 			ZIndex = 2,
 			Image = "rbxassetid://5028857472",
 			ImageColor3 = themes.DarkContrast,
@@ -1482,7 +1129,7 @@ do
 			Parent = self.container,
 			BackgroundTransparency = 1,
 			BorderSizePixel = 0,
-			Size = UDim2.new(1, 0, 0, 30),
+			Size = UDim2.new(1, 0, 0, self.page.library.touchMode and 40 or 30),
 			ZIndex = 2,
 			Image = "rbxassetid://5028857472",
 			ImageColor3 = themes.DarkContrast,
