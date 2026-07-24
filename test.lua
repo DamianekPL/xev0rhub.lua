@@ -276,7 +276,10 @@ do
 
 		local glow = watermarkFrame:FindFirstChild("Glow")
 		local accentLine = watermarkFrame:FindFirstChild("AccentLine")
-		local info = watermarkFrame:FindFirstChild("Info")
+		local topBar = watermarkFrame:FindFirstChild("TopBar")
+		local status = watermarkFrame:FindFirstChild("Status")
+		local titleLabel = watermarkFrame:FindFirstChild("Title", true)
+		local info = watermarkFrame:FindFirstChild("Info", true)
 
 		if style.Enabled ~= nil then
 			self.watermark.Enabled = style.Enabled == true
@@ -297,6 +300,12 @@ do
 		if typeof(style.BackgroundColor) == "Color3" then
 			watermarkFrame.ImageColor3 = style.BackgroundColor
 		end
+		if topBar and typeof(style.TopBarColor) == "Color3" then
+			topBar.ImageColor3 = style.TopBarColor
+		end
+		if status and typeof(style.StatusColor) == "Color3" then
+			status.ImageColor3 = style.StatusColor
+		end
 		if glow then
 			if style.Glow ~= nil then
 				glow.Visible = style.Glow == true
@@ -311,6 +320,17 @@ do
 			end
 			if typeof(style.AccentColor) == "Color3" then
 				accentLine.ImageColor3 = style.AccentColor
+			end
+		end
+		if titleLabel then
+			if typeof(style.TextColor) == "Color3" then
+				titleLabel.TextColor3 = style.TextColor
+			end
+			if typeof(style.TitleColor) == "Color3" then
+				titleLabel.TextColor3 = style.TitleColor
+			end
+			if tonumber(style.TitleTextSize) then
+				titleLabel.TextSize = math.clamp(tonumber(style.TitleTextSize), 8, 32)
 			end
 		end
 		if info then
@@ -362,12 +382,15 @@ do
 		local watermarkEnabled = watermarkOptions.Enabled ~= false
 		local watermarkAnchor = typeof(watermarkOptions.AnchorPoint) == "Vector2" and watermarkOptions.AnchorPoint or Vector2.new(1, 0)
 		local watermarkPosition = typeof(watermarkOptions.Position) == "UDim2" and watermarkOptions.Position or UDim2.new(1, -16, 0, 16)
-		local watermarkSize = typeof(watermarkOptions.Size) == "UDim2" and watermarkOptions.Size or UDim2.new(0, touchMode and 430 or 380, 0, touchMode and 50 or 44)
+		local watermarkSize = typeof(watermarkOptions.Size) == "UDim2" and watermarkOptions.Size or UDim2.new(0, touchMode and 440 or 390, 0, touchMode and 64 or 58)
 		local watermarkBackground = typeof(watermarkOptions.BackgroundColor) == "Color3" and watermarkOptions.BackgroundColor or themes.Background
+		local watermarkTopBar = typeof(watermarkOptions.TopBarColor) == "Color3" and watermarkOptions.TopBarColor or themes.Accent
+		local watermarkStatus = typeof(watermarkOptions.StatusColor) == "Color3" and watermarkOptions.StatusColor or themes.DarkContrast
 		local watermarkGlow = typeof(watermarkOptions.GlowColor) == "Color3" and watermarkOptions.GlowColor or themes.Glow
 		local watermarkAccent = typeof(watermarkOptions.AccentColor) == "Color3" and watermarkOptions.AccentColor or themes.LightContrast
 		local watermarkText = typeof(watermarkOptions.TextColor) == "Color3" and watermarkOptions.TextColor or themes.TextColor
-		local watermarkTextSize = tonumber(watermarkOptions.TextSize) or (touchMode and 15 or 14)
+		local watermarkTextSize = tonumber(watermarkOptions.TextSize) or (touchMode and 14 or 13)
+		local watermarkTopbarHeight = math.clamp(tonumber(watermarkOptions.TopBarHeight) or (touchMode and 30 or 27), 22, 40)
 		local watermarkShowGlow = watermarkOptions.Glow ~= false
 		local watermarkShowAccent = watermarkOptions.AccentLine ~= false
 		local watermarkDisplayOrder = tonumber(watermarkOptions.DisplayOrder) or 100
@@ -515,30 +538,68 @@ do
 					ScaleType = Enum.ScaleType.Slice,
 					SliceCenter = Rect.new(24, 24, 276, 276)
 				}),
+				-- Uses the exact top-bar and page colors from the primary window.
+				utility:Create("ImageLabel", {
+					Name = "TopBar",
+					BackgroundTransparency = 1,
+					Position = UDim2.new(0, 0, 0, 0),
+					Size = UDim2.new(1, 0, 0, watermarkTopbarHeight),
+					ZIndex = 3,
+					Image = "rbxassetid://4595286933",
+					ImageColor3 = watermarkTopBar,
+					ScaleType = Enum.ScaleType.Slice,
+					SliceCenter = Rect.new(4, 4, 296, 296)
+				}, {
+					utility:Create("TextLabel", {
+						Name = "Title",
+						BackgroundTransparency = 1,
+						Position = UDim2.new(0, 14, 0, 0),
+						Size = UDim2.new(1, -28, 1, 0),
+						ZIndex = 4,
+						Font = Enum.Font.GothamBold,
+						Text = title,
+						TextColor3 = watermarkText,
+						TextSize = watermarkTextSize + 1,
+						TextTruncate = Enum.TextTruncate.AtEnd,
+						TextXAlignment = Enum.TextXAlignment.Left
+					})
+				}),
+				utility:Create("ImageLabel", {
+					Name = "Status",
+					BackgroundTransparency = 1,
+					Position = UDim2.new(0, 6, 0, watermarkTopbarHeight + 4),
+					Size = UDim2.new(1, -12, 1, -(watermarkTopbarHeight + 10)),
+					ZIndex = 3,
+					Image = "rbxassetid://5012534273",
+					ImageColor3 = watermarkStatus,
+					ScaleType = Enum.ScaleType.Slice,
+					SliceCenter = Rect.new(4, 4, 296, 296)
+				}, {
+					utility:Create("TextLabel", {
+						Name = "Info",
+						BackgroundTransparency = 1,
+						Position = UDim2.new(0, 10, 0, 0),
+						Size = UDim2.new(1, -20, 1, 0),
+						ZIndex = 4,
+						Font = Enum.Font.GothamSemibold,
+						Text = player.Name .. " | -- FPS | -- ms",
+						TextColor3 = watermarkText,
+						TextSize = watermarkTextSize,
+						TextTruncate = Enum.TextTruncate.AtEnd,
+						TextXAlignment = Enum.TextXAlignment.Left
+					})
+				}),
 				utility:Create("ImageLabel", {
 					Name = "AccentLine",
 					BackgroundTransparency = 1,
-					Position = UDim2.new(0, 12, 1, -3),
-					Size = UDim2.new(1, -24, 0, 1),
-					ZIndex = 3,
+					Position = UDim2.new(0, 8, 0, watermarkTopbarHeight - 1),
+					Size = UDim2.new(1, -16, 0, 1),
+					ZIndex = 5,
 					Visible = watermarkShowAccent,
 					Image = "rbxassetid://4595286933",
 					ImageColor3 = watermarkAccent,
 					ScaleType = Enum.ScaleType.Slice,
 					SliceCenter = Rect.new(4, 4, 296, 296)
-				}),
-				utility:Create("TextLabel", {
-					Name = "Info",
-					BackgroundTransparency = 1,
-					Position = UDim2.new(0, 18, 0, 0),
-					Size = UDim2.new(1, -36, 1, -3),
-					ZIndex = 4,
-					Font = Enum.Font.GothamSemibold,
-					Text = title .. " | " .. player.Name .. " | -- FPS | -- ms",
-					TextColor3 = watermarkText,
-					TextSize = watermarkTextSize,
-					TextTruncate = Enum.TextTruncate.AtEnd,
-					TextXAlignment = Enum.TextXAlignment.Left
 				})
 			})
 		})
@@ -586,7 +647,7 @@ do
 			end
 
 			local fps = math.floor((frameCount / elapsed) + 0.5)
-			watermark.Watermark.Info.Text = string.format("%s | %s | %d FPS | %d ms", title, player.Name, fps, ping)
+			watermark.Watermark.Status.Info.Text = string.format("%s | %d FPS | %d ms", player.Name, fps, ping)
 			frameCount = 0
 			lastSample = now
 		end)
@@ -2470,4 +2531,729 @@ do
 end
 
 print("xev0r was here :\)")
-return library
+
+-- Kept locally so the key system can create the window after verification.
+local XevorLibrary = library
+
+
+-- Loading screen and key system run before the main menu.
+
+-- XEVOR cinematic loading screen
+-- Inspired by the supplied showcase: minimal black layout, cinematic title, and bottom loading readout.
+
+local TweenService = game:GetService("TweenService")
+local Players = game:GetService("Players")
+
+local player = Players.LocalPlayer
+local playerGui = player:WaitForChild("PlayerGui")
+
+local BLACK = Color3.fromRGB(3, 3, 5)
+local SOFT_BLACK = Color3.fromRGB(10, 10, 14)
+local PURPLE = Color3.fromRGB(143, 70, 235)
+local PURPLE_LIGHT = Color3.fromRGB(211, 164, 255)
+local WHITE = Color3.fromRGB(238, 236, 242)
+local DIM = Color3.fromRGB(120, 116, 132)
+
+local gui = Instance.new("ScreenGui")
+gui.Name = "XevorLoadingScreen"
+gui.IgnoreGuiInset = true
+gui.ResetOnSpawn = false
+gui.DisplayOrder = 9999
+gui.Parent = playerGui
+
+local backdrop = Instance.new("Frame")
+backdrop.Name = "Backdrop"
+backdrop.Size = UDim2.fromScale(1, 1)
+backdrop.BackgroundColor3 = BLACK
+backdrop.BorderSizePixel = 0
+backdrop.Parent = gui
+
+local backgroundGradient = Instance.new("UIGradient")
+backgroundGradient.Color = ColorSequence.new({
+	ColorSequenceKeypoint.new(0, Color3.fromRGB(8, 5, 13)),
+	ColorSequenceKeypoint.new(0.48, BLACK),
+	ColorSequenceKeypoint.new(1, SOFT_BLACK),
+})
+backgroundGradient.Rotation = 30
+backgroundGradient.Parent = backdrop
+
+-- Minimal corner marks give the screen a cinematic frame without clutter.
+local function cornerMark(position, rotation)
+	local mark = Instance.new("Frame")
+	mark.AnchorPoint = Vector2.new(0.5, 0.5)
+	mark.Position = position
+	mark.Size = UDim2.fromOffset(150, 8)
+	mark.Rotation = rotation
+	mark.BackgroundColor3 = PURPLE
+	mark.BackgroundTransparency = 0.78
+	mark.BorderSizePixel = 0
+	mark.Parent = backdrop
+
+	local gradient = Instance.new("UIGradient")
+	gradient.Transparency = NumberSequence.new({
+		NumberSequenceKeypoint.new(0, 1),
+		NumberSequenceKeypoint.new(0.4, 0.15),
+		NumberSequenceKeypoint.new(1, 1),
+	})
+	gradient.Parent = mark
+
+	return mark
+end
+
+local topMark = cornerMark(UDim2.fromScale(0.94, 0.08), -48)
+local bottomMark = cornerMark(UDim2.fromScale(0.06, 0.92), -48)
+
+local versionLabel = Instance.new("TextLabel")
+versionLabel.Name = "Version"
+versionLabel.AnchorPoint = Vector2.new(1, 1)
+versionLabel.Position = UDim2.new(1, -30, 1, -24)
+versionLabel.Size = UDim2.fromOffset(160, 18)
+versionLabel.BackgroundTransparency = 1
+versionLabel.Font = Enum.Font.GothamBold
+versionLabel.Text = "SCRIPTHUB â€¢ v1.0"
+versionLabel.TextColor3 = DIM
+versionLabel.TextSize = 11
+versionLabel.TextXAlignment = Enum.TextXAlignment.Right
+versionLabel.Parent = backdrop
+
+local title = Instance.new("TextLabel")
+title.Name = "Title"
+title.AnchorPoint = Vector2.new(0.5, 0.5)
+title.Position = UDim2.fromScale(0.5, 0.53)
+title.Size = UDim2.new(1, -120, 0, 80)
+title.BackgroundTransparency = 1
+title.Font = Enum.Font.GothamBold
+title.Text = "X  E  V  O  R"
+title.TextColor3 = WHITE
+title.TextSize = 52
+title.TextTransparency = 1
+title.TextStrokeColor3 = PURPLE
+title.TextStrokeTransparency = 1
+title.TextXAlignment = Enum.TextXAlignment.Center
+title.Parent = backdrop
+
+local titleGlow = Instance.new("TextLabel")
+titleGlow.Name = "TitleGlow"
+titleGlow.AnchorPoint = Vector2.new(0.5, 0.5)
+titleGlow.Position = UDim2.fromScale(0.5, 0.53)
+titleGlow.Size = UDim2.new(1, -120, 0, 80)
+titleGlow.BackgroundTransparency = 1
+titleGlow.Font = Enum.Font.GothamBold
+titleGlow.Text = "X  E  V  O  R"
+titleGlow.TextColor3 = PURPLE
+titleGlow.TextSize = 52
+titleGlow.TextTransparency = 1
+titleGlow.TextXAlignment = Enum.TextXAlignment.Center
+titleGlow.ZIndex = 0
+titleGlow.Parent = backdrop
+
+local subtitle = Instance.new("TextLabel")
+subtitle.Name = "Subtitle"
+subtitle.AnchorPoint = Vector2.new(0.5, 0.5)
+subtitle.Position = UDim2.fromScale(0.5, 0.59)
+subtitle.Size = UDim2.new(1, -120, 0, 20)
+subtitle.BackgroundTransparency = 1
+subtitle.Font = Enum.Font.GothamBold
+subtitle.Text = "SCRIPTHUB"
+subtitle.TextColor3 = PURPLE_LIGHT
+subtitle.TextSize = 11
+subtitle.TextTransparency = 1
+subtitle.TextXAlignment = Enum.TextXAlignment.Center
+subtitle.Parent = backdrop
+
+local loader = Instance.new("Frame")
+loader.Name = "Loader"
+loader.AnchorPoint = Vector2.new(0.5, 1)
+loader.Position = UDim2.new(0.5, 0, 1, -58)
+loader.Size = UDim2.fromOffset(780, 72)
+loader.BackgroundTransparency = 1
+loader.Parent = backdrop
+
+local blockHolder = Instance.new("Frame")
+blockHolder.Name = "Blocks"
+blockHolder.Position = UDim2.fromOffset(0, 0)
+blockHolder.Size = UDim2.fromOffset(120, 16)
+blockHolder.BackgroundTransparency = 1
+blockHolder.Parent = loader
+
+local blocks = {}
+for index = 1, 6 do
+	local block = Instance.new("Frame")
+	block.Name = "Block" .. index
+	block.Position = UDim2.fromOffset((index - 1) * 19, 0)
+	block.Size = UDim2.fromOffset(13, 13)
+	block.BackgroundColor3 = Color3.fromRGB(53, 48, 61)
+	block.BorderSizePixel = 0
+	block.Parent = blockHolder
+	table.insert(blocks, block)
+end
+
+local stateText = Instance.new("TextLabel")
+stateText.Name = "State"
+stateText.Position = UDim2.fromOffset(0, 24)
+stateText.Size = UDim2.fromOffset(320, 20)
+stateText.BackgroundTransparency = 1
+stateText.Font = Enum.Font.GothamBold
+stateText.Text = "INITIALIZING..."
+stateText.TextColor3 = WHITE
+stateText.TextSize = 14
+stateText.TextTransparency = 1
+stateText.TextXAlignment = Enum.TextXAlignment.Left
+stateText.Parent = loader
+
+local percentage = Instance.new("TextLabel")
+percentage.Name = "Percentage"
+percentage.AnchorPoint = Vector2.new(1, 0)
+percentage.Position = UDim2.new(1, 0, 0, 24)
+percentage.Size = UDim2.fromOffset(110, 20)
+percentage.BackgroundTransparency = 1
+percentage.Font = Enum.Font.GothamBold
+percentage.Text = "00%"
+percentage.TextColor3 = PURPLE_LIGHT
+percentage.TextSize = 14
+percentage.TextTransparency = 1
+percentage.TextXAlignment = Enum.TextXAlignment.Right
+percentage.Parent = loader
+
+local loadingLine = Instance.new("Frame")
+loadingLine.Name = "LoadingLine"
+loadingLine.Position = UDim2.fromOffset(0, 54)
+loadingLine.Size = UDim2.new(1, 0, 0, 1)
+loadingLine.BackgroundColor3 = Color3.fromRGB(44, 38, 53)
+loadingLine.BorderSizePixel = 0
+loadingLine.Parent = loader
+
+local progressLine = Instance.new("Frame")
+progressLine.Name = "ProgressLine"
+progressLine.Size = UDim2.fromScale(0, 1)
+progressLine.BackgroundColor3 = PURPLE
+progressLine.BorderSizePixel = 0
+progressLine.Parent = loadingLine
+
+local progressGradient = Instance.new("UIGradient")
+progressGradient.Color = ColorSequence.new({
+	ColorSequenceKeypoint.new(0, PURPLE),
+	ColorSequenceKeypoint.new(0.5, PURPLE_LIGHT),
+	ColorSequenceKeypoint.new(1, PURPLE),
+})
+progressGradient.Offset = Vector2.new(-1, 0)
+progressGradient.Parent = progressLine
+
+local phases = {
+	{value = 8, text = "INITIALIZING..."},
+	{value = 24, text = "CONNECTING..."},
+	{value = 43, text = "LOADING ASSETS..."},
+	{value = 61, text = "SYNCHRONIZING..."},
+	{value = 80, text = "PREPARING ACCESS..."},
+	{value = 96, text = "FINALIZING..."},
+	{value = 100, text = "READY"},
+}
+
+local function updateLoader(value, text)
+	local filledBlocks = math.clamp(math.ceil(value / 100 * #blocks), 0, #blocks)
+	stateText.Text = text
+	percentage.Text = string.format("%02d%%", value)
+
+	TweenService:Create(progressLine, TweenInfo.new(0.5, Enum.EasingStyle.Quint, Enum.EasingDirection.Out), {
+		Size = UDim2.fromScale(value / 100, 1)
+	}):Play()
+
+	for index, block in ipairs(blocks) do
+		TweenService:Create(block, TweenInfo.new(0.2, Enum.EasingStyle.Quad), {
+			BackgroundColor3 = index <= filledBlocks and PURPLE_LIGHT or Color3.fromRGB(53, 48, 61)
+		}):Play()
+	end
+end
+
+-- Show a short developer notice before the main loading animation.
+local intro = Instance.new("Frame")
+intro.Name = "DeveloperNotice"
+intro.Size = UDim2.fromScale(1, 1)
+intro.BackgroundColor3 = BLACK
+intro.BorderSizePixel = 0
+intro.ZIndex = 20
+intro.Parent = gui
+
+local introMessage = Instance.new("TextLabel")
+introMessage.Name = "Message"
+introMessage.AnchorPoint = Vector2.new(0.5, 0.5)
+introMessage.Position = UDim2.fromScale(0.5, 0.5)
+introMessage.Size = UDim2.new(1, -160, 0, 80)
+introMessage.BackgroundTransparency = 1
+introMessage.Font = Enum.Font.GothamBold
+introMessage.Text = ""
+introMessage.TextColor3 = WHITE
+introMessage.TextSize = 15
+introMessage.TextTransparency = 1
+introMessage.TextWrapped = true
+introMessage.TextXAlignment = Enum.TextXAlignment.Center
+introMessage.TextYAlignment = Enum.TextYAlignment.Center
+introMessage.ZIndex = 21
+introMessage.Parent = intro
+
+local introLine = Instance.new("Frame")
+introLine.AnchorPoint = Vector2.new(0.5, 0.5)
+introLine.Position = UDim2.fromScale(0.5, 0.59)
+introLine.Size = UDim2.fromOffset(0, 2)
+introLine.BackgroundColor3 = PURPLE
+introLine.BorderSizePixel = 0
+introLine.ZIndex = 21
+introLine.Parent = intro
+
+TweenService:Create(introMessage, TweenInfo.new(0.45, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
+	TextTransparency = 0.08,
+}):Play()
+TweenService:Create(introLine, TweenInfo.new(0.5, Enum.EasingStyle.Quint, Enum.EasingDirection.Out), {
+	Size = UDim2.fromOffset(180, 2),
+}):Play()
+
+local introText = "THIS SCRIPT WAS DEVELOPED BY A SOLO DEVELOPER.\nIF YOU FIND ANY BUGS OR ERRORS, PLEASE REPORT THEM ON DISCORD <3"
+for characterIndex = 1, #introText do
+	introMessage.Text = introText:sub(1, characterIndex)
+	task.wait(0.012)
+end
+
+-- Keep the complete message readable for three seconds before loading begins.
+task.wait(3.0)
+
+TweenService:Create(introMessage, TweenInfo.new(0.45, Enum.EasingStyle.Quad, Enum.EasingDirection.In), {
+	TextTransparency = 1,
+}):Play()
+TweenService:Create(introLine, TweenInfo.new(0.4, Enum.EasingStyle.Quad, Enum.EasingDirection.In), {
+	BackgroundTransparency = 1,
+}):Play()
+TweenService:Create(intro, TweenInfo.new(0.5, Enum.EasingStyle.Quad, Enum.EasingDirection.In), {
+	BackgroundTransparency = 1,
+}):Play()
+
+task.wait(0.55)
+intro:Destroy()
+
+-- Reveal the title with a cinematic fade, then run the six-second loader.
+TweenService:Create(title, TweenInfo.new(1.15, Enum.EasingStyle.Quint, Enum.EasingDirection.Out), {
+	TextTransparency = 0.06,
+	TextStrokeTransparency = 0.72,
+	Position = UDim2.fromScale(0.5, 0.49),
+}):Play()
+
+TweenService:Create(titleGlow, TweenInfo.new(1.4, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
+	TextTransparency = 0.82,
+	Position = UDim2.fromScale(0.5, 0.49),
+}):Play()
+
+TweenService:Create(subtitle, TweenInfo.new(0.8, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
+	TextTransparency = 0.18,
+	Position = UDim2.fromScale(0.5, 0.55),
+}):Play()
+
+TweenService:Create(stateText, TweenInfo.new(0.7), {TextTransparency = 0.08}):Play()
+TweenService:Create(percentage, TweenInfo.new(0.7), {TextTransparency = 0.08}):Play()
+TweenService:Create(progressGradient, TweenInfo.new(1.4, Enum.EasingStyle.Linear, Enum.EasingDirection.InOut, -1), {
+	Offset = Vector2.new(1, 0),
+}):Play()
+
+for index, phase in ipairs(phases) do
+	updateLoader(phase.value, phase.text)
+	-- 5.15 seconds of loading plus the 0.85-second fade gives a six-second screen.
+	task.wait(index == #phases and 0.95 or 0.7)
+end
+
+local fadeInfo = TweenInfo.new(0.75, Enum.EasingStyle.Quad, Enum.EasingDirection.InOut)
+local fades = {}
+for _, object in ipairs(backdrop:GetDescendants()) do
+	if object:IsA("TextLabel") then
+		table.insert(fades, TweenService:Create(object, fadeInfo, {TextTransparency = 1, TextStrokeTransparency = 1}))
+	elseif object:IsA("Frame") then
+		table.insert(fades, TweenService:Create(object, fadeInfo, {BackgroundTransparency = 1}))
+	end
+end
+
+table.insert(fades, TweenService:Create(backdrop, fadeInfo, {BackgroundTransparency = 1}))
+for _, fade in ipairs(fades) do
+	fade:Play()
+end
+
+task.wait(0.85)
+gui:Destroy()
+
+-- XEVOR Key System (Standalone - Matches your library theme)
+-- Black/Gray dark theme with left changelog + right key panel
+
+local player = game.Players.LocalPlayer
+local mouse = player:GetMouse()
+
+local input = game:GetService("UserInputService")
+local run = game:GetService("RunService")
+local tween = game:GetService("TweenService")
+local tweeninfo = TweenInfo.new
+
+local utility = {}
+
+local themes = {
+	Background = Color3.fromRGB(24, 24, 24),
+	Glow = Color3.fromRGB(0, 0, 0),
+	Accent = Color3.fromRGB(10, 10, 10),
+	LightContrast = Color3.fromRGB(20, 20, 20),
+	DarkContrast = Color3.fromRGB(14, 14, 14),
+	TextColor = Color3.fromRGB(255, 255, 255),
+	AccentPurple = Color3.fromRGB(180, 50, 255) -- subtle purple accent like your image
+}
+
+do
+	function utility:Create(instance, properties, children)
+		local object = Instance.new(instance)
+		for i, v in pairs(properties or {}) do
+			object[i] = v
+		end
+		for _, child in pairs(children or {}) do
+			child.Parent = object
+		end
+		return object
+	end
+
+	function utility:Tween(instance, properties, duration)
+		tween:Create(instance, tweeninfo(duration, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), properties):Play()
+	end
+
+	function utility:Pop(object, shrink)
+		local clone = object:Clone()
+		clone.AnchorPoint = Vector2.new(0.5, 0.5)
+		clone.Size = clone.Size - UDim2.new(0, shrink, 0, shrink)
+		clone.Position = UDim2.new(0.5, 0, 0.5, 0)
+		clone.Parent = object
+		clone:ClearAllChildren()
+		object.ImageTransparency = 1
+		utility:Tween(clone, {Size = object.Size}, 0.2)
+		spawn(function()
+			wait(0.2)
+			object.ImageTransparency = 0
+			clone:Destroy()
+		end)
+	end
+
+	function utility:DraggingEnabled(frame, parent)
+		parent = parent or frame
+		local dragging = false
+		local dragInput, mousePos, framePos
+
+		frame.InputBegan:Connect(function(input)
+			if input.UserInputType == Enum.UserInputType.MouseButton1 then
+				dragging = true
+				mousePos = input.Position
+				framePos = parent.Position
+				input.Changed:Connect(function()
+					if input.UserInputState == Enum.UserInputState.End then dragging = false end
+				end)
+			end
+		end)
+
+		frame.InputChanged:Connect(function(input)
+			if input.UserInputType == Enum.UserInputType.MouseMovement then
+				dragInput = input
+			end
+		end)
+
+		input.InputChanged:Connect(function(input)
+			if input == dragInput and dragging then
+				local delta = input.Position - mousePos
+				parent.Position = UDim2.new(framePos.X.Scale, framePos.X.Offset + delta.X, framePos.Y.Scale, framePos.Y.Offset + delta.Y)
+			end
+		end)
+	end
+end
+
+-- Key System GUI
+local keySystem = utility:Create("ScreenGui", {
+	Name = "XEVOR_KeySystem",
+	Parent = game.CoreGui,
+	ResetOnSpawn = false
+}, {
+	utility:Create("ImageLabel", { -- Main Frame
+		Name = "Main",
+		BackgroundTransparency = 1,
+		Position = UDim2.new(0.5, -280, 0.5, -200),
+		Size = UDim2.new(0, 560, 0, 400),
+		Image = "rbxassetid://4641149554",
+		ImageColor3 = themes.Background,
+		ScaleType = Enum.ScaleType.Slice,
+		SliceCenter = Rect.new(4, 4, 296, 296),
+		ZIndex = 2
+	}, {
+		utility:Create("ImageLabel", {
+			Name = "Glow",
+			BackgroundTransparency = 1,
+			Position = UDim2.new(0, -15, 0, -15),
+			Size = UDim2.new(1, 30, 1, 30),
+			ZIndex = 1,
+			Image = "rbxassetid://5028857084",
+			ImageColor3 = themes.Glow,
+			ScaleType = Enum.ScaleType.Slice,
+			SliceCenter = Rect.new(24, 24, 276, 276)
+		}),
+		utility:Create("ImageLabel", { -- Top Bar
+			Name = "TopBar",
+			BackgroundTransparency = 1,
+			Size = UDim2.new(1, 0, 0, 50),
+			ZIndex = 5,
+			Image = "rbxassetid://4595286933",
+			ImageColor3 = themes.Accent,
+			ScaleType = Enum.ScaleType.Slice,
+			SliceCenter = Rect.new(4, 4, 296, 296)
+		}, {
+			utility:Create("TextLabel", {
+				Name = "Title",
+				-- Centre the label vertically within the 50px top bar. Without this
+				-- anchor, the label starts halfway down the bar and overflows below it.
+				AnchorPoint = Vector2.new(0, 0.5),
+				BackgroundTransparency = 1,
+				Position = UDim2.new(0, 20, 0.5, 0),
+				Size = UDim2.new(1, -40, 0, 50),
+				ZIndex = 6,
+				Font = Enum.Font.GothamBold,
+				Text = "XEVOR",
+				TextColor3 = themes.AccentPurple,
+				TextSize = 22,
+				TextXAlignment = Enum.TextXAlignment.Left
+			})
+		}),
+
+		-- LEFT: Changelog
+		utility:Create("ImageLabel", {
+			Name = "LeftPanel",
+			BackgroundTransparency = 1,
+			Position = UDim2.new(0, 15, 0, 65),
+			Size = UDim2.new(0.48, 0, 1, -90),
+			ZIndex = 3,
+			Image = "rbxassetid://5028857472",
+			ImageColor3 = themes.DarkContrast,
+			ScaleType = Enum.ScaleType.Slice,
+			SliceCenter = Rect.new(4, 4, 296, 296)
+		}, {
+			utility:Create("TextLabel", {
+				Name = "Header",
+				BackgroundTransparency = 1,
+				Position = UDim2.new(0, 12, 0, 8),
+				Size = UDim2.new(1, -24, 0, 20),
+				ZIndex = 4,
+				Font = Enum.Font.GothamSemibold,
+				Text = "Changelog",
+				TextColor3 = themes.TextColor,
+				TextSize = 14,
+				TextXAlignment = Enum.TextXAlignment.Left
+			}),
+			utility:Create("ScrollingFrame", {
+				Name = "ChangelogContainer",
+				BackgroundTransparency = 1,
+				Position = UDim2.new(0, 10, 0, 35),
+				Size = UDim2.new(1, -20, 1, -50),
+				ZIndex = 4,
+				ScrollBarThickness = 4,
+				ScrollBarImageColor3 = themes.LightContrast,
+				CanvasSize = UDim2.new(0, 0, 0, 800)
+			}, {
+				utility:Create("UIListLayout", {
+					SortOrder = Enum.SortOrder.LayoutOrder,
+					Padding = UDim.new(0, 8)
+				})
+			})
+		}),
+
+		-- RIGHT: Key System
+		utility:Create("ImageLabel", {
+			Name = "RightPanel",
+			BackgroundTransparency = 1,
+			Position = UDim2.new(0.52, 0, 0, 65),
+			Size = UDim2.new(0.46, 0, 1, -90),
+			ZIndex = 3,
+			Image = "rbxassetid://5028857472",
+			ImageColor3 = themes.DarkContrast,
+			ScaleType = Enum.ScaleType.Slice,
+			SliceCenter = Rect.new(4, 4, 296, 296)
+		}, {
+			utility:Create("TextLabel", {
+				Name = "Status",
+				BackgroundTransparency = 1,
+				Position = UDim2.new(0, 12, 0, 12),
+				Size = UDim2.new(1, -24, 0, 20),
+				ZIndex = 4,
+				Font = Enum.Font.Gotham,
+				Text = "Enter Key",
+				TextColor3 = themes.TextColor,
+				TextSize = 13,
+				TextXAlignment = Enum.TextXAlignment.Center
+			}),
+			utility:Create("ImageLabel", { -- Key Input
+				Name = "KeyInput",
+				BackgroundTransparency = 1,
+				Position = UDim2.new(0, 12, 0, 45),
+				Size = UDim2.new(1, -24, 0, 36),
+				ZIndex = 4,
+				Image = "rbxassetid://5028857472",
+				ImageColor3 = themes.LightContrast,
+				ScaleType = Enum.ScaleType.Slice,
+				SliceCenter = Rect.new(2, 2, 298, 298)
+			}, {
+				utility:Create("TextBox", {
+					Name = "Input",
+					BackgroundTransparency = 1,
+					Position = UDim2.new(0, 10, 0, 0),
+					Size = UDim2.new(1, -20, 1, 0),
+					ZIndex = 5,
+					Font = Enum.Font.GothamSemibold,
+					PlaceholderText = "Paste key here...",
+					Text = "",
+					TextColor3 = themes.TextColor,
+					TextSize = 13,
+					TextXAlignment = Enum.TextXAlignment.Left
+				})
+			}),
+			utility:Create("ImageButton", { -- VERIFY
+				Name = "VerifyBtn",
+				BackgroundTransparency = 1,
+				Position = UDim2.new(0, 12, 0, 95),
+				Size = UDim2.new(1, -24, 0, 36),
+				ZIndex = 4,
+				Image = "rbxassetid://5028857472",
+				ImageColor3 = themes.AccentPurple,
+				ScaleType = Enum.ScaleType.Slice,
+				SliceCenter = Rect.new(2, 2, 298, 298)
+			}, {
+				utility:Create("TextLabel", {
+					Name = "Label",
+					BackgroundTransparency = 1,
+					Size = UDim2.new(1, 0, 1, 0),
+					ZIndex = 5,
+					Font = Enum.Font.GothamBold,
+					Text = "VERIFY KEY",
+					TextColor3 = themes.TextColor,
+					TextSize = 14
+				})
+			}),
+			utility:Create("ImageButton", { -- GET KEY
+				Name = "GetKeyBtn",
+				BackgroundTransparency = 1,
+				Position = UDim2.new(0, 12, 0, 145),
+				Size = UDim2.new(1, -24, 0, 36),
+				ZIndex = 4,
+				Image = "rbxassetid://5028857472",
+				ImageColor3 = themes.DarkContrast,
+				ScaleType = Enum.ScaleType.Slice,
+				SliceCenter = Rect.new(2, 2, 298, 298)
+			}, {
+				utility:Create("TextLabel", {
+					Name = "Label",
+					BackgroundTransparency = 1,
+					Size = UDim2.new(1, 0, 1, 0),
+					ZIndex = 5,
+					Font = Enum.Font.GothamSemibold,
+					Text = "GET KEY",
+					TextColor3 = themes.TextColor,
+					TextSize = 13
+				})
+			}),
+			utility:Create("ImageButton", { -- JOIN DISCORD
+				Name = "DiscordBtn",
+				BackgroundTransparency = 1,
+				Position = UDim2.new(0, 12, 0, 195),
+				Size = UDim2.new(1, -24, 0, 36),
+				ZIndex = 4,
+				Image = "rbxassetid://5028857472",
+				ImageColor3 = themes.DarkContrast,
+				ScaleType = Enum.ScaleType.Slice,
+				SliceCenter = Rect.new(2, 2, 298, 298)
+			}, {
+				utility:Create("TextLabel", {
+					Name = "Label",
+					BackgroundTransparency = 1,
+					Size = UDim2.new(1, 0, 1, 0),
+					ZIndex = 5,
+					Font = Enum.Font.GothamSemibold,
+					Text = "JOIN DISCORD",
+					TextColor3 = themes.TextColor,
+					TextSize = 13
+				})
+			})
+		})
+	})
+})
+
+utility:DraggingEnabled(keySystem.Main.TopBar, keySystem.Main)
+
+-- Populate Changelog (example - edit as needed)
+local changelogFrame = keySystem.Main.LeftPanel.ChangelogContainer
+local logs = {
+	"â€¢ v1.2.3 - New UI overhaul",
+	"â€¢ Added 5 new scripts",
+	"â€¢ Fixed anti-cheat bypass",
+	"â€¢ Performance improvements",
+	"â€¢ More games supported",
+	"â€¢ UI now fully customizable"
+}
+
+for _, log in ipairs(logs) do
+	utility:Create("TextLabel", {
+		Parent = changelogFrame,
+		BackgroundTransparency = 1,
+		Size = UDim2.new(1, 0, 0, 18),
+		ZIndex = 5,
+		Font = Enum.Font.Gotham,
+		Text = log,
+		TextColor3 = themes.TextColor,
+		TextSize = 12,
+		TextXAlignment = Enum.TextXAlignment.Left,
+		TextWrapped = true
+	})
+end
+changelogFrame.CanvasSize = UDim2.new(0, 0, 0, #logs * 26)
+
+-- Button logic
+local keyInput = keySystem.Main.RightPanel.KeyInput.Input
+local statusLabel = keySystem.Main.RightPanel.Status
+
+keySystem.Main.RightPanel.VerifyBtn.MouseButton1Click:Connect(function()
+	utility:Pop(keySystem.Main.RightPanel.VerifyBtn, 8)
+	local key = keyInput.Text:upper()
+
+	-- === YOUR KEY CHECK HERE ===
+	if key == "XEVOR-TEST-KEY-1234" or key == "VALIDKEY" then
+		statusLabel.Text = "Key Verified âœ“"
+		statusLabel.TextColor3 = Color3.fromRGB(80, 255, 80)
+		wait(1.2)
+		keySystem:Destroy()
+		-- Open the main menu only after the key is accepted.
+		local Window = XevorLibrary.new("XEVOR", {
+			ToggleKey = Enum.KeyCode.RightControl
+		})
+		print("Key accepted! Main UI loaded. Press Right Ctrl to toggle it.")
+	else
+		statusLabel.Text = "Invalid Key âœ•"
+		statusLabel.TextColor3 = Color3.fromRGB(255, 80, 80)
+		wait(2)
+		statusLabel.Text = "Enter Key"
+		statusLabel.TextColor3 = themes.TextColor
+	end
+end)
+
+keySystem.Main.RightPanel.GetKeyBtn.MouseButton1Click:Connect(function()
+	utility:Pop(keySystem.Main.RightPanel.GetKeyBtn, 8)
+	-- Open link
+	setclipboard("https://yourkeysite.com")
+	game.StarterGui:SetCore("SendNotification", {
+		Title = "XEVOR",
+		Text = "Link copied to clipboard!",
+		Duration = 4
+	})
+end)
+
+keySystem.Main.RightPanel.DiscordBtn.MouseButton1Click:Connect(function()
+	utility:Pop(keySystem.Main.RightPanel.DiscordBtn, 8)
+	setclipboard("https://discord.gg/yourserver")
+	game.StarterGui:SetCore("SendNotification", {
+		Title = "XEVOR",
+		Text = "Discord link copied!",
+		Duration = 4
+	})
+end)
+
+print("XEVOR Key System Loaded - Black/Gray themed with changelogs")
+
