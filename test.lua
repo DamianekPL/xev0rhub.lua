@@ -212,39 +212,48 @@ local section = {}
 -- receive the corresponding icon; an icon passed directly to addPage still
 -- takes priority.
 library.Icons = {
-	-- Base icons
-	bolt = 86575492877482,
-	bookmark = 111087240501509,
-	bullseye = 86936958665137,
-	dollar = 137044045503666,
-	eye = 104877108018880,
-	fingerprint = 77207894969344,
-	folder = 136756368861096,
-	gamepad = 93897891859021,
-	home = 116748636809418,
-	info = 118097187958440,
-	key = 115864764028760,
-	lock = 86858927625360,
-	menuburger = 85984991891884,
-	settings = 115724218337165,
-	shield = 123928749861771,
+	-- User icons (verified working)
+	icon1  = 78448098168568,
+	icon2  = 134778074060560,
+	icon3  = 126402342060943,
+	icon4  = 126810039551277,
+	icon5  = 93378016140831,
+	icon6  = 87811184442788,
+	icon7  = 72796864087159,
+	icon8  = 78102496134558,
+	icon9  = 81115759913656,
+	icon10 = 96500516193754,
+	icon11 = 74415409437219,
+	icon12 = 114521010215596,
+	icon13 = 131241633461243,
+	icon14 = 99002376488764,
+	icon15 = 120338532250111,
+	icon16 = 109963815197771,
 
-	-- English page aliases
-	main = 116748636809418,
-	combat = 86575492877482,
-	visuals = 104877108018880,
-	player = 77207894969344,
-	misc = 136756368861096,
-	teleport = 86936958665137,
-	esp = 104877108018880,
-	aimbot = 93897891859021,
-	credits = 118097187958440,
+	-- Page aliases (EN)
+	main      = 78448098168568,
+	home      = 78448098168568,
+	combat    = 134778074060560,
+	visuals   = 126402342060943,
+	player    = 126810039551277,
+	misc      = 93378016140831,
+	teleport  = 87811184442788,
+	esp       = 72796864087159,
+	aimbot    = 78102496134558,
+	settings  = 81115759913656,
+	credits   = 96500516193754,
+	key       = 74415409437219,
+	lock      = 114521010215596,
+	shield    = 131241633461243,
+	info      = 99002376488764,
+	folder    = 120338532250111,
+	menu      = 109963815197771,
 
-	-- Polish page aliases
-	walka = 86575492877482,
-	rozne = 136756368861096,
-	ustawienia = 115724218337165,
-	kredyty = 118097187958440,
+	-- Page aliases (PL)
+	walka       = 134778074060560,
+	rozne       = 93378016140831,
+	ustawienia  = 81115759913656,
+	kredyty     = 96500516193754,
 }
 
 local function getPageIcon(title, icon)
@@ -711,17 +720,18 @@ do
 
 		-- Create icon separately to avoid the "or {}" Parent crash
 		if icon then
+			local iconId = tostring(icon):gsub("%D", "") -- digits only
 			utility:Create("ImageLabel", {
 				Name = "Icon",
 				Parent = button,
 				AnchorPoint = Vector2.new(0, 0.5),
 				BackgroundTransparency = 1,
-				Position = UDim2.new(0, 12, 0.5, 0),
-				Size = UDim2.new(0, 16, 0, 16),
-				ZIndex = 3,
-				Image = "rbxassetid://" .. tostring(icon),
-				ImageColor3 = themes.TextColor,
-				ImageTransparency = 0.64,
+				Position = UDim2.new(0, 10, 0.5, 0),
+				Size = UDim2.new(0, 18, 0, 18),
+				ZIndex = 4,
+				Image = "rbxassetid://" .. iconId,
+				ImageColor3 = Color3.fromRGB(255, 255, 255),
+				ImageTransparency = 0.35,
 				ScaleType = Enum.ScaleType.Fit
 			})
 		end
@@ -2209,6 +2219,7 @@ do
 			
 			if button:FindFirstChild("Icon") then
 				button.Icon.ImageTransparency = 0
+				button.Icon.ImageColor3 = Color3.fromRGB(255, 255, 255)
 			end
 			
 			-- update selected page
@@ -2271,7 +2282,7 @@ do
 			button.Title.TextTransparency = 0.65
 			
 			if button:FindFirstChild("Icon") then
-				button.Icon.ImageTransparency = 0.65
+				button.Icon.ImageTransparency = 0.35
 			end
 			
 			-- sections
@@ -3254,16 +3265,16 @@ keySystem.Main.RightPanel.VerifyBtn.MouseButton1Click:Connect(function()
 		})
 
 		-- Pages (icons auto-assigned from library.Icons by page title)
-		local Main = Window:addPage("Main")
-		local Combat = Window:addPage("Combat")
-		local Visuals = Window:addPage("Visuals")
-		local Player = Window:addPage("Player")
-		local Misc = Window:addPage("Misc")
-		local Teleport = Window:addPage("Teleport")
-		local ESP = Window:addPage("ESP")
-		local Aimbot = Window:addPage("Aimbot")
-		local Settings = Window:addPage("Settings")
-		local Credits = Window:addPage("Credits")
+		local Main = Window:addPage("Main", 78448098168568)
+		local Combat = Window:addPage("Combat", 134778074060560)
+		local Visuals = Window:addPage("Visuals", 126402342060943)
+		local Player = Window:addPage("Player", 126810039551277)
+		local Misc = Window:addPage("Misc", 93378016140831)
+		local Teleport = Window:addPage("Teleport", 87811184442788)
+		local ESP = Window:addPage("ESP", 72796864087159)
+		local Aimbot = Window:addPage("Aimbot", 78102496134558)
+		local Settings = Window:addPage("Settings", 81115759913656)
+		local Credits = Window:addPage("Credits", 96500516193754)
 
 		-- Main page demo controls
 		local Section = Main:addSection("General")
