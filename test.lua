@@ -208,6 +208,36 @@ local library = {} -- main
 local page = {}
 local section = {}
 
+-- Navigation icons. Page titles that match one of these names automatically
+-- receive the corresponding icon; an icon passed directly to addPage still
+-- takes priority.
+library.Icons = {
+	bolt = 86575492877482,
+	bookmark = 111087240501509,
+	bullseye = 86936958665137,
+	dollar = 137044045503666,
+	eye = 104877108018880,
+	fingerprint = 77207894969344,
+	folder = 136756368861096,
+	gamepad = 93897891859021,
+	home = 116748636809418,
+	info = 118097187958440,
+	key = 115864764028760,
+	lock = 86858927625360,
+	menuburger = 85984991891884,
+	settings = 115724218337165,
+	shield = 123928749861771,
+}
+
+local function getPageIcon(title, icon)
+	if icon then
+		return icon
+	end
+
+	local iconName = tostring(title):lower():gsub("[^%w]", "")
+	return library.Icons[iconName]
+end
+
 do
 	library.__index = library
 	page.__index = page
@@ -631,6 +661,8 @@ do
 	end
 	
 	function page.new(library, title, icon)
+		icon = getPageIcon(title, icon)
+
 		local button = utility:Create("TextButton", {
 			Name = title,
 			Parent = library.pagesContainer,
