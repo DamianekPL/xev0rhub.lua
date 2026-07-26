@@ -707,22 +707,23 @@ do
 				ZIndexBehavior = Enum.ZIndexBehavior.Sibling
 			})
 
-			local btnSize = 52
+			local btnSize = 56
 			local button = utility:Create("ImageButton", {
 				Name = "ToggleButton",
 				Parent = mobileToggle,
-				AnchorPoint = Vector2.new(1, 0.5),
+				AnchorPoint = Vector2.new(0.5, 0.5),
 				BackgroundTransparency = 1,
-				Position = UDim2.new(1, -18, 0.5, 0),
+				Position = UDim2.new(1, -40, 0.5, 0),
 				Size = UDim2.new(0, btnSize, 0, btnSize),
 				ZIndex = 10,
 				Image = "rbxassetid://5028857472",
 				ImageColor3 = themes.Background,
 				ScaleType = Enum.ScaleType.Slice,
 				SliceCenter = Rect.new(4, 4, 296, 296),
-				AutoButtonColor = false
+				AutoButtonColor = false,
+				Active = true
 			}, {
-				-- Soft glow behind the button
+				-- Soft glow behind the button (Active=false so it never steals touch)
 				utility:Create("ImageLabel", {
 					Name = "Glow",
 					BackgroundTransparency = 1,
@@ -732,7 +733,8 @@ do
 					Image = "rbxassetid://5028857084",
 					ImageColor3 = themes.Glow,
 					ScaleType = Enum.ScaleType.Slice,
-					SliceCenter = Rect.new(24, 24, 276, 276)
+					SliceCenter = Rect.new(24, 24, 276, 276),
+					Active = false
 				}),
 				-- Accent ring / border
 				utility:Create("ImageLabel", {
@@ -745,7 +747,8 @@ do
 					ImageColor3 = Color3.fromRGB(180, 50, 255),
 					ImageTransparency = 0.55,
 					ScaleType = Enum.ScaleType.Slice,
-					SliceCenter = Rect.new(4, 4, 296, 296)
+					SliceCenter = Rect.new(4, 4, 296, 296),
+					Active = false
 				}),
 				-- Icon (hamburger when closed, X when open)
 				utility:Create("TextLabel", {
@@ -758,33 +761,48 @@ do
 					TextColor3 = themes.TextColor,
 					TextSize = 22,
 					TextXAlignment = Enum.TextXAlignment.Center,
-					TextYAlignment = Enum.TextYAlignment.Center
+					TextYAlignment = Enum.TextYAlignment.Center,
+					Active = false
 				})
 			})
 
-			-- Make the floating button draggable
-			utility:DraggingEnabled(button, button)
-
-			-- Tap to toggle menu (ignore if the user was dragging)
-			local dragStartPos = nil
+			-- Robust touch + mouse drag (works with AnchorPoint 0.5, 0.5)
+			local dragging = false
+			local dragStart, btnStart
 			local wasDragging = false
 
 			button.InputBegan:Connect(function(userInput)
 				if userInput.UserInputType == Enum.UserInputType.MouseButton1
 					or userInput.UserInputType == Enum.UserInputType.Touch then
-					dragStartPos = userInput.Position
+					dragging = true
 					wasDragging = false
+					dragStart = userInput.Position
+					btnStart = button.Position
+
+					userInput.Changed:Connect(function()
+						if userInput.UserInputState == Enum.UserInputState.End then
+							dragging = false
+						end
+					end)
 				end
 			end)
 
-			button.InputChanged:Connect(function(userInput)
-				if dragStartPos and (userInput.UserInputType == Enum.UserInputType.MouseMovement
-					or userInput.UserInputType == Enum.UserInputType.Touch) then
-					local delta = userInput.Position - dragStartPos
-					if math.abs(delta.X) > 8 or math.abs(delta.Y) > 8 then
-						wasDragging = true
-					end
+			input.InputChanged:Connect(function(userInput)
+				if not dragging then return end
+				if userInput.UserInputType ~= Enum.UserInputType.MouseMovement
+					and userInput.UserInputType ~= Enum.UserInputType.Touch then
+					return
 				end
+
+				local delta = userInput.Position - dragStart
+				if math.abs(delta.X) > 6 or math.abs(delta.Y) > 6 then
+					wasDragging = true
+				end
+
+				button.Position = UDim2.new(
+					btnStart.X.Scale, btnStart.X.Offset + delta.X,
+					btnStart.Y.Scale, btnStart.Y.Offset + delta.Y
+				)
 			end)
 
 			button.MouseButton1Click:Connect(function()
@@ -2475,7 +2493,8 @@ do
 		end
 		
 		self.container.CanvasSize = UDim2.new(0, 0, 0, size)
-		self.container.ScrollBarImageTransparency = size > self.container.AbsoluteSize.Y
+		-- ScrollBarImageTransparency must be a number (0–1), not a boolean
+		self.container.ScrollBarImageTransparency = (size > self.container.AbsoluteSize.Y) and 0 or 1
 		
 		if scroll then
 			utility:Tween(self.container, {CanvasPosition = Vector2.new(0, self.lastPosition or 0)}, 0.2)
