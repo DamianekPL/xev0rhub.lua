@@ -298,6 +298,13 @@ do
 
 	function library:SetVisible(visible)
 		self.container.Enabled = visible
+		-- Keep the mobile floating button icon in sync (open / close)
+		if self.mobileToggleButton then
+			local label = self.mobileToggleButton:FindFirstChild("Icon", true)
+			if label then
+				label.Text = visible and "✕" or "☰"
+			end
+		end
 	end
 
 	function library:SetWatermarkVisible(visible)
@@ -397,6 +404,11 @@ do
 		if self.watermark then
 			self.watermark:Destroy()
 		end
+		if self.mobileToggle then
+			self.mobileToggle:Destroy()
+			self.mobileToggle = nil
+			self.mobileToggleButton = nil
+		end
 		self.container:Destroy()
 	end
 	
@@ -404,9 +416,27 @@ do
 	
 	function library.new(title, options)
 		options = options or {}
-		-- Desktop-only layout. Mobile/touch scaling is intentionally disabled.
-		local topbarHeight = 38
-		local navigationWidth = 126
+
+		-- Mobile / touch support
+		-- Detects TouchEnabled devices and scales the fixed-size desktop layout so it
+		-- fits smaller viewports while keeping larger touch targets.
+		local isMobile = input.TouchEnabled
+		local camera = workspace.CurrentCamera
+		local viewport = (camera and camera.ViewportSize) or Vector2.new(1920, 1080)
+
+		local designWidth, designHeight = 511, 428
+		local uiScaleFactor = 1
+		if isMobile then
+			-- Fit roughly 90% of the shorter screen axis while preserving aspect ratio
+			local maxW = viewport.X * 0.92
+			local maxH = viewport.Y * 0.78
+			uiScaleFactor = math.min(maxW / designWidth, maxH / designHeight)
+			uiScaleFactor = math.clamp(uiScaleFactor, 0.55, 1.15)
+		end
+
+		-- Slightly taller top bar + slightly narrower nav on mobile for better touch
+		local topbarHeight = isMobile and 44 or 38
+		local navigationWidth = isMobile and 112 or 126
 		local contentLeft = navigationWidth + 8
 		local playerGui = player:WaitForChild("PlayerGui")
 		local watermarkOptions = options.Watermark
@@ -419,15 +449,15 @@ do
 		local watermarkEnabled = watermarkOptions.Enabled ~= false
 		local watermarkAnchor = typeof(watermarkOptions.AnchorPoint) == "Vector2" and watermarkOptions.AnchorPoint or Vector2.new(1, 0)
 		local watermarkPosition = typeof(watermarkOptions.Position) == "UDim2" and watermarkOptions.Position or UDim2.new(1, -16, 0, 16)
-		local watermarkSize = typeof(watermarkOptions.Size) == "UDim2" and watermarkOptions.Size or UDim2.new(0, 390, 0, 58)
+		local watermarkSize = typeof(watermarkOptions.Size) == "UDim2" and watermarkOptions.Size or UDim2.new(0, isMobile and 320 or 390, 0, isMobile and 52 or 58)
 		local watermarkBackground = typeof(watermarkOptions.BackgroundColor) == "Color3" and watermarkOptions.BackgroundColor or themes.Background
 		local watermarkTopBar = typeof(watermarkOptions.TopBarColor) == "Color3" and watermarkOptions.TopBarColor or themes.Accent
 		local watermarkStatus = typeof(watermarkOptions.StatusColor) == "Color3" and watermarkOptions.StatusColor or themes.DarkContrast
 		local watermarkGlow = typeof(watermarkOptions.GlowColor) == "Color3" and watermarkOptions.GlowColor or themes.Glow
 		local watermarkAccent = typeof(watermarkOptions.AccentColor) == "Color3" and watermarkOptions.AccentColor or themes.LightContrast
 		local watermarkText = typeof(watermarkOptions.TextColor) == "Color3" and watermarkOptions.TextColor or themes.TextColor
-		local watermarkTextSize = tonumber(watermarkOptions.TextSize) or 13
-		local watermarkTopbarHeight = math.clamp(tonumber(watermarkOptions.TopBarHeight) or 27, 22, 40)
+		local watermarkTextSize = tonumber(watermarkOptions.TextSize) or (isMobile and 12 or 13)
+		local watermarkTopbarHeight = math.clamp(tonumber(watermarkOptions.TopBarHeight) or (isMobile and 24 or 27), 22, 40)
 		local watermarkShowGlow = watermarkOptions.Glow ~= false
 		local watermarkShowAccent = watermarkOptions.AccentLine ~= false
 		local watermarkDisplayOrder = tonumber(watermarkOptions.DisplayOrder) or 100
@@ -444,7 +474,7 @@ do
 				AnchorPoint = Vector2.new(0.5, 0.5),
 				BackgroundTransparency = 1,
 				Position = UDim2.new(0.5, 0, 0.5, 0),
-				Size = UDim2.new(0, 511, 0, 428),
+				Size = UDim2.new(0, designWidth, 0, designHeight),
 				Image = "rbxassetid://4641149554",
 				ImageColor3 = themes.Background,
 				ScaleType = Enum.ScaleType.Slice,
@@ -643,6 +673,14 @@ do
 		
 		utility:InitializeKeybind()
 		utility:DraggingEnabled(container.Main.TopBar, container.Main)
+
+		-- Apply uniform scale so the fixed desktop layout fits mobile viewports
+		if uiScaleFactor ~= 1 then
+			local scaleObj = Instance.new("UIScale")
+			scaleObj.Name = "MobileScale"
+			scaleObj.Scale = uiScaleFactor
+			scaleObj.Parent = container.Main
+		end
 		
 		local window = setmetatable({
 			container = container,
@@ -651,10 +689,115 @@ do
 			watermark = watermark,
 			topbarHeight = topbarHeight,
 			navigationWidth = navigationWidth,
-			contentLeft = contentLeft
+			contentLeft = contentLeft,
+			isMobile = isMobile,
+			uiScale = uiScaleFactor
 		}, library)
 
 		window:SetToggleKey(options.ToggleKey or Enum.KeyCode.RightShift)
+
+		-- Floating open/close button (mobile only) – always visible, draggable
+		if isMobile then
+			local mobileToggle = utility:Create("ScreenGui", {
+				Name = title .. "_MobileToggle",
+				Parent = playerGui,
+				IgnoreGuiInset = true,
+				ResetOnSpawn = false,
+				DisplayOrder = (tonumber(watermarkOptions.DisplayOrder) or 100) + 1,
+				ZIndexBehavior = Enum.ZIndexBehavior.Sibling
+			})
+
+			local btnSize = 52
+			local button = utility:Create("ImageButton", {
+				Name = "ToggleButton",
+				Parent = mobileToggle,
+				AnchorPoint = Vector2.new(1, 0.5),
+				BackgroundTransparency = 1,
+				Position = UDim2.new(1, -18, 0.5, 0),
+				Size = UDim2.new(0, btnSize, 0, btnSize),
+				ZIndex = 10,
+				Image = "rbxassetid://5028857472",
+				ImageColor3 = themes.Background,
+				ScaleType = Enum.ScaleType.Slice,
+				SliceCenter = Rect.new(4, 4, 296, 296),
+				AutoButtonColor = false
+			}, {
+				-- Soft glow behind the button
+				utility:Create("ImageLabel", {
+					Name = "Glow",
+					BackgroundTransparency = 1,
+					Position = UDim2.new(0, -10, 0, -10),
+					Size = UDim2.new(1, 20, 1, 20),
+					ZIndex = 9,
+					Image = "rbxassetid://5028857084",
+					ImageColor3 = themes.Glow,
+					ScaleType = Enum.ScaleType.Slice,
+					SliceCenter = Rect.new(24, 24, 276, 276)
+				}),
+				-- Accent ring / border
+				utility:Create("ImageLabel", {
+					Name = "Accent",
+					BackgroundTransparency = 1,
+					Position = UDim2.new(0, 2, 0, 2),
+					Size = UDim2.new(1, -4, 1, -4),
+					ZIndex = 11,
+					Image = "rbxassetid://5028857472",
+					ImageColor3 = Color3.fromRGB(180, 50, 255),
+					ImageTransparency = 0.55,
+					ScaleType = Enum.ScaleType.Slice,
+					SliceCenter = Rect.new(4, 4, 296, 296)
+				}),
+				-- Icon (hamburger when closed, X when open)
+				utility:Create("TextLabel", {
+					Name = "Icon",
+					BackgroundTransparency = 1,
+					Size = UDim2.new(1, 0, 1, 0),
+					ZIndex = 12,
+					Font = Enum.Font.GothamBold,
+					Text = "✕", -- menu starts visible
+					TextColor3 = themes.TextColor,
+					TextSize = 22,
+					TextXAlignment = Enum.TextXAlignment.Center,
+					TextYAlignment = Enum.TextYAlignment.Center
+				})
+			})
+
+			-- Make the floating button draggable
+			utility:DraggingEnabled(button, button)
+
+			-- Tap to toggle menu (ignore if the user was dragging)
+			local dragStartPos = nil
+			local wasDragging = false
+
+			button.InputBegan:Connect(function(userInput)
+				if userInput.UserInputType == Enum.UserInputType.MouseButton1
+					or userInput.UserInputType == Enum.UserInputType.Touch then
+					dragStartPos = userInput.Position
+					wasDragging = false
+				end
+			end)
+
+			button.InputChanged:Connect(function(userInput)
+				if dragStartPos and (userInput.UserInputType == Enum.UserInputType.MouseMovement
+					or userInput.UserInputType == Enum.UserInputType.Touch) then
+					local delta = userInput.Position - dragStartPos
+					if math.abs(delta.X) > 8 or math.abs(delta.Y) > 8 then
+						wasDragging = true
+					end
+				end
+			end)
+
+			button.MouseButton1Click:Connect(function()
+				if wasDragging then
+					return -- user dragged, don't toggle
+				end
+				utility:Pop(button, 6)
+				window:SetVisible(not container.Enabled)
+			end)
+
+			window.mobileToggle = mobileToggle
+			window.mobileToggleButton = button
+		end
 
 		local frameCount = 0
 		local lastSample = os.clock()
@@ -694,12 +837,16 @@ do
 	function page.new(library, title, icon)
 		icon = getPageIcon(title, icon)
 
+		-- Taller nav buttons on mobile for easier touch targets
+		local navButtonHeight = (library.isMobile and 34) or 26
+		local iconSize = (library.isMobile and 20) or 18
+
 		local button = utility:Create("TextButton", {
 			Name = title,
 			Parent = library.pagesContainer,
 			BackgroundTransparency = 1,
 			BorderSizePixel = 0,
-			Size = UDim2.new(1, 0, 0, 26),
+			Size = UDim2.new(1, 0, 0, navButtonHeight),
 			ZIndex = 3,
 			AutoButtonColor = false,
 			Font = Enum.Font.Gotham,
@@ -716,7 +863,7 @@ do
 				Font = Enum.Font.Gotham,
 				Text = title,
 				TextColor3 = themes.TextColor,
-				TextSize = 12,
+				TextSize = library.isMobile and 13 or 12,
 				TextTransparency = 0.65,
 				TextXAlignment = Enum.TextXAlignment.Left
 			})
@@ -731,7 +878,7 @@ do
 				AnchorPoint = Vector2.new(0, 0.5),
 				BackgroundTransparency = 1,
 				Position = UDim2.new(0, 10, 0.5, 0),
-				Size = UDim2.new(0, 18, 0, 18),
+				Size = UDim2.new(0, iconSize, 0, iconSize),
 				ZIndex = 4,
 				Image = "rbxassetid://" .. iconId,
 				ImageColor3 = Color3.fromRGB(255, 255, 255),
@@ -2991,30 +3138,44 @@ do
 		local dragging = false
 		local dragInput, mousePos, framePos
 
-		frame.InputBegan:Connect(function(input)
-			if input.UserInputType == Enum.UserInputType.MouseButton1 then
+		frame.InputBegan:Connect(function(userInput)
+			if userInput.UserInputType == Enum.UserInputType.MouseButton1
+				or userInput.UserInputType == Enum.UserInputType.Touch then
 				dragging = true
-				mousePos = input.Position
+				mousePos = userInput.Position
 				framePos = parent.Position
-				input.Changed:Connect(function()
-					if input.UserInputState == Enum.UserInputState.End then dragging = false end
+				userInput.Changed:Connect(function()
+					if userInput.UserInputState == Enum.UserInputState.End then dragging = false end
 				end)
 			end
 		end)
 
-		frame.InputChanged:Connect(function(input)
-			if input.UserInputType == Enum.UserInputType.MouseMovement then
-				dragInput = input
+		frame.InputChanged:Connect(function(userInput)
+			if userInput.UserInputType == Enum.UserInputType.MouseMovement
+				or userInput.UserInputType == Enum.UserInputType.Touch then
+				dragInput = userInput
 			end
 		end)
 
-		input.InputChanged:Connect(function(input)
-			if input == dragInput and dragging then
-				local delta = input.Position - mousePos
+		input.InputChanged:Connect(function(userInput)
+			if userInput == dragInput and dragging then
+				local delta = userInput.Position - mousePos
 				parent.Position = UDim2.new(framePos.X.Scale, framePos.X.Offset + delta.X, framePos.Y.Scale, framePos.Y.Offset + delta.Y)
 			end
 		end)
 	end
+end
+
+-- Mobile scale for the key system (same approach as the main library)
+local keyIsMobile = input.TouchEnabled
+local keyCamera = workspace.CurrentCamera
+local keyViewport = (keyCamera and keyCamera.ViewportSize) or Vector2.new(1920, 1080)
+local keyDesignW, keyDesignH = 560, 400
+local keyScale = 1
+if keyIsMobile then
+	local maxW = keyViewport.X * 0.92
+	local maxH = keyViewport.Y * 0.80
+	keyScale = math.clamp(math.min(maxW / keyDesignW, maxH / keyDesignH), 0.55, 1.15)
 end
 
 -- Key System GUI
@@ -3026,8 +3187,9 @@ local keySystem = utility:Create("ScreenGui", {
 	utility:Create("ImageLabel", { -- Main Frame
 		Name = "Main",
 		BackgroundTransparency = 1,
-		Position = UDim2.new(0.5, -280, 0.5, -200),
-		Size = UDim2.new(0, 560, 0, 400),
+		AnchorPoint = Vector2.new(0.5, 0.5),
+		Position = UDim2.new(0.5, 0, 0.5, 0),
+		Size = UDim2.new(0, keyDesignW, 0, keyDesignH),
 		Image = "rbxassetid://4641149554",
 		ImageColor3 = themes.Background,
 		ScaleType = Enum.ScaleType.Slice,
@@ -3233,6 +3395,14 @@ local keySystem = utility:Create("ScreenGui", {
 })
 
 utility:DraggingEnabled(keySystem.Main.TopBar, keySystem.Main)
+
+-- Apply mobile scale to key system so it fits smaller screens
+if keyScale ~= 1 then
+	local keyScaleObj = Instance.new("UIScale")
+	keyScaleObj.Name = "MobileScale"
+	keyScaleObj.Scale = keyScale
+	keyScaleObj.Parent = keySystem.Main
+end
 
 -- Populate Changelog (example - edit as needed)
 local changelogFrame = keySystem.Main.LeftPanel.ChangelogContainer
