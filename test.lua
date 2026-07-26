@@ -119,7 +119,8 @@ do
 		end)
 		
 		input.InputEnded:Connect(function(key)
-			if key.UserInputType == Enum.UserInputType.MouseButton1 then
+			if key.UserInputType == Enum.UserInputType.MouseButton1
+				or key.UserInputType == Enum.UserInputType.Touch then
 				for i, callback in pairs(self.ended) do
 					callback()
 				end
@@ -298,13 +299,6 @@ do
 
 	function library:SetVisible(visible)
 		self.container.Enabled = visible
-		-- Keep the mobile floating button icon in sync (open / close)
-		if self.mobileToggleButton then
-			local label = self.mobileToggleButton:FindFirstChild("Icon", true)
-			if label then
-				label.Text = visible and "✕" or "☰"
-			end
-		end
 	end
 
 	function library:SetWatermarkVisible(visible)
@@ -404,11 +398,6 @@ do
 		if self.watermark then
 			self.watermark:Destroy()
 		end
-		if self.mobileToggle then
-			self.mobileToggle:Destroy()
-			self.mobileToggle = nil
-			self.mobileToggleButton = nil
-		end
 		self.container:Destroy()
 	end
 	
@@ -417,26 +406,9 @@ do
 	function library.new(title, options)
 		options = options or {}
 
-		-- Mobile / touch support
-		-- Detects TouchEnabled devices and scales the fixed-size desktop layout so it
-		-- fits smaller viewports while keeping larger touch targets.
-		local isMobile = input.TouchEnabled
-		local camera = workspace.CurrentCamera
-		local viewport = (camera and camera.ViewportSize) or Vector2.new(1920, 1080)
-
 		local designWidth, designHeight = 511, 428
-		local uiScaleFactor = 1
-		if isMobile then
-			-- Fit roughly 90% of the shorter screen axis while preserving aspect ratio
-			local maxW = viewport.X * 0.92
-			local maxH = viewport.Y * 0.78
-			uiScaleFactor = math.min(maxW / designWidth, maxH / designHeight)
-			uiScaleFactor = math.clamp(uiScaleFactor, 0.55, 1.15)
-		end
-
-		-- Slightly taller top bar + slightly narrower nav on mobile for better touch
-		local topbarHeight = isMobile and 44 or 38
-		local navigationWidth = isMobile and 112 or 126
+		local topbarHeight = 38
+		local navigationWidth = 126
 		local contentLeft = navigationWidth + 8
 		local playerGui = player:WaitForChild("PlayerGui")
 		local watermarkOptions = options.Watermark
@@ -449,15 +421,15 @@ do
 		local watermarkEnabled = watermarkOptions.Enabled ~= false
 		local watermarkAnchor = typeof(watermarkOptions.AnchorPoint) == "Vector2" and watermarkOptions.AnchorPoint or Vector2.new(1, 0)
 		local watermarkPosition = typeof(watermarkOptions.Position) == "UDim2" and watermarkOptions.Position or UDim2.new(1, -16, 0, 16)
-		local watermarkSize = typeof(watermarkOptions.Size) == "UDim2" and watermarkOptions.Size or UDim2.new(0, isMobile and 320 or 390, 0, isMobile and 52 or 58)
+		local watermarkSize = typeof(watermarkOptions.Size) == "UDim2" and watermarkOptions.Size or UDim2.new(0, 390, 0, 58)
 		local watermarkBackground = typeof(watermarkOptions.BackgroundColor) == "Color3" and watermarkOptions.BackgroundColor or themes.Background
 		local watermarkTopBar = typeof(watermarkOptions.TopBarColor) == "Color3" and watermarkOptions.TopBarColor or themes.Accent
 		local watermarkStatus = typeof(watermarkOptions.StatusColor) == "Color3" and watermarkOptions.StatusColor or themes.DarkContrast
 		local watermarkGlow = typeof(watermarkOptions.GlowColor) == "Color3" and watermarkOptions.GlowColor or themes.Glow
 		local watermarkAccent = typeof(watermarkOptions.AccentColor) == "Color3" and watermarkOptions.AccentColor or themes.LightContrast
 		local watermarkText = typeof(watermarkOptions.TextColor) == "Color3" and watermarkOptions.TextColor or themes.TextColor
-		local watermarkTextSize = tonumber(watermarkOptions.TextSize) or (isMobile and 12 or 13)
-		local watermarkTopbarHeight = math.clamp(tonumber(watermarkOptions.TopBarHeight) or (isMobile and 24 or 27), 22, 40)
+		local watermarkTextSize = tonumber(watermarkOptions.TextSize) or 13
+		local watermarkTopbarHeight = math.clamp(tonumber(watermarkOptions.TopBarHeight) or 27, 22, 40)
 		local watermarkShowGlow = watermarkOptions.Glow ~= false
 		local watermarkShowAccent = watermarkOptions.AccentLine ~= false
 		local watermarkDisplayOrder = tonumber(watermarkOptions.DisplayOrder) or 100
@@ -673,14 +645,6 @@ do
 		
 		utility:InitializeKeybind()
 		utility:DraggingEnabled(container.Main.TopBar, container.Main)
-
-		-- Apply uniform scale so the fixed desktop layout fits mobile viewports
-		if uiScaleFactor ~= 1 then
-			local scaleObj = Instance.new("UIScale")
-			scaleObj.Name = "MobileScale"
-			scaleObj.Scale = uiScaleFactor
-			scaleObj.Parent = container.Main
-		end
 		
 		local window = setmetatable({
 			container = container,
@@ -689,133 +653,10 @@ do
 			watermark = watermark,
 			topbarHeight = topbarHeight,
 			navigationWidth = navigationWidth,
-			contentLeft = contentLeft,
-			isMobile = isMobile,
-			uiScale = uiScaleFactor
+			contentLeft = contentLeft
 		}, library)
 
 		window:SetToggleKey(options.ToggleKey or Enum.KeyCode.RightShift)
-
-		-- Floating open/close button (mobile only) – always visible, draggable
-		if isMobile then
-			local mobileToggle = utility:Create("ScreenGui", {
-				Name = title .. "_MobileToggle",
-				Parent = playerGui,
-				IgnoreGuiInset = true,
-				ResetOnSpawn = false,
-				DisplayOrder = (tonumber(watermarkOptions.DisplayOrder) or 100) + 1,
-				ZIndexBehavior = Enum.ZIndexBehavior.Sibling
-			})
-
-			local btnSize = 56
-			local button = utility:Create("ImageButton", {
-				Name = "ToggleButton",
-				Parent = mobileToggle,
-				AnchorPoint = Vector2.new(0.5, 0.5),
-				BackgroundTransparency = 1,
-				Position = UDim2.new(1, -40, 0.5, 0),
-				Size = UDim2.new(0, btnSize, 0, btnSize),
-				ZIndex = 10,
-				Image = "rbxassetid://5028857472",
-				ImageColor3 = themes.Background,
-				ScaleType = Enum.ScaleType.Slice,
-				SliceCenter = Rect.new(4, 4, 296, 296),
-				AutoButtonColor = false,
-				Active = true
-			}, {
-				-- Soft glow behind the button (Active=false so it never steals touch)
-				utility:Create("ImageLabel", {
-					Name = "Glow",
-					BackgroundTransparency = 1,
-					Position = UDim2.new(0, -10, 0, -10),
-					Size = UDim2.new(1, 20, 1, 20),
-					ZIndex = 9,
-					Image = "rbxassetid://5028857084",
-					ImageColor3 = themes.Glow,
-					ScaleType = Enum.ScaleType.Slice,
-					SliceCenter = Rect.new(24, 24, 276, 276),
-					Active = false
-				}),
-				-- Accent ring / border
-				utility:Create("ImageLabel", {
-					Name = "Accent",
-					BackgroundTransparency = 1,
-					Position = UDim2.new(0, 2, 0, 2),
-					Size = UDim2.new(1, -4, 1, -4),
-					ZIndex = 11,
-					Image = "rbxassetid://5028857472",
-					ImageColor3 = Color3.fromRGB(180, 50, 255),
-					ImageTransparency = 0.55,
-					ScaleType = Enum.ScaleType.Slice,
-					SliceCenter = Rect.new(4, 4, 296, 296),
-					Active = false
-				}),
-				-- Icon (hamburger when closed, X when open)
-				utility:Create("TextLabel", {
-					Name = "Icon",
-					BackgroundTransparency = 1,
-					Size = UDim2.new(1, 0, 1, 0),
-					ZIndex = 12,
-					Font = Enum.Font.GothamBold,
-					Text = "✕", -- menu starts visible
-					TextColor3 = themes.TextColor,
-					TextSize = 22,
-					TextXAlignment = Enum.TextXAlignment.Center,
-					TextYAlignment = Enum.TextYAlignment.Center,
-					Active = false
-				})
-			})
-
-			-- Robust touch + mouse drag (works with AnchorPoint 0.5, 0.5)
-			local dragging = false
-			local dragStart, btnStart
-			local wasDragging = false
-
-			button.InputBegan:Connect(function(userInput)
-				if userInput.UserInputType == Enum.UserInputType.MouseButton1
-					or userInput.UserInputType == Enum.UserInputType.Touch then
-					dragging = true
-					wasDragging = false
-					dragStart = userInput.Position
-					btnStart = button.Position
-
-					userInput.Changed:Connect(function()
-						if userInput.UserInputState == Enum.UserInputState.End then
-							dragging = false
-						end
-					end)
-				end
-			end)
-
-			input.InputChanged:Connect(function(userInput)
-				if not dragging then return end
-				if userInput.UserInputType ~= Enum.UserInputType.MouseMovement
-					and userInput.UserInputType ~= Enum.UserInputType.Touch then
-					return
-				end
-
-				local delta = userInput.Position - dragStart
-				if math.abs(delta.X) > 6 or math.abs(delta.Y) > 6 then
-					wasDragging = true
-				end
-
-				button.Position = UDim2.new(
-					btnStart.X.Scale, btnStart.X.Offset + delta.X,
-					btnStart.Y.Scale, btnStart.Y.Offset + delta.Y
-				)
-			end)
-
-			button.MouseButton1Click:Connect(function()
-				if wasDragging then
-					return -- user dragged, don't toggle
-				end
-				utility:Pop(button, 6)
-				window:SetVisible(not container.Enabled)
-			end)
-
-			window.mobileToggle = mobileToggle
-			window.mobileToggleButton = button
-		end
 
 		local frameCount = 0
 		local lastSample = os.clock()
@@ -855,16 +696,12 @@ do
 	function page.new(library, title, icon)
 		icon = getPageIcon(title, icon)
 
-		-- Taller nav buttons on mobile for easier touch targets
-		local navButtonHeight = (library.isMobile and 34) or 26
-		local iconSize = (library.isMobile and 20) or 18
-
 		local button = utility:Create("TextButton", {
 			Name = title,
 			Parent = library.pagesContainer,
 			BackgroundTransparency = 1,
 			BorderSizePixel = 0,
-			Size = UDim2.new(1, 0, 0, navButtonHeight),
+			Size = UDim2.new(1, 0, 0, 26),
 			ZIndex = 3,
 			AutoButtonColor = false,
 			Font = Enum.Font.Gotham,
@@ -881,7 +718,7 @@ do
 				Font = Enum.Font.Gotham,
 				Text = title,
 				TextColor3 = themes.TextColor,
-				TextSize = library.isMobile and 13 or 12,
+				TextSize = 12,
 				TextTransparency = 0.65,
 				TextXAlignment = Enum.TextXAlignment.Left
 			})
@@ -896,7 +733,7 @@ do
 				AnchorPoint = Vector2.new(0, 0.5),
 				BackgroundTransparency = 1,
 				Position = UDim2.new(0, 10, 0.5, 0),
-				Size = UDim2.new(0, iconSize, 0, iconSize),
+				Size = UDim2.new(0, 18, 0, 18),
 				ZIndex = 4,
 				Image = "rbxassetid://" .. iconId,
 				ImageColor3 = Color3.fromRGB(255, 255, 255),
@@ -2208,7 +2045,8 @@ do
 		local circle = slider.Slider.Bar.Fill.Circle
 		
 		local value = default or min
-		local dragging, last
+		local dragging = false
+		local activeInput = nil
 		
 		local userCallback = callback
 		local callback = function(value)
@@ -2220,26 +2058,46 @@ do
 		end
 		
 		self:updateSlider(slider, nil, value, min, max)
-		
-		utility:DraggingEnded(function()
-			dragging = false
-		end)
 
-		slider.MouseButton1Down:Connect(function(input)
+		-- Smooth drag on PC (mouse.X) + touch (input.Position)
+		local function stopDrag()
+			if not dragging then return end
+			dragging = false
+			activeInput = nil
+			utility:Tween(circle, {ImageTransparency = 1}, 0.2)
+		end
+
+		slider.InputBegan:Connect(function(userInput)
+			if userInput.UserInputType ~= Enum.UserInputType.MouseButton1
+				and userInput.UserInputType ~= Enum.UserInputType.Touch then
+				return
+			end
+
 			dragging = true
-			
+			activeInput = userInput
+			utility:Tween(circle, {ImageTransparency = 0}, 0.1)
+
+			userInput.Changed:Connect(function()
+				if userInput.UserInputState == Enum.UserInputState.End then
+					stopDrag()
+				end
+			end)
+
+			-- Hold-and-drag loop (same smooth feel as original on PC)
 			while dragging do
-				utility:Tween(circle, {ImageTransparency = 0}, 0.1)
-				
-				value = self:updateSlider(slider, nil, nil, min, max, value)
+				local posX = mouse.X
+				-- Touch InputObjects update Position while the finger moves
+				if activeInput and activeInput.UserInputType == Enum.UserInputType.Touch then
+					posX = activeInput.Position.X
+				end
+				value = self:updateSlider(slider, nil, nil, min, max, value, posX)
 				callback(value)
-				
 				utility:Wait()
 			end
-			
-			wait(0.5)
-			utility:Tween(circle, {ImageTransparency = 1}, 0.2)
 		end)
+
+		-- Backup end (covers cases where InputObject.Changed is missed)
+		utility:DraggingEnded(stopDrag)
 		
 		textbox.FocusLost:Connect(function()
 			if not tonumber(textbox.Text) then
@@ -2646,7 +2504,7 @@ do
 		end
 	end
 	
-	function section:updateSlider(slider, title, value, min, max, lvalue)
+	function section:updateSlider(slider, title, value, min, max, lvalue, posX)
 		slider = self:getModule(slider)
 		
 		if title then
@@ -2654,7 +2512,8 @@ do
 		end
 		
 		local bar = slider.Slider.Bar
-		local percent = (mouse.X - bar.AbsolutePosition.X) / bar.AbsoluteSize.X
+		local pointerX = posX or mouse.X
+		local percent = (pointerX - bar.AbsolutePosition.X) / bar.AbsoluteSize.X
 		
 		if value then -- support negative ranges
 			percent = (value - min) / (max - min)
@@ -2831,7 +2690,7 @@ versionLabel.Position = UDim2.new(1, -30, 1, -24)
 versionLabel.Size = UDim2.fromOffset(160, 18)
 versionLabel.BackgroundTransparency = 1
 versionLabel.Font = Enum.Font.GothamBold
-versionLabel.Text = "SCRIPTHUB â€¢ v1.0"
+versionLabel.Text = "SCRIPTHUB • v1.0"
 versionLabel.TextColor3 = DIM
 versionLabel.TextSize = 11
 versionLabel.TextXAlignment = Enum.TextXAlignment.Right
@@ -2846,7 +2705,7 @@ title.BackgroundTransparency = 1
 title.Font = Enum.Font.GothamBold
 title.Text = "X  E  V  O  R"
 title.TextColor3 = WHITE
-title.TextSize = 52
+title.TextSize = (workspace.CurrentCamera and workspace.CurrentCamera.ViewportSize.X or 800) < 500 and 36 or 52
 title.TextTransparency = 1
 title.TextStrokeColor3 = PURPLE
 title.TextStrokeTransparency = 1
@@ -2862,7 +2721,7 @@ titleGlow.BackgroundTransparency = 1
 titleGlow.Font = Enum.Font.GothamBold
 titleGlow.Text = "X  E  V  O  R"
 titleGlow.TextColor3 = PURPLE
-titleGlow.TextSize = 52
+titleGlow.TextSize = title.TextSize
 titleGlow.TextTransparency = 1
 titleGlow.TextXAlignment = Enum.TextXAlignment.Center
 titleGlow.ZIndex = 0
@@ -2886,7 +2745,8 @@ local loader = Instance.new("Frame")
 loader.Name = "Loader"
 loader.AnchorPoint = Vector2.new(0.5, 1)
 loader.Position = UDim2.new(0.5, 0, 1, -58)
-loader.Size = UDim2.fromOffset(780, 72)
+-- Responsive width: fixed on desktop, almost full width on narrow / mobile screens
+loader.Size = UDim2.new(0, math.min(780, math.max(280, (workspace.CurrentCamera and workspace.CurrentCamera.ViewportSize.X or 800) - 48)), 0, 72)
 loader.BackgroundTransparency = 1
 loader.Parent = backdrop
 
@@ -2912,7 +2772,7 @@ end
 local stateText = Instance.new("TextLabel")
 stateText.Name = "State"
 stateText.Position = UDim2.fromOffset(0, 24)
-stateText.Size = UDim2.fromOffset(320, 20)
+stateText.Size = UDim2.new(1, -70, 0, 20)
 stateText.BackgroundTransparency = 1
 stateText.Font = Enum.Font.GothamBold
 stateText.Text = "INITIALIZING..."
@@ -2920,13 +2780,14 @@ stateText.TextColor3 = WHITE
 stateText.TextSize = 14
 stateText.TextTransparency = 1
 stateText.TextXAlignment = Enum.TextXAlignment.Left
+stateText.TextTruncate = Enum.TextTruncate.AtEnd
 stateText.Parent = loader
 
 local percentage = Instance.new("TextLabel")
 percentage.Name = "Percentage"
 percentage.AnchorPoint = Vector2.new(1, 0)
 percentage.Position = UDim2.new(1, 0, 0, 24)
-percentage.Size = UDim2.fromOffset(110, 20)
+percentage.Size = UDim2.fromOffset(60, 20)
 percentage.BackgroundTransparency = 1
 percentage.Font = Enum.Font.GothamBold
 percentage.Text = "00%"
@@ -3185,18 +3046,6 @@ do
 	end
 end
 
--- Mobile scale for the key system (same approach as the main library)
-local keyIsMobile = input.TouchEnabled
-local keyCamera = workspace.CurrentCamera
-local keyViewport = (keyCamera and keyCamera.ViewportSize) or Vector2.new(1920, 1080)
-local keyDesignW, keyDesignH = 560, 400
-local keyScale = 1
-if keyIsMobile then
-	local maxW = keyViewport.X * 0.92
-	local maxH = keyViewport.Y * 0.80
-	keyScale = math.clamp(math.min(maxW / keyDesignW, maxH / keyDesignH), 0.55, 1.15)
-end
-
 -- Key System GUI
 local keySystem = utility:Create("ScreenGui", {
 	Name = "XEVOR_KeySystem",
@@ -3208,7 +3057,7 @@ local keySystem = utility:Create("ScreenGui", {
 		BackgroundTransparency = 1,
 		AnchorPoint = Vector2.new(0.5, 0.5),
 		Position = UDim2.new(0.5, 0, 0.5, 0),
-		Size = UDim2.new(0, keyDesignW, 0, keyDesignH),
+		Size = UDim2.new(0, 560, 0, 400),
 		Image = "rbxassetid://4641149554",
 		ImageColor3 = themes.Background,
 		ScaleType = Enum.ScaleType.Slice,
@@ -3415,23 +3264,15 @@ local keySystem = utility:Create("ScreenGui", {
 
 utility:DraggingEnabled(keySystem.Main.TopBar, keySystem.Main)
 
--- Apply mobile scale to key system so it fits smaller screens
-if keyScale ~= 1 then
-	local keyScaleObj = Instance.new("UIScale")
-	keyScaleObj.Name = "MobileScale"
-	keyScaleObj.Scale = keyScale
-	keyScaleObj.Parent = keySystem.Main
-end
-
 -- Populate Changelog (example - edit as needed)
 local changelogFrame = keySystem.Main.LeftPanel.ChangelogContainer
 local logs = {
-	"â€¢ v1.2.3 - New UI overhaul",
-	"â€¢ Added 5 new scripts",
-	"â€¢ Fixed anti-cheat bypass",
-	"â€¢ Performance improvements",
-	"â€¢ More games supported",
-	"â€¢ UI now fully customizable"
+	"• v1.2.3 - New UI overhaul",
+	"• Added 5 new scripts",
+	"• Fixed anti-cheat bypass",
+	"• Performance improvements",
+	"• More games supported",
+	"• UI now fully customizable"
 }
 
 for _, log in ipairs(logs) do
