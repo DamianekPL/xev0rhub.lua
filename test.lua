@@ -2224,35 +2224,45 @@ do
 		
 		self:updateSlider(slider, nil, value, min, max)
 
-		-- Touch + mouse safe slider drag (only this slider tracks while active)
+		-- Smooth drag on PC (mouse.X) + touch (input.Position)
+		local function stopDrag()
+			if not dragging then return end
+			dragging = false
+			activeInput = nil
+			utility:Tween(circle, {ImageTransparency = 1}, 0.2)
+		end
+
 		slider.InputBegan:Connect(function(userInput)
 			if userInput.UserInputType ~= Enum.UserInputType.MouseButton1
 				and userInput.UserInputType ~= Enum.UserInputType.Touch then
 				return
 			end
+
 			dragging = true
 			activeInput = userInput
 			utility:Tween(circle, {ImageTransparency = 0}, 0.1)
 
 			userInput.Changed:Connect(function()
 				if userInput.UserInputState == Enum.UserInputState.End then
-					dragging = false
-					activeInput = nil
-					utility:Tween(circle, {ImageTransparency = 1}, 0.2)
+					stopDrag()
 				end
 			end)
+
+			-- Hold-and-drag loop (same smooth feel as original on PC)
+			while dragging do
+				local posX = mouse.X
+				-- Touch InputObjects update Position while the finger moves
+				if activeInput and activeInput.UserInputType == Enum.UserInputType.Touch then
+					posX = activeInput.Position.X
+				end
+				value = self:updateSlider(slider, nil, nil, min, max, value, posX)
+				callback(value)
+				utility:Wait()
+			end
 		end)
 
-		run.RenderStepped:Connect(function()
-			if not dragging then return end
-			-- Prefer live touch/mouse position from the active input when available
-			local posX = mouse.X
-			if activeInput then
-				posX = activeInput.Position.X
-			end
-			value = self:updateSlider(slider, nil, nil, min, max, value, posX)
-			callback(value)
-		end)
+		-- Backup end (covers cases where InputObject.Changed is missed)
+		utility:DraggingEnded(stopDrag)
 		
 		textbox.FocusLost:Connect(function()
 			if not tonumber(textbox.Text) then
