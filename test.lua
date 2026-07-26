@@ -895,7 +895,13 @@ do
 	
 	-- new modules
 	
-	function library:Notify(title, text, callback)
+	function library:Notify(title, text, callback, duration)
+		-- `Window:Notify(title, text, seconds)` is supported for simple notices.
+		if type(callback) == "number" and duration == nil then
+			duration = callback
+			callback = nil
+		end
+		duration = math.max(tonumber(duration) or 4, 0.5)
 	
 		-- overwrite last notification
 		if self.activeNotification then
@@ -976,23 +982,29 @@ do
 			})
 		})
 		
-		-- dragging
-		utility:DraggingEnabled(notification)
-		
 		-- position and size
 		title = title or "Notification"
 		text = text or ""
 		
 		notification.Title.Text = title
 		notification.Text.Text = text
+		notification.Accept.Visible = callback ~= nil
+		notification.Decline.Visible = callback ~= nil
 		
-		local padding = 10
+		local padding = 16
+		local height = 60
 		local textSize = game:GetService("TextService"):GetTextSize(text, 12, Enum.Font.Gotham, Vector2.new(math.huge, 16))
-		
-		notification.Position = library.lastNotification or UDim2.new(0, padding, 1, -(notification.AbsoluteSize.Y + padding))
-		notification.Size = UDim2.new(0, 0, 0, 60)
-		
-		utility:Tween(notification, {Size = UDim2.new(0, textSize.X + 70, 0, 60)}, 0.2)
+		local width = math.clamp(textSize.X + 70, 200, 360)
+		local visiblePosition = UDim2.new(1, -(width + padding), 1, -(height + padding))
+		local hiddenPosition = UDim2.new(1, padding, 1, -(height + padding))
+
+		-- Slide in from the right and remain anchored in the lower-right corner.
+		notification.Position = hiddenPosition
+		notification.Size = UDim2.new(0, 0, 0, height)
+		utility:Tween(notification, {
+			Size = UDim2.new(0, width, 0, height),
+			Position = visiblePosition
+		}, 0.2)
 		wait(0.2)
 		
 		notification.ClipsDescendants = false
@@ -1012,14 +1024,13 @@ do
 			active = false
 			notification.ClipsDescendants = true
 			
-			library.lastNotification = notification.Position
 			notification.Flash.Position = UDim2.new(0, 0, 0, 0)
 			utility:Tween(notification.Flash, {Size = UDim2.new(1, 0, 1, 0)}, 0.2)
 			
 			wait(0.2)
 			utility:Tween(notification, {
 				Size = UDim2.new(0, 0, 0, 60),
-				Position = notification.Position + UDim2.new(0, textSize.X + 70, 0, 0)
+				Position = hiddenPosition
 			}, 0.2)
 			
 			wait(0.2)
@@ -1027,6 +1038,10 @@ do
 		end
 		
 		self.activeNotification = close
+
+		-- Ordinary notifications close automatically; callback prompts can still
+		-- be accepted or declined before this timer expires.
+		task.delay(duration, close)
 		
 		notification.Accept.MouseButton1Click:Connect(function()
 		
@@ -3264,76 +3279,8 @@ keySystem.Main.RightPanel.VerifyBtn.MouseButton1Click:Connect(function()
 			}
 		})
 
-		-- Pages (icons auto-assigned from library.Icons by page title)
-		local Main = Window:addPage("Main", 78448098168568)
-		local Combat = Window:addPage("Combat", 134778074060560)
-		local Visuals = Window:addPage("Visuals", 126402342060943)
-		local Player = Window:addPage("Player", 126810039551277)
-		local Misc = Window:addPage("Misc", 93378016140831)
-		local Teleport = Window:addPage("Teleport", 87811184442788)
-		local ESP = Window:addPage("ESP", 72796864087159)
-		local Aimbot = Window:addPage("Aimbot", 78102496134558)
-		local Settings = Window:addPage("Settings", 81115759913656)
-		local Credits = Window:addPage("Credits", 96500516193754)
-
-		-- Main page demo controls
-		local Section = Main:addSection("General")
-
-		Section:addToggle("Silent Aim", false, function(value)
-			print("Silent Aim:", value)
-		end)
-
-		Section:addSlider("FOV", 80, 0, 360, function(value)
-			print("FOV:", value)
-		end)
-
-		Section:addButton("Test Notify", function()
-			Window:Notify("XEVOR", "Icons and menu are working!")
-		end)
-
-		Section:addDropdown("Mode", {"Legit", "Rage", "Silent"}, function(value)
-			print("Mode:", value)
-		end)
-
-		Section:addKeybind("Menu Key", Enum.KeyCode.RightControl, function()
-			print("Menu key pressed")
-		end)
-
-		Section:addColorPicker("Accent", Color3.fromRGB(180, 50, 255), function(color)
-			print("Accent:", color)
-		end)
-
-		-- Combat page
-		local CombatSection = Combat:addSection("Combat")
-		CombatSection:addToggle("Aimbot", false, function(v) print("Aimbot:", v) end)
-		CombatSection:addSlider("Smoothness", 5, 1, 20, function(v) print("Smoothness:", v) end)
-
-		-- Visuals page
-		local VisualsSection = Visuals:addSection("ESP")
-		VisualsSection:addToggle("Box ESP", false, function(v) print("Box ESP:", v) end)
-		VisualsSection:addToggle("Name ESP", false, function(v) print("Name ESP:", v) end)
-		VisualsSection:addToggle("Health ESP", false, function(v) print("Health ESP:", v) end)
-
-		-- Settings page
-		local SettingsSection = Settings:addSection("UI")
-		SettingsSection:addToggle("Watermark", true, function(v)
-			Window:SetWatermarkVisible(v)
-		end)
-		SettingsSection:addButton("Destroy UI", function()
-			Window:Destroy()
-		end)
-
-		-- Credits page
-		local CreditsSection = Credits:addSection("Credits")
-		CreditsSection:addButton("Discord", function()
-			setclipboard("https://discord.gg/yourserver")
-			Window:Notify("XEVOR", "Discord link copied!")
-		end)
-
-		task.wait(0.1)
-		Window:SelectPage(Main, true)
-
-		print("Key accepted! Main UI loaded with icons. Press Right Ctrl to toggle.")
+		-- Empty main menu: pages and controls will be added later.
+		print("Key accepted! Empty main UI loaded. Press Right Ctrl to toggle.")
 	else
 		statusLabel.Text = "Invalid Key"
 		statusLabel.TextColor3 = Color3.fromRGB(255, 80, 80)
