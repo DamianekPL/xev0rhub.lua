@@ -432,13 +432,28 @@ do
 		local watermarkTopbarHeight = math.clamp(tonumber(watermarkOptions.TopBarHeight) or 27, 22, 40)
 		local watermarkShowGlow = watermarkOptions.Glow ~= false
 		local watermarkShowAccent = watermarkOptions.AccentLine ~= false
-		local watermarkDisplayOrder = tonumber(watermarkOptions.DisplayOrder) or 100
+		-- High DisplayOrder so the hub sits above the Roblox ESC / core menus
+		local watermarkDisplayOrder = tonumber(watermarkOptions.DisplayOrder) or 9999
+		local menuDisplayOrder = tonumber(options.DisplayOrder) or 9998
+
+		-- Prefer CoreGui so the UI renders above the native Roblox pause menu.
+		-- Falls back to PlayerGui if CoreGui is unavailable.
+		local guiParent = playerGui
+		pcall(function()
+			guiParent = game:GetService("CoreGui")
+		end)
+		if syn and syn.protect_gui then
+			-- some executors require protect_gui before parenting to CoreGui
+		elseif protectgui then
+			-- protectgui(gui) is applied after Create below when available
+		end
 
 		local container = utility:Create("ScreenGui", {
 			Name = title,
-			Parent = playerGui,
+			Parent = guiParent,
 			IgnoreGuiInset = true,
 			ResetOnSpawn = false,
+			DisplayOrder = menuDisplayOrder,
 			ZIndexBehavior = Enum.ZIndexBehavior.Sibling
 		}, {
 			utility:Create("ImageLabel", {
@@ -543,12 +558,11 @@ do
 		-- Kept in its own ScreenGui so it remains visible when the menu is hidden.
 		local watermark = utility:Create("ScreenGui", {
 			Name = title .. "_Watermark",
-			Parent = playerGui,
+			Parent = guiParent,
 			Enabled = watermarkEnabled,
 			IgnoreGuiInset = true,
 			ResetOnSpawn = false,
-			-- Separate, high-priority layer: it stays above the menu and remains
-			-- visible when library:SetVisible(false) hides the main ScreenGui.
+			-- Separate, high-priority layer above the menu and Roblox ESC UI.
 			DisplayOrder = watermarkDisplayOrder,
 			ZIndexBehavior = Enum.ZIndexBehavior.Sibling
 		}, {
@@ -643,6 +657,17 @@ do
 			})
 		})
 		
+		-- Protect GUIs on executors that support it (keeps them in CoreGui safely)
+		pcall(function()
+			if syn and syn.protect_gui then
+				syn.protect_gui(container)
+				syn.protect_gui(watermark)
+			elseif protectgui then
+				protectgui(container)
+				protectgui(watermark)
+			end
+		end)
+
 		utility:InitializeKeybind()
 		utility:DraggingEnabled(container.Main.TopBar, container.Main)
 		
@@ -2311,10 +2336,8 @@ do
 			wait(0.05)
 			
 			for i, section in pairs(page.sections) do
-			
-				utility:Tween(section.container.Title, {TextTransparency = 0}, 0.1)
-				section:Resize(true)
-				
+				section.container.Title.TextTransparency = 0
+				section:Resize(false)
 				wait(0.05)
 			end
 			
@@ -2360,18 +2383,29 @@ do
 	end
 	
 	function section:Resize(smooth)
-	
+		local padding = 4
+		local titleY = self.container.Title.AbsoluteSize.Y
+		if titleY < 1 then
+			titleY = 20
+		end
+		local size = (4 * padding) + titleY
+
+		for _, module in pairs(self.modules) do
+			local moduleY = module.AbsoluteSize.Y
+			-- Modules on a hidden page often report 0 — use the design height instead
+			if moduleY < 1 then
+				moduleY = 30
+			end
+			size = size + moduleY + padding
+		end
+
+		-- Always apply size so sections built while another page is focused
+		-- are correct when the user switches to this page.
 		if self.page.library.focusedPage ~= self.page then
+			self.container.Parent.Size = UDim2.new(1, -10, 0, size)
 			return
 		end
-		
-		local padding = 4
-		local size = (4 * padding) + self.container.Title.AbsoluteSize.Y -- offset
-		
-		for i, module in pairs(self.modules) do
-			size = size + module.AbsoluteSize.Y + padding
-		end
-		
+
 		if smooth then
 			utility:Tween(self.container.Parent, {Size = UDim2.new(1, -10, 0, size)}, 0.05)
 		else
@@ -3050,7 +3084,9 @@ end
 local keySystem = utility:Create("ScreenGui", {
 	Name = "XEVOR_KeySystem",
 	Parent = game.CoreGui,
-	ResetOnSpawn = false
+	ResetOnSpawn = false,
+	IgnoreGuiInset = true,
+	DisplayOrder = 10000
 }, {
 	utility:Create("ImageLabel", { -- Main Frame
 		Name = "Main",
