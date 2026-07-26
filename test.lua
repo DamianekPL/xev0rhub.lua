@@ -1751,9 +1751,10 @@ do
 			end
 		}
 		
+		local userCallback = callback
 		local callback = function(value)
-			if callback then
-				callback(value, function(...)
+			if userCallback then
+				userCallback(value, function(...)
 					self:updateColorPicker(colorpicker, ...)
 				end)
 			end
@@ -2040,9 +2041,10 @@ do
 		local value = default or min
 		local dragging, last
 		
+		local userCallback = callback
 		local callback = function(value)
-			if callback then
-				callback(value, function(...)
+			if userCallback then
+				userCallback(value, function(...)
 					self:updateSlider(slider, ...)
 				end)
 			end
@@ -3259,6 +3261,9 @@ changelogFrame.CanvasSize = UDim2.new(0, 0, 0, #logs * 26)
 local keyInput = keySystem.Main.RightPanel.KeyInput.Input
 local statusLabel = keySystem.Main.RightPanel.Status
 
+-- Yield until key is verified, then return the library so loadstring(...)() works as API.
+local keyVerified = false
+
 keySystem.Main.RightPanel.VerifyBtn.MouseButton1Click:Connect(function()
 	utility:Pop(keySystem.Main.RightPanel.VerifyBtn, 8)
 	local key = keyInput.Text:upper()
@@ -3267,24 +3272,14 @@ keySystem.Main.RightPanel.VerifyBtn.MouseButton1Click:Connect(function()
 	if key == "XEVOR-TEST-KEY-1234" or key == "VALIDKEY" then
 		statusLabel.Text = "Key Verified"
 		statusLabel.TextColor3 = Color3.fromRGB(80, 255, 80)
-		wait(1.2)
+		task.wait(1.2)
 		keySystem:Destroy()
-
-		-- Open the main menu only after the key is accepted.
-		local Window = XevorLibrary.new("XEVOR", {
-			ToggleKey = Enum.KeyCode.RightControl,
-			Watermark = {
-				Enabled = true,
-				Glow = true,
-			}
-		})
-
-		-- Empty main menu: pages and controls will be added later.
-		print("Key accepted! Empty main UI loaded. Press Right Ctrl to toggle.")
+		keyVerified = true
+		print("Key accepted! Library ready – create Window and add pages in your script.")
 	else
 		statusLabel.Text = "Invalid Key"
 		statusLabel.TextColor3 = Color3.fromRGB(255, 80, 80)
-		wait(2)
+		task.wait(2)
 		statusLabel.Text = "Enter Key"
 		statusLabel.TextColor3 = themes.TextColor
 	end
@@ -3312,3 +3307,10 @@ keySystem.Main.RightPanel.DiscordBtn.MouseButton1Click:Connect(function()
 end)
 
 print("XEVOR Key System Loaded - Black/Gray themed with changelogs")
+
+-- Wait for successful key verification (loadstring will block here until user enters a valid key)
+while not keyVerified do
+	task.wait()
+end
+
+return XevorLibrary
