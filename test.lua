@@ -119,8 +119,7 @@ do
 		end)
 		
 		input.InputEnded:Connect(function(key)
-			if key.UserInputType == Enum.UserInputType.MouseButton1
-				or key.UserInputType == Enum.UserInputType.Touch then
+			if key.UserInputType == Enum.UserInputType.MouseButton1 then
 				for i, callback in pairs(self.ended) do
 					callback()
 				end
@@ -708,7 +707,7 @@ do
 				ZIndexBehavior = Enum.ZIndexBehavior.Sibling
 			})
 
-			local btnSize = 54
+			local btnSize = 56
 			local button = utility:Create("ImageButton", {
 				Name = "ToggleButton",
 				Parent = mobileToggle,
@@ -718,34 +717,35 @@ do
 				Size = UDim2.new(0, btnSize, 0, btnSize),
 				ZIndex = 10,
 				Image = "rbxassetid://5028857472",
-				ImageColor3 = Color3.fromRGB(24, 24, 24),
+				ImageColor3 = themes.Background,
 				ScaleType = Enum.ScaleType.Slice,
 				SliceCenter = Rect.new(4, 4, 296, 296),
 				AutoButtonColor = false,
 				Active = true
 			}, {
-				-- Soft glow
+				-- Soft glow behind the button (Active=false so it never steals touch)
 				utility:Create("ImageLabel", {
 					Name = "Glow",
 					BackgroundTransparency = 1,
-					Position = UDim2.new(0, -8, 0, -8),
-					Size = UDim2.new(1, 16, 1, 16),
+					Position = UDim2.new(0, -10, 0, -10),
+					Size = UDim2.new(1, 20, 1, 20),
 					ZIndex = 9,
 					Image = "rbxassetid://5028857084",
-					ImageColor3 = Color3.fromRGB(0, 0, 0),
+					ImageColor3 = themes.Glow,
 					ScaleType = Enum.ScaleType.Slice,
 					SliceCenter = Rect.new(24, 24, 276, 276),
 					Active = false
 				}),
-				-- Thin purple accent border
+				-- Accent ring / border
 				utility:Create("ImageLabel", {
 					Name = "Accent",
 					BackgroundTransparency = 1,
-					Position = UDim2.new(0, 0, 0, 0),
-					Size = UDim2.new(1, 0, 0, 3),
+					Position = UDim2.new(0, 2, 0, 2),
+					Size = UDim2.new(1, -4, 1, -4),
 					ZIndex = 11,
-					Image = "rbxassetid://4595286933",
+					Image = "rbxassetid://5028857472",
 					ImageColor3 = Color3.fromRGB(180, 50, 255),
+					ImageTransparency = 0.55,
 					ScaleType = Enum.ScaleType.Slice,
 					SliceCenter = Rect.new(4, 4, 296, 296),
 					Active = false
@@ -757,9 +757,9 @@ do
 					Size = UDim2.new(1, 0, 1, 0),
 					ZIndex = 12,
 					Font = Enum.Font.GothamBold,
-					Text = "✕",
-					TextColor3 = Color3.fromRGB(255, 255, 255),
-					TextSize = 20,
+					Text = "✕", -- menu starts visible
+					TextColor3 = themes.TextColor,
+					TextSize = 22,
 					TextXAlignment = Enum.TextXAlignment.Center,
 					TextYAlignment = Enum.TextYAlignment.Center,
 					Active = false
@@ -914,10 +914,8 @@ do
 			Position = UDim2.new(0, library.contentLeft, 0, library.topbarHeight + 8),
 			Size = UDim2.new(1, -(library.contentLeft + 8), 1, -(library.topbarHeight + 18)),
 			CanvasSize = UDim2.new(0, 0, 0, 466),
-			ScrollBarThickness = library.isMobile and 6 or 3,
+			ScrollBarThickness = 3,
 			ScrollBarImageColor3 = themes.DarkContrast,
-			ScrollingDirection = Enum.ScrollingDirection.Y,
-			ElasticBehavior = Enum.ElasticBehavior.Always,
 			Visible = false
 		}, {
 			utility:Create("UIListLayout", {
@@ -2210,8 +2208,7 @@ do
 		local circle = slider.Slider.Bar.Fill.Circle
 		
 		local value = default or min
-		local dragging = false
-		local activeInput = nil
+		local dragging, last
 		
 		local userCallback = callback
 		local callback = function(value)
@@ -2223,46 +2220,26 @@ do
 		end
 		
 		self:updateSlider(slider, nil, value, min, max)
-
-		-- Smooth drag on PC (mouse.X) + touch (input.Position)
-		local function stopDrag()
-			if not dragging then return end
+		
+		utility:DraggingEnded(function()
 			dragging = false
-			activeInput = nil
-			utility:Tween(circle, {ImageTransparency = 1}, 0.2)
-		end
-
-		slider.InputBegan:Connect(function(userInput)
-			if userInput.UserInputType ~= Enum.UserInputType.MouseButton1
-				and userInput.UserInputType ~= Enum.UserInputType.Touch then
-				return
-			end
-
-			dragging = true
-			activeInput = userInput
-			utility:Tween(circle, {ImageTransparency = 0}, 0.1)
-
-			userInput.Changed:Connect(function()
-				if userInput.UserInputState == Enum.UserInputState.End then
-					stopDrag()
-				end
-			end)
-
-			-- Hold-and-drag loop (same smooth feel as original on PC)
-			while dragging do
-				local posX = mouse.X
-				-- Touch InputObjects update Position while the finger moves
-				if activeInput and activeInput.UserInputType == Enum.UserInputType.Touch then
-					posX = activeInput.Position.X
-				end
-				value = self:updateSlider(slider, nil, nil, min, max, value, posX)
-				callback(value)
-				utility:Wait()
-			end
 		end)
 
-		-- Backup end (covers cases where InputObject.Changed is missed)
-		utility:DraggingEnded(stopDrag)
+		slider.MouseButton1Down:Connect(function(input)
+			dragging = true
+			
+			while dragging do
+				utility:Tween(circle, {ImageTransparency = 0}, 0.1)
+				
+				value = self:updateSlider(slider, nil, nil, min, max, value)
+				callback(value)
+				
+				utility:Wait()
+			end
+			
+			wait(0.5)
+			utility:Tween(circle, {ImageTransparency = 1}, 0.2)
+		end)
 		
 		textbox.FocusLost:Connect(function()
 			if not tonumber(textbox.Text) then
@@ -2669,7 +2646,7 @@ do
 		end
 	end
 	
-	function section:updateSlider(slider, title, value, min, max, lvalue, posX)
+	function section:updateSlider(slider, title, value, min, max, lvalue)
 		slider = self:getModule(slider)
 		
 		if title then
@@ -2677,8 +2654,7 @@ do
 		end
 		
 		local bar = slider.Slider.Bar
-		local pointerX = posX or mouse.X
-		local percent = (pointerX - bar.AbsolutePosition.X) / bar.AbsoluteSize.X
+		local percent = (mouse.X - bar.AbsolutePosition.X) / bar.AbsoluteSize.X
 		
 		if value then -- support negative ranges
 			percent = (value - min) / (max - min)
@@ -2855,7 +2831,7 @@ versionLabel.Position = UDim2.new(1, -30, 1, -24)
 versionLabel.Size = UDim2.fromOffset(160, 18)
 versionLabel.BackgroundTransparency = 1
 versionLabel.Font = Enum.Font.GothamBold
-versionLabel.Text = "SCRIPTHUB • v1.0"
+versionLabel.Text = "SCRIPTHUB â€¢ v1.0"
 versionLabel.TextColor3 = DIM
 versionLabel.TextSize = 11
 versionLabel.TextXAlignment = Enum.TextXAlignment.Right
@@ -2870,7 +2846,7 @@ title.BackgroundTransparency = 1
 title.Font = Enum.Font.GothamBold
 title.Text = "X  E  V  O  R"
 title.TextColor3 = WHITE
-title.TextSize = (workspace.CurrentCamera and workspace.CurrentCamera.ViewportSize.X or 800) < 500 and 36 or 52
+title.TextSize = 52
 title.TextTransparency = 1
 title.TextStrokeColor3 = PURPLE
 title.TextStrokeTransparency = 1
@@ -2886,7 +2862,7 @@ titleGlow.BackgroundTransparency = 1
 titleGlow.Font = Enum.Font.GothamBold
 titleGlow.Text = "X  E  V  O  R"
 titleGlow.TextColor3 = PURPLE
-titleGlow.TextSize = title.TextSize
+titleGlow.TextSize = 52
 titleGlow.TextTransparency = 1
 titleGlow.TextXAlignment = Enum.TextXAlignment.Center
 titleGlow.ZIndex = 0
@@ -2910,8 +2886,7 @@ local loader = Instance.new("Frame")
 loader.Name = "Loader"
 loader.AnchorPoint = Vector2.new(0.5, 1)
 loader.Position = UDim2.new(0.5, 0, 1, -58)
--- Responsive width: fixed on desktop, almost full width on narrow / mobile screens
-loader.Size = UDim2.new(0, math.min(780, math.max(280, (workspace.CurrentCamera and workspace.CurrentCamera.ViewportSize.X or 800) - 48)), 0, 72)
+loader.Size = UDim2.fromOffset(780, 72)
 loader.BackgroundTransparency = 1
 loader.Parent = backdrop
 
@@ -2937,7 +2912,7 @@ end
 local stateText = Instance.new("TextLabel")
 stateText.Name = "State"
 stateText.Position = UDim2.fromOffset(0, 24)
-stateText.Size = UDim2.new(1, -70, 0, 20)
+stateText.Size = UDim2.fromOffset(320, 20)
 stateText.BackgroundTransparency = 1
 stateText.Font = Enum.Font.GothamBold
 stateText.Text = "INITIALIZING..."
@@ -2945,14 +2920,13 @@ stateText.TextColor3 = WHITE
 stateText.TextSize = 14
 stateText.TextTransparency = 1
 stateText.TextXAlignment = Enum.TextXAlignment.Left
-stateText.TextTruncate = Enum.TextTruncate.AtEnd
 stateText.Parent = loader
 
 local percentage = Instance.new("TextLabel")
 percentage.Name = "Percentage"
 percentage.AnchorPoint = Vector2.new(1, 0)
 percentage.Position = UDim2.new(1, 0, 0, 24)
-percentage.Size = UDim2.fromOffset(60, 20)
+percentage.Size = UDim2.fromOffset(110, 20)
 percentage.BackgroundTransparency = 1
 percentage.Font = Enum.Font.GothamBold
 percentage.Text = "00%"
@@ -3452,12 +3426,12 @@ end
 -- Populate Changelog (example - edit as needed)
 local changelogFrame = keySystem.Main.LeftPanel.ChangelogContainer
 local logs = {
-	"• v1.2.3 - New UI overhaul",
-	"• Added 5 new scripts",
-	"• Fixed anti-cheat bypass",
-	"• Performance improvements",
-	"• More games supported",
-	"• UI now fully customizable"
+	"â€¢ v1.2.3 - New UI overhaul",
+	"â€¢ Added 5 new scripts",
+	"â€¢ Fixed anti-cheat bypass",
+	"â€¢ Performance improvements",
+	"â€¢ More games supported",
+	"â€¢ UI now fully customizable"
 }
 
 for _, log in ipairs(logs) do
