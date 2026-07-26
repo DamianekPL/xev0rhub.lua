@@ -212,6 +212,7 @@ local section = {}
 -- receive the corresponding icon; an icon passed directly to addPage still
 -- takes priority.
 library.Icons = {
+	-- Base icons
 	bolt = 86575492877482,
 	bookmark = 111087240501509,
 	bullseye = 86936958665137,
@@ -227,6 +228,23 @@ library.Icons = {
 	menuburger = 85984991891884,
 	settings = 115724218337165,
 	shield = 123928749861771,
+
+	-- English page aliases
+	main = 116748636809418,
+	combat = 86575492877482,
+	visuals = 104877108018880,
+	player = 77207894969344,
+	misc = 136756368861096,
+	teleport = 86936958665137,
+	esp = 104877108018880,
+	aimbot = 93897891859021,
+	credits = 118097187958440,
+
+	-- Polish page aliases
+	walka = 86575492877482,
+	rozne = 136756368861096,
+	ustawienia = 115724218337165,
+	kredyty = 118097187958440,
 }
 
 local function getPageIcon(title, icon)
@@ -688,9 +706,14 @@ do
 				TextSize = 12,
 				TextTransparency = 0.65,
 				TextXAlignment = Enum.TextXAlignment.Left
-			}),
-			icon and utility:Create("ImageLabel", {
-				Name = "Icon", 
+			})
+		})
+
+		-- Create icon separately to avoid the "or {}" Parent crash
+		if icon then
+			utility:Create("ImageLabel", {
+				Name = "Icon",
+				Parent = button,
 				AnchorPoint = Vector2.new(0, 0.5),
 				BackgroundTransparency = 1,
 				Position = UDim2.new(0, 12, 0.5, 0),
@@ -700,8 +723,8 @@ do
 				ImageColor3 = themes.TextColor,
 				ImageTransparency = 0.64,
 				ScaleType = Enum.ScaleType.Fit
-			}) or {}
-		})
+			})
+		end
 		
 		local container = utility:Create("ScrollingFrame", {
 			Name = title,
@@ -1049,7 +1072,7 @@ do
 		})
 		
 		table.insert(self.modules, button)
-		--self:Resize()
+		self:Resize()
 		
 		local text = button.Title
 		local debounce
@@ -1136,7 +1159,7 @@ do
 		})
 		
 		table.insert(self.modules, toggle)
-		--self:Resize()
+		self:Resize()
 		
 		local active = default
 		self:updateToggle(toggle, nil, active)
@@ -1209,7 +1232,7 @@ do
 		})
 		
 		table.insert(self.modules, textbox)
-		--self:Resize()
+		self:Resize()
 		
 		local button = textbox.Button
 		local input = button.Textbox
@@ -1316,7 +1339,7 @@ do
 		})
 		
 		table.insert(self.modules, keybind)
-		--self:Resize()
+		self:Resize()
 		
 		local text = keybind.Button.Text
 		local button = keybind.Button
@@ -1673,7 +1696,7 @@ do
 		
 		utility:DraggingEnabled(tab)
 		table.insert(self.modules, colorpicker)
-		--self:Resize()
+		self:Resize()
 		
 		local allowed = {
 			[""] = true
@@ -1979,7 +2002,7 @@ do
 		})
 		
 		table.insert(self.modules, slider)
-		--self:Resize()
+		self:Resize()
 		
 		local allowed = {
 			[""] = true,
@@ -2126,7 +2149,7 @@ do
 		})
 		
 		table.insert(self.modules, dropdown)
-		--self:Resize()
+		self:Resize()
 		
 		local search = dropdown.Search
 		local focused
@@ -3216,17 +3239,92 @@ keySystem.Main.RightPanel.VerifyBtn.MouseButton1Click:Connect(function()
 
 	-- === YOUR KEY CHECK HERE ===
 	if key == "XEVOR-TEST-KEY-1234" or key == "VALIDKEY" then
-		statusLabel.Text = "Key Verified âœ“"
+		statusLabel.Text = "Key Verified"
 		statusLabel.TextColor3 = Color3.fromRGB(80, 255, 80)
 		wait(1.2)
 		keySystem:Destroy()
+
 		-- Open the main menu only after the key is accepted.
 		local Window = XevorLibrary.new("XEVOR", {
-			ToggleKey = Enum.KeyCode.RightControl
+			ToggleKey = Enum.KeyCode.RightControl,
+			Watermark = {
+				Enabled = true,
+				Glow = true,
+			}
 		})
-		print("Key accepted! Main UI loaded. Press Right Ctrl to toggle it.")
+
+		-- Pages (icons auto-assigned from library.Icons by page title)
+		local Main = Window:addPage("Main")
+		local Combat = Window:addPage("Combat")
+		local Visuals = Window:addPage("Visuals")
+		local Player = Window:addPage("Player")
+		local Misc = Window:addPage("Misc")
+		local Teleport = Window:addPage("Teleport")
+		local ESP = Window:addPage("ESP")
+		local Aimbot = Window:addPage("Aimbot")
+		local Settings = Window:addPage("Settings")
+		local Credits = Window:addPage("Credits")
+
+		-- Main page demo controls
+		local Section = Main:addSection("General")
+
+		Section:addToggle("Silent Aim", false, function(value)
+			print("Silent Aim:", value)
+		end)
+
+		Section:addSlider("FOV", 80, 0, 360, function(value)
+			print("FOV:", value)
+		end)
+
+		Section:addButton("Test Notify", function()
+			Window:Notify("XEVOR", "Icons and menu are working!")
+		end)
+
+		Section:addDropdown("Mode", {"Legit", "Rage", "Silent"}, function(value)
+			print("Mode:", value)
+		end)
+
+		Section:addKeybind("Menu Key", Enum.KeyCode.RightControl, function()
+			print("Menu key pressed")
+		end)
+
+		Section:addColorPicker("Accent", Color3.fromRGB(180, 50, 255), function(color)
+			print("Accent:", color)
+		end)
+
+		-- Combat page
+		local CombatSection = Combat:addSection("Combat")
+		CombatSection:addToggle("Aimbot", false, function(v) print("Aimbot:", v) end)
+		CombatSection:addSlider("Smoothness", 5, 1, 20, function(v) print("Smoothness:", v) end)
+
+		-- Visuals page
+		local VisualsSection = Visuals:addSection("ESP")
+		VisualsSection:addToggle("Box ESP", false, function(v) print("Box ESP:", v) end)
+		VisualsSection:addToggle("Name ESP", false, function(v) print("Name ESP:", v) end)
+		VisualsSection:addToggle("Health ESP", false, function(v) print("Health ESP:", v) end)
+
+		-- Settings page
+		local SettingsSection = Settings:addSection("UI")
+		SettingsSection:addToggle("Watermark", true, function(v)
+			Window:SetWatermarkVisible(v)
+		end)
+		SettingsSection:addButton("Destroy UI", function()
+			Window:Destroy()
+		end)
+
+		-- Credits page
+		local CreditsSection = Credits:addSection("Credits")
+		CreditsSection:addButton("Discord", function()
+			setclipboard("https://discord.gg/yourserver")
+			Window:Notify("XEVOR", "Discord link copied!")
+		end)
+
+		task.wait(0.1)
+		Window:SelectPage(Main, true)
+
+		print("Key accepted! Main UI loaded with icons. Press Right Ctrl to toggle.")
 	else
-		statusLabel.Text = "Invalid Key âœ•"
+		statusLabel.Text = "Invalid Key"
 		statusLabel.TextColor3 = Color3.fromRGB(255, 80, 80)
 		wait(2)
 		statusLabel.Text = "Enter Key"
