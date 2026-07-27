@@ -291,10 +291,18 @@ do
 			watermarkFrame.ImageColor3 = style.BackgroundColor
 		end
 		if topBar and typeof(style.TopBarColor) == "Color3" then
-			topBar.ImageColor3 = style.TopBarColor
+			if topBar:IsA("ImageLabel") then
+				topBar.ImageColor3 = style.TopBarColor
+			else
+				topBar.BackgroundColor3 = style.TopBarColor
+			end
 		end
 		if status and typeof(style.StatusColor) == "Color3" then
-			status.ImageColor3 = style.StatusColor
+			if status:IsA("ImageLabel") then
+				status.ImageColor3 = style.StatusColor
+			else
+				status.BackgroundColor3 = style.StatusColor
+			end
 		end
 		if glow then
 			if style.Glow ~= nil then
@@ -306,10 +314,18 @@ do
 		end
 		if accentLine then
 			if style.AccentLine ~= nil then
-				accentLine.Visible = style.AccentLine == true
+				if accentLine:IsA("Frame") then
+					accentLine.BackgroundTransparency = style.AccentLine == true and 0 or 1
+				else
+					accentLine.Visible = style.AccentLine == true
+				end
 			end
 			if typeof(style.AccentColor) == "Color3" then
-				accentLine.ImageColor3 = style.AccentColor
+				if accentLine:IsA("Frame") then
+					accentLine.BackgroundColor3 = style.AccentColor
+				else
+					accentLine.ImageColor3 = style.AccentColor
+				end
 			end
 		end
 		if titleLabel then
@@ -365,8 +381,6 @@ do
 		local watermarkEnabled = watermarkOptions.Enabled ~= false
 		local watermarkAnchor = typeof(watermarkOptions.AnchorPoint) == "Vector2" and watermarkOptions.AnchorPoint or Vector2.new(1, 0)
 		local watermarkPosition = typeof(watermarkOptions.Position) == "UDim2" and watermarkOptions.Position or UDim2.new(1, -16, 0, 16)
-		local watermarkSize = typeof(watermarkOptions.Size) == "UDim2" and watermarkOptions.Size or UDim2.new(0, 280, 0, 54)
-		local watermarkCollapsedHeight = watermarkSize.Y.Offset
 		local watermarkAccentPurple = typeof(watermarkOptions.AccentPurple) == "Color3" and watermarkOptions.AccentPurple or Color3.fromRGB(180, 50, 255)
 		local watermarkBackground = typeof(watermarkOptions.BackgroundColor) == "Color3" and watermarkOptions.BackgroundColor or themes.Background
 		local watermarkTopBar = typeof(watermarkOptions.TopBarColor) == "Color3" and watermarkOptions.TopBarColor or themes.Accent
@@ -374,8 +388,16 @@ do
 		local watermarkGlow = typeof(watermarkOptions.GlowColor) == "Color3" and watermarkOptions.GlowColor or themes.Glow
 		local watermarkAccent = typeof(watermarkOptions.AccentColor) == "Color3" and watermarkOptions.AccentColor or themes.LightContrast
 		local watermarkText = typeof(watermarkOptions.TextColor) == "Color3" and watermarkOptions.TextColor or themes.TextColor
-		local watermarkTextSize = tonumber(watermarkOptions.TextSize) or 13
-		local watermarkTopbarHeight = math.clamp(tonumber(watermarkOptions.TopBarHeight) or 27, 22, 40)
+		local watermarkTextSize = tonumber(watermarkOptions.TextSize) or 12
+		-- Fixed layout metrics so title / purple line / status always line up
+		local watermarkTopbarHeight = 26
+		local watermarkAccentHeight = 2
+		local watermarkStatusHeight = 24
+		local watermarkPad = 4
+		local watermarkCollapsedHeight = watermarkTopbarHeight + watermarkAccentHeight + watermarkStatusHeight + watermarkPad
+		local watermarkSize = typeof(watermarkOptions.Size) == "UDim2" and watermarkOptions.Size or UDim2.new(0, 268, 0, watermarkCollapsedHeight)
+		-- Force height to our calculated layout even if a custom Size is passed
+		watermarkSize = UDim2.new(watermarkSize.X.Scale, watermarkSize.X.Offset, 0, watermarkCollapsedHeight)
 		local watermarkShowGlow = watermarkOptions.Glow ~= false
 		local watermarkShowAccent = watermarkOptions.AccentLine ~= false
 		local watermarkDisplayOrder = tonumber(watermarkOptions.DisplayOrder) or 100
@@ -523,16 +545,15 @@ do
 					ScaleType = Enum.ScaleType.Slice,
 					SliceCenter = Rect.new(24, 24, 276, 276)
 				}),
-				utilityCreate("ImageLabel", {
+				-- Title bar (XEVOR + expand)
+				utilityCreate("Frame", {
 					Name = "TopBar",
-					BackgroundTransparency = 1,
+					BackgroundColor3 = watermarkTopBar,
+					BackgroundTransparency = 0,
+					BorderSizePixel = 0,
 					Position = UDim2.new(0, 0, 0, 0),
 					Size = UDim2.new(1, 0, 0, watermarkTopbarHeight),
-					ZIndex = 3,
-					Image = "rbxassetid://4595286933",
-					ImageColor3 = watermarkTopBar,
-					ScaleType = Enum.ScaleType.Slice,
-					SliceCenter = Rect.new(4, 4, 296, 296)
+					ZIndex = 3
 				}, {
 					utilityCreate("TextLabel", {
 						Name = "Title",
@@ -543,9 +564,10 @@ do
 						Font = Enum.Font.GothamBold,
 						Text = title,
 						TextColor3 = watermarkAccentPurple,
-						TextSize = watermarkTextSize + 1,
+						TextSize = 13,
 						TextTruncate = Enum.TextTruncate.AtEnd,
-						TextXAlignment = Enum.TextXAlignment.Left
+						TextXAlignment = Enum.TextXAlignment.Left,
+						TextYAlignment = Enum.TextYAlignment.Center
 					}),
 					utilityCreate("TextButton", {
 						Name = "Expand",
@@ -555,70 +577,67 @@ do
 						ZIndex = 5,
 						Font = Enum.Font.GothamBold,
 						Text = "v",
-						TextColor3 = Color3.fromRGB(170, 170, 175),
-						TextSize = 12,
+						TextColor3 = Color3.fromRGB(160, 160, 168),
+						TextSize = 11,
 						AutoButtonColor = false
 					})
 				}),
-				utilityCreate("ImageLabel", {
+				-- Solid purple accent under title (exact 2px, never overlaps text)
+				utilityCreate("Frame", {
+					Name = "AccentLine",
+					BackgroundColor3 = watermarkAccentPurple,
+					BackgroundTransparency = watermarkShowAccent and 0 or 1,
+					BorderSizePixel = 0,
+					Position = UDim2.new(0, 0, 0, watermarkTopbarHeight),
+					Size = UDim2.new(1, 0, 0, watermarkAccentHeight),
+					ZIndex = 5
+				}),
+				-- Status row (name | fps | ping)
+				utilityCreate("Frame", {
 					Name = "Status",
-					BackgroundTransparency = 1,
-					Position = UDim2.new(0, 6, 0, watermarkTopbarHeight + 3),
-					Size = UDim2.new(1, -12, 0, watermarkCollapsedHeight - watermarkTopbarHeight - 9),
-					ZIndex = 3,
-					Image = "rbxassetid://5012534273",
-					ImageColor3 = watermarkStatus,
-					ScaleType = Enum.ScaleType.Slice,
-					SliceCenter = Rect.new(4, 4, 296, 296)
+					BackgroundColor3 = watermarkStatus,
+					BackgroundTransparency = 0,
+					BorderSizePixel = 0,
+					Position = UDim2.new(0, 0, 0, watermarkTopbarHeight + watermarkAccentHeight),
+					Size = UDim2.new(1, 0, 0, watermarkStatusHeight),
+					ZIndex = 3
 				}, {
 					utilityCreate("TextLabel", {
 						Name = "Info",
 						BackgroundTransparency = 1,
-						Position = UDim2.new(0, 10, 0, 0),
-						Size = UDim2.new(1, -20, 1, 0),
+						Position = UDim2.new(0, 12, 0, 0),
+						Size = UDim2.new(1, -24, 1, 0),
 						ZIndex = 4,
 						Font = Enum.Font.GothamSemibold,
 						Text = player.Name .. "  |  -- FPS  |  -- ms",
 						TextColor3 = watermarkText,
-						TextSize = watermarkTextSize - 1,
+						TextSize = 11,
 						TextTruncate = Enum.TextTruncate.AtEnd,
-						TextXAlignment = Enum.TextXAlignment.Left
+						TextXAlignment = Enum.TextXAlignment.Left,
+						TextYAlignment = Enum.TextYAlignment.Center
 					})
 				}),
-				utilityCreate("ImageLabel", {
-					Name = "AccentLine",
-					BackgroundTransparency = 1,
-					Position = UDim2.new(0, 8, 0, watermarkTopbarHeight - 1),
-					Size = UDim2.new(1, -16, 0, 1),
-					ZIndex = 5,
-					Visible = watermarkShowAccent,
-					Image = "rbxassetid://4595286933",
-					ImageColor3 = watermarkAccentPurple,
-					ScaleType = Enum.ScaleType.Slice,
-					SliceCenter = Rect.new(4, 4, 296, 296)
-				}),
+				-- Expandable details panel
 				utilityCreate("Frame", {
 					Name = "Dropdown",
-					BackgroundTransparency = 1,
-					Position = UDim2.new(0, 6, 0, watermarkCollapsedHeight - 2),
-					Size = UDim2.new(1, -12, 0, 0),
+					BackgroundColor3 = watermarkStatus,
+					BackgroundTransparency = 0,
+					BorderSizePixel = 0,
+					Position = UDim2.new(0, 0, 0, watermarkCollapsedHeight - watermarkPad),
+					Size = UDim2.new(1, 0, 0, 0),
 					ZIndex = 3,
 					ClipsDescendants = true,
 					Visible = false
 				}, {
-					utilityCreate("ImageLabel", {
+					utilityCreate("Frame", {
 						Name = "Panel",
 						BackgroundTransparency = 1,
 						Size = UDim2.new(1, 0, 1, 0),
-						ZIndex = 3,
-						Image = "rbxassetid://5012534273",
-						ImageColor3 = watermarkStatus,
-						ScaleType = Enum.ScaleType.Slice,
-						SliceCenter = Rect.new(4, 4, 296, 296)
+						ZIndex = 3
 					}, {
 						utilityCreate("Frame", {
 							Name = "Divider",
-							BackgroundColor3 = Color3.fromRGB(40, 40, 48),
+							BackgroundColor3 = Color3.fromRGB(36, 36, 42),
 							BorderSizePixel = 0,
 							Position = UDim2.new(0, 10, 0, 0),
 							Size = UDim2.new(1, -20, 0, 1),
@@ -627,8 +646,8 @@ do
 						utilityCreate("TextLabel", {
 							Name = "GameTag",
 							BackgroundTransparency = 1,
-							Position = UDim2.new(0, 10, 0, 8),
-							Size = UDim2.new(0, 42, 0, 14),
+							Position = UDim2.new(0, 12, 0, 8),
+							Size = UDim2.new(0, 44, 0, 14),
 							ZIndex = 4,
 							Font = Enum.Font.GothamBold,
 							Text = "GAME",
@@ -639,8 +658,8 @@ do
 						utilityCreate("TextLabel", {
 							Name = "GameLabel",
 							BackgroundTransparency = 1,
-							Position = UDim2.new(0, 52, 0, 8),
-							Size = UDim2.new(1, -62, 0, 14),
+							Position = UDim2.new(0, 56, 0, 8),
+							Size = UDim2.new(1, -68, 0, 14),
 							ZIndex = 4,
 							Font = Enum.Font.GothamSemibold,
 							Text = "...",
@@ -652,8 +671,8 @@ do
 						utilityCreate("TextLabel", {
 							Name = "TimeTag",
 							BackgroundTransparency = 1,
-							Position = UDim2.new(0, 10, 0, 26),
-							Size = UDim2.new(0, 42, 0, 14),
+							Position = UDim2.new(0, 12, 0, 26),
+							Size = UDim2.new(0, 44, 0, 14),
 							ZIndex = 4,
 							Font = Enum.Font.GothamBold,
 							Text = "TIME",
@@ -664,8 +683,8 @@ do
 						utilityCreate("TextLabel", {
 							Name = "TimeLabel",
 							BackgroundTransparency = 1,
-							Position = UDim2.new(0, 52, 0, 26),
-							Size = UDim2.new(1, -62, 0, 14),
+							Position = UDim2.new(0, 56, 0, 26),
+							Size = UDim2.new(1, -68, 0, 14),
 							ZIndex = 4,
 							Font = Enum.Font.GothamSemibold,
 							Text = "00:00",
@@ -676,7 +695,7 @@ do
 						}),
 						utilityCreate("Frame", {
 							Name = "Divider2",
-							BackgroundColor3 = Color3.fromRGB(40, 40, 48),
+							BackgroundColor3 = Color3.fromRGB(36, 36, 42),
 							BorderSizePixel = 0,
 							Position = UDim2.new(0, 10, 0, 46),
 							Size = UDim2.new(1, -20, 0, 1),
@@ -685,8 +704,8 @@ do
 						utilityCreate("TextLabel", {
 							Name = "KeybindsHeader",
 							BackgroundTransparency = 1,
-							Position = UDim2.new(0, 10, 0, 52),
-							Size = UDim2.new(1, -20, 0, 14),
+							Position = UDim2.new(0, 12, 0, 52),
+							Size = UDim2.new(1, -24, 0, 14),
 							ZIndex = 4,
 							Font = Enum.Font.GothamBold,
 							Text = "KEYBINDS",
@@ -698,8 +717,8 @@ do
 							Name = "KeybindsList",
 							BackgroundTransparency = 1,
 							BorderSizePixel = 0,
-							Position = UDim2.new(0, 6, 0, 68),
-							Size = UDim2.new(1, -12, 0, 18),
+							Position = UDim2.new(0, 8, 0, 68),
+							Size = UDim2.new(1, -16, 0, 18),
 							ZIndex = 4,
 							CanvasSize = UDim2.new(0, 0, 0, 0),
 							ScrollBarThickness = 2,
@@ -792,7 +811,7 @@ do
 				count = 1
 			else
 				for _, entry in ipairs(entries) do
-					local row = utilityCreate("Frame", {
+					utilityCreate("Frame", {
 						Parent = list,
 						BackgroundTransparency = 1,
 						Size = UDim2.new(1, -4, 0, 16),
@@ -830,15 +849,15 @@ do
 
 			local listHeight = math.min(count, 5) * 19
 			list.CanvasSize = UDim2.new(0, 0, 0, count * 19)
-			list.Size = UDim2.new(1, -12, 0, listHeight)
-			-- header/tags area ~68px + list + bottom pad
+			list.Size = UDim2.new(1, -16, 0, listHeight)
+			-- tags (game/time) + keybinds header + list + bottom pad
 			return 68 + listHeight + 8
 		end
 
 		local function setWatermarkExpanded(expanded)
 			watermarkExpanded = expanded
 			expandBtn.Text = expanded and "^" or "v"
-			expandBtn.TextColor3 = expanded and watermarkAccentPurple or Color3.fromRGB(170, 170, 175)
+			expandBtn.TextColor3 = expanded and watermarkAccentPurple or Color3.fromRGB(160, 160, 168)
 
 			if expanded then
 				local contentHeight = rebuildKeybindRows()
@@ -846,21 +865,21 @@ do
 				dropdownPanel.GameLabel.Text = placeName
 				dropdownPanel.TimeLabel.Text = formatSessionTime(os.clock() - sessionStart)
 
-				local fullHeight = watermarkCollapsedHeight - 2 + contentHeight + 6
+				local fullHeight = watermarkCollapsedHeight - watermarkPad + contentHeight + watermarkPad
 				utilityTween(watermarkFrame, {
 					Size = UDim2.new(collapsedSize.X.Scale, collapsedSize.X.Offset, 0, fullHeight)
-				}, 0.2)
+				}, 0.18)
 				utilityTween(dropdown, {
-					Size = UDim2.new(1, -12, 0, contentHeight)
-				}, 0.2)
+					Size = UDim2.new(1, 0, 0, contentHeight)
+				}, 0.18)
 			else
 				utilityTween(dropdown, {
-					Size = UDim2.new(1, -12, 0, 0)
-				}, 0.15)
+					Size = UDim2.new(1, 0, 0, 0)
+				}, 0.12)
 				utilityTween(watermarkFrame, {
 					Size = collapsedSize
-				}, 0.2)
-				task.delay(0.2, function()
+				}, 0.18)
+				task.delay(0.18, function()
 					if not watermarkExpanded then
 						dropdown.Visible = false
 					end
@@ -904,9 +923,9 @@ do
 				dropdownPanel.GameLabel.Text = placeName
 				dropdownPanel.TimeLabel.Text = formatSessionTime(now - sessionStart)
 				local contentHeight = rebuildKeybindRows()
-				local fullHeight = watermarkCollapsedHeight - 2 + contentHeight + 6
+				local fullHeight = watermarkCollapsedHeight - watermarkPad + contentHeight + watermarkPad
 				watermarkFrame.Size = UDim2.new(collapsedSize.X.Scale, collapsedSize.X.Offset, 0, fullHeight)
-				dropdown.Size = UDim2.new(1, -12, 0, contentHeight)
+				dropdown.Size = UDim2.new(1, 0, 0, contentHeight)
 			end
 
 			frameCount = 0
