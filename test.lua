@@ -47,7 +47,10 @@ do
 		end
 		
 		for i, module in pairs(children or {}) do
-			module.Parent = object
+			-- Skip non-Instances (e.g. optional icon returns {})
+			if typeof(module) == "Instance" then
+				module.Parent = object
+			end
 		end
 		
 		return object
@@ -362,8 +365,9 @@ do
 		local watermarkEnabled = watermarkOptions.Enabled ~= false
 		local watermarkAnchor = typeof(watermarkOptions.AnchorPoint) == "Vector2" and watermarkOptions.AnchorPoint or Vector2.new(1, 0)
 		local watermarkPosition = typeof(watermarkOptions.Position) == "UDim2" and watermarkOptions.Position or UDim2.new(1, -16, 0, 16)
-		local watermarkSize = typeof(watermarkOptions.Size) == "UDim2" and watermarkOptions.Size or UDim2.new(0, 320, 0, 58)
+		local watermarkSize = typeof(watermarkOptions.Size) == "UDim2" and watermarkOptions.Size or UDim2.new(0, 280, 0, 54)
 		local watermarkCollapsedHeight = watermarkSize.Y.Offset
+		local watermarkAccentPurple = typeof(watermarkOptions.AccentPurple) == "Color3" and watermarkOptions.AccentPurple or Color3.fromRGB(180, 50, 255)
 		local watermarkBackground = typeof(watermarkOptions.BackgroundColor) == "Color3" and watermarkOptions.BackgroundColor or themes.Background
 		local watermarkTopBar = typeof(watermarkOptions.TopBarColor) == "Color3" and watermarkOptions.TopBarColor or themes.Accent
 		local watermarkStatus = typeof(watermarkOptions.StatusColor) == "Color3" and watermarkOptions.StatusColor or themes.DarkContrast
@@ -533,12 +537,12 @@ do
 					utilityCreate("TextLabel", {
 						Name = "Title",
 						BackgroundTransparency = 1,
-						Position = UDim2.new(0, 14, 0, 0),
-						Size = UDim2.new(1, -48, 1, 0),
+						Position = UDim2.new(0, 12, 0, 0),
+						Size = UDim2.new(1, -40, 1, 0),
 						ZIndex = 4,
 						Font = Enum.Font.GothamBold,
 						Text = title,
-						TextColor3 = watermarkText,
+						TextColor3 = watermarkAccentPurple,
 						TextSize = watermarkTextSize + 1,
 						TextTruncate = Enum.TextTruncate.AtEnd,
 						TextXAlignment = Enum.TextXAlignment.Left
@@ -546,21 +550,21 @@ do
 					utilityCreate("TextButton", {
 						Name = "Expand",
 						BackgroundTransparency = 1,
-						Position = UDim2.new(1, -30, 0, 0),
-						Size = UDim2.new(0, 26, 1, 0),
+						Position = UDim2.new(1, -28, 0, 0),
+						Size = UDim2.new(0, 24, 1, 0),
 						ZIndex = 5,
 						Font = Enum.Font.GothamBold,
-						Text = "▾",
-						TextColor3 = watermarkText,
-						TextSize = 14,
+						Text = "v",
+						TextColor3 = Color3.fromRGB(170, 170, 175),
+						TextSize = 12,
 						AutoButtonColor = false
 					})
 				}),
 				utilityCreate("ImageLabel", {
 					Name = "Status",
 					BackgroundTransparency = 1,
-					Position = UDim2.new(0, 6, 0, watermarkTopbarHeight + 4),
-					Size = UDim2.new(1, -12, 0, watermarkCollapsedHeight - watermarkTopbarHeight - 10),
+					Position = UDim2.new(0, 6, 0, watermarkTopbarHeight + 3),
+					Size = UDim2.new(1, -12, 0, watermarkCollapsedHeight - watermarkTopbarHeight - 9),
 					ZIndex = 3,
 					Image = "rbxassetid://5012534273",
 					ImageColor3 = watermarkStatus,
@@ -574,9 +578,9 @@ do
 						Size = UDim2.new(1, -20, 1, 0),
 						ZIndex = 4,
 						Font = Enum.Font.GothamSemibold,
-						Text = player.Name .. " | -- FPS | -- ms",
+						Text = player.Name .. "  |  -- FPS  |  -- ms",
 						TextColor3 = watermarkText,
-						TextSize = watermarkTextSize,
+						TextSize = watermarkTextSize - 1,
 						TextTruncate = Enum.TextTruncate.AtEnd,
 						TextXAlignment = Enum.TextXAlignment.Left
 					})
@@ -589,14 +593,14 @@ do
 					ZIndex = 5,
 					Visible = watermarkShowAccent,
 					Image = "rbxassetid://4595286933",
-					ImageColor3 = watermarkAccent,
+					ImageColor3 = watermarkAccentPurple,
 					ScaleType = Enum.ScaleType.Slice,
 					SliceCenter = Rect.new(4, 4, 296, 296)
 				}),
 				utilityCreate("Frame", {
 					Name = "Dropdown",
 					BackgroundTransparency = 1,
-					Position = UDim2.new(0, 6, 0, watermarkCollapsedHeight - 4),
+					Position = UDim2.new(0, 6, 0, watermarkCollapsedHeight - 2),
 					Size = UDim2.new(1, -12, 0, 0),
 					ZIndex = 3,
 					ClipsDescendants = true,
@@ -612,58 +616,98 @@ do
 						ScaleType = Enum.ScaleType.Slice,
 						SliceCenter = Rect.new(4, 4, 296, 296)
 					}, {
+						utilityCreate("Frame", {
+							Name = "Divider",
+							BackgroundColor3 = Color3.fromRGB(40, 40, 48),
+							BorderSizePixel = 0,
+							Position = UDim2.new(0, 10, 0, 0),
+							Size = UDim2.new(1, -20, 0, 1),
+							ZIndex = 4
+						}),
+						utilityCreate("TextLabel", {
+							Name = "GameTag",
+							BackgroundTransparency = 1,
+							Position = UDim2.new(0, 10, 0, 8),
+							Size = UDim2.new(0, 42, 0, 14),
+							ZIndex = 4,
+							Font = Enum.Font.GothamBold,
+							Text = "GAME",
+							TextColor3 = watermarkAccentPurple,
+							TextSize = 10,
+							TextXAlignment = Enum.TextXAlignment.Left
+						}),
 						utilityCreate("TextLabel", {
 							Name = "GameLabel",
 							BackgroundTransparency = 1,
-							Position = UDim2.new(0, 10, 0, 6),
-							Size = UDim2.new(1, -20, 0, 16),
+							Position = UDim2.new(0, 52, 0, 8),
+							Size = UDim2.new(1, -62, 0, 14),
 							ZIndex = 4,
 							Font = Enum.Font.GothamSemibold,
-							Text = "Game: ...",
+							Text = "...",
 							TextColor3 = watermarkText,
-							TextSize = watermarkTextSize - 1,
+							TextSize = 11,
 							TextTruncate = Enum.TextTruncate.AtEnd,
+							TextXAlignment = Enum.TextXAlignment.Left
+						}),
+						utilityCreate("TextLabel", {
+							Name = "TimeTag",
+							BackgroundTransparency = 1,
+							Position = UDim2.new(0, 10, 0, 26),
+							Size = UDim2.new(0, 42, 0, 14),
+							ZIndex = 4,
+							Font = Enum.Font.GothamBold,
+							Text = "TIME",
+							TextColor3 = watermarkAccentPurple,
+							TextSize = 10,
 							TextXAlignment = Enum.TextXAlignment.Left
 						}),
 						utilityCreate("TextLabel", {
 							Name = "TimeLabel",
 							BackgroundTransparency = 1,
-							Position = UDim2.new(0, 10, 0, 24),
-							Size = UDim2.new(1, -20, 0, 16),
+							Position = UDim2.new(0, 52, 0, 26),
+							Size = UDim2.new(1, -62, 0, 14),
 							ZIndex = 4,
 							Font = Enum.Font.GothamSemibold,
-							Text = "Time: 00:00",
+							Text = "00:00",
 							TextColor3 = watermarkText,
-							TextSize = watermarkTextSize - 1,
+							TextSize = 11,
 							TextTruncate = Enum.TextTruncate.AtEnd,
 							TextXAlignment = Enum.TextXAlignment.Left
+						}),
+						utilityCreate("Frame", {
+							Name = "Divider2",
+							BackgroundColor3 = Color3.fromRGB(40, 40, 48),
+							BorderSizePixel = 0,
+							Position = UDim2.new(0, 10, 0, 46),
+							Size = UDim2.new(1, -20, 0, 1),
+							ZIndex = 4
 						}),
 						utilityCreate("TextLabel", {
 							Name = "KeybindsHeader",
 							BackgroundTransparency = 1,
-							Position = UDim2.new(0, 10, 0, 46),
+							Position = UDim2.new(0, 10, 0, 52),
 							Size = UDim2.new(1, -20, 0, 14),
 							ZIndex = 4,
 							Font = Enum.Font.GothamBold,
-							Text = "Keybinds",
-							TextColor3 = watermarkText,
-							TextSize = watermarkTextSize - 1,
+							Text = "KEYBINDS",
+							TextColor3 = watermarkAccentPurple,
+							TextSize = 10,
 							TextXAlignment = Enum.TextXAlignment.Left
 						}),
 						utilityCreate("ScrollingFrame", {
 							Name = "KeybindsList",
 							BackgroundTransparency = 1,
 							BorderSizePixel = 0,
-							Position = UDim2.new(0, 6, 0, 62),
-							Size = UDim2.new(1, -12, 1, -68),
+							Position = UDim2.new(0, 6, 0, 68),
+							Size = UDim2.new(1, -12, 0, 18),
 							ZIndex = 4,
 							CanvasSize = UDim2.new(0, 0, 0, 0),
-							ScrollBarThickness = 3,
+							ScrollBarThickness = 2,
 							ScrollBarImageColor3 = themes.LightContrast
 						}, {
 							utilityCreate("UIListLayout", {
 								SortOrder = Enum.SortOrder.LayoutOrder,
-								Padding = UDim.new(0, 2)
+								Padding = UDim.new(0, 3)
 							})
 						})
 					})
@@ -719,7 +763,7 @@ do
 		local function rebuildKeybindRows()
 			local list = dropdownPanel.KeybindsList
 			for _, child in ipairs(list:GetChildren()) do
-				if child:IsA("TextLabel") then
+				if child:IsA("Frame") or child:IsA("TextLabel") then
 					child:Destroy()
 				end
 			end
@@ -741,46 +785,68 @@ do
 					ZIndex = 5,
 					Font = Enum.Font.Gotham,
 					Text = "None bound",
-					TextColor3 = Color3.fromRGB(160, 160, 160),
-					TextSize = watermarkTextSize - 2,
+					TextColor3 = Color3.fromRGB(120, 120, 128),
+					TextSize = 11,
 					TextXAlignment = Enum.TextXAlignment.Left
 				})
 				count = 1
 			else
 				for _, entry in ipairs(entries) do
-					utilityCreate("TextLabel", {
+					local row = utilityCreate("Frame", {
 						Parent = list,
 						BackgroundTransparency = 1,
 						Size = UDim2.new(1, -4, 0, 16),
-						ZIndex = 5,
-						Font = Enum.Font.Gotham,
-						Text = string.format("%s  —  %s", entry.name, entry.key),
-						TextColor3 = watermarkText,
-						TextSize = watermarkTextSize - 2,
-						TextTruncate = Enum.TextTruncate.AtEnd,
-						TextXAlignment = Enum.TextXAlignment.Left
+						ZIndex = 5
+					}, {
+						utilityCreate("TextLabel", {
+							Name = "Feature",
+							BackgroundTransparency = 1,
+							Position = UDim2.new(0, 4, 0, 0),
+							Size = UDim2.new(1, -52, 1, 0),
+							ZIndex = 6,
+							Font = Enum.Font.Gotham,
+							Text = entry.name,
+							TextColor3 = watermarkText,
+							TextSize = 11,
+							TextTruncate = Enum.TextTruncate.AtEnd,
+							TextXAlignment = Enum.TextXAlignment.Left
+						}),
+						utilityCreate("TextLabel", {
+							Name = "Key",
+							BackgroundTransparency = 1,
+							Position = UDim2.new(1, -48, 0, 0),
+							Size = UDim2.new(0, 44, 1, 0),
+							ZIndex = 6,
+							Font = Enum.Font.GothamBold,
+							Text = entry.key,
+							TextColor3 = watermarkAccentPurple,
+							TextSize = 11,
+							TextXAlignment = Enum.TextXAlignment.Right
+						})
 					})
 					count = count + 1
 				end
 			end
 
-			local listHeight = math.min(count, 5) * 18
-			list.CanvasSize = UDim2.new(0, 0, 0, count * 18)
+			local listHeight = math.min(count, 5) * 19
+			list.CanvasSize = UDim2.new(0, 0, 0, count * 19)
 			list.Size = UDim2.new(1, -12, 0, listHeight)
-			return 62 + listHeight + 8
+			-- header/tags area ~68px + list + bottom pad
+			return 68 + listHeight + 8
 		end
 
 		local function setWatermarkExpanded(expanded)
 			watermarkExpanded = expanded
-			expandBtn.Text = expanded and "▴" or "▾"
+			expandBtn.Text = expanded and "^" or "v"
+			expandBtn.TextColor3 = expanded and watermarkAccentPurple or Color3.fromRGB(170, 170, 175)
 
 			if expanded then
 				local contentHeight = rebuildKeybindRows()
 				dropdown.Visible = true
-				dropdownPanel.GameLabel.Text = "Game: " .. placeName
-				dropdownPanel.TimeLabel.Text = "Time: " .. formatSessionTime(os.clock() - sessionStart)
+				dropdownPanel.GameLabel.Text = placeName
+				dropdownPanel.TimeLabel.Text = formatSessionTime(os.clock() - sessionStart)
 
-				local fullHeight = watermarkCollapsedHeight - 4 + contentHeight + 6
+				local fullHeight = watermarkCollapsedHeight - 2 + contentHeight + 6
 				utilityTween(watermarkFrame, {
 					Size = UDim2.new(collapsedSize.X.Scale, collapsedSize.X.Offset, 0, fullHeight)
 				}, 0.2)
@@ -832,13 +898,13 @@ do
 			end
 
 			local fps = math.floor((frameCount / elapsed) + 0.5)
-			watermarkFrame.Status.Info.Text = string.format("%s | %d FPS | %d ms", player.Name, fps, ping)
+			watermarkFrame.Status.Info.Text = string.format("%s  |  %d FPS  |  %d ms", player.Name, fps, ping)
 
 			if watermarkExpanded then
-				dropdownPanel.GameLabel.Text = "Game: " .. placeName
-				dropdownPanel.TimeLabel.Text = "Time: " .. formatSessionTime(now - sessionStart)
+				dropdownPanel.GameLabel.Text = placeName
+				dropdownPanel.TimeLabel.Text = formatSessionTime(now - sessionStart)
 				local contentHeight = rebuildKeybindRows()
-				local fullHeight = watermarkCollapsedHeight - 4 + contentHeight + 6
+				local fullHeight = watermarkCollapsedHeight - 2 + contentHeight + 6
 				watermarkFrame.Size = UDim2.new(collapsedSize.X.Scale, collapsedSize.X.Offset, 0, fullHeight)
 				dropdown.Size = UDim2.new(1, -12, 0, contentHeight)
 			end
@@ -3106,79 +3172,80 @@ local themes = {
 	AccentPurple = Color3.fromRGB(180, 50, 255) -- subtle purple accent like your image
 }
 
-do
-	function utilityCreate(instance, properties, children)
-		local object = Instance.new(instance)
-		for i, v in pairs(properties or {}) do
-			object[i] = v
-		end
-		for _, child in pairs(children or {}) do
+-- Local helpers for the key UI only — do NOT overwrite library globals.
+local function keyCreate(instance, properties, children)
+	local object = Instance.new(instance)
+	for i, v in pairs(properties or {}) do
+		object[i] = v
+	end
+	for _, child in pairs(children or {}) do
+		if typeof(child) == "Instance" then
 			child.Parent = object
 		end
-		return object
 	end
+	return object
+end
 
-	function utilityTween(instance, properties, duration)
-		tween:Create(instance, tweeninfo(duration, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), properties):Play()
-	end
+local function keyTween(instance, properties, duration)
+	tween:Create(instance, tweeninfo(duration, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), properties):Play()
+end
 
-	function utilityPop(object, shrink)
-		local clone = object:Clone()
-		clone.AnchorPoint = Vector2.new(0.5, 0.5)
-		clone.Size = clone.Size - UDim2.new(0, shrink, 0, shrink)
-		clone.Position = UDim2.new(0.5, 0, 0.5, 0)
-		clone.Parent = object
-		clone:ClearAllChildren()
-		object.ImageTransparency = 1
-		utilityTween(clone, {Size = object.Size}, 0.2)
-		spawn(function()
-			wait(0.2)
-			object.ImageTransparency = 0
-			clone:Destroy()
-		end)
-	end
+local function keyPop(object, shrink)
+	local clone = object:Clone()
+	clone.AnchorPoint = Vector2.new(0.5, 0.5)
+	clone.Size = clone.Size - UDim2.new(0, shrink, 0, shrink)
+	clone.Position = UDim2.new(0.5, 0, 0.5, 0)
+	clone.Parent = object
+	clone:ClearAllChildren()
+	object.ImageTransparency = 1
+	keyTween(clone, {Size = object.Size}, 0.2)
+	task.spawn(function()
+		task.wait(0.2)
+		object.ImageTransparency = 0
+		clone:Destroy()
+	end)
+end
 
-	function utilityDraggingEnabled(frame, parent)
-		parent = parent or frame
-		local dragging = false
-		local dragInput, mousePos, framePos
+local function keyDraggingEnabled(frame, parent)
+	parent = parent or frame
+	local dragging = false
+	local dragInput, mousePos, framePos
 
-		frame.InputBegan:Connect(function(input)
-			if input.UserInputType == Enum.UserInputType.MouseButton1 then
-				dragging = true
-				mousePos = input.Position
-				framePos = parent.Position
-				input.Changed:Connect(function()
-					if input.UserInputState == Enum.UserInputState.End then dragging = false end
-				end)
-			end
-		end)
+	frame.InputBegan:Connect(function(inputObj)
+		if inputObj.UserInputType == Enum.UserInputType.MouseButton1 then
+			dragging = true
+			mousePos = inputObj.Position
+			framePos = parent.Position
+			inputObj.Changed:Connect(function()
+				if inputObj.UserInputState == Enum.UserInputState.End then dragging = false end
+			end)
+		end
+	end)
 
-		frame.InputChanged:Connect(function(input)
-			if input.UserInputType == Enum.UserInputType.MouseMovement then
-				dragInput = input
-			end
-		end)
+	frame.InputChanged:Connect(function(inputObj)
+		if inputObj.UserInputType == Enum.UserInputType.MouseMovement then
+			dragInput = inputObj
+		end
+	end)
 
-		input.InputChanged:Connect(function(input)
-			if input == dragInput and dragging then
-				local delta = input.Position - mousePos
-				parent.Position = UDim2.new(framePos.X.Scale, framePos.X.Offset + delta.X, framePos.Y.Scale, framePos.Y.Offset + delta.Y)
-			end
-		end)
-	end
+	input.InputChanged:Connect(function(inputObj)
+		if inputObj == dragInput and dragging then
+			local delta = inputObj.Position - mousePos
+			parent.Position = UDim2.new(framePos.X.Scale, framePos.X.Offset + delta.X, framePos.Y.Scale, framePos.Y.Offset + delta.Y)
+		end
+	end)
 end
 
 -- Key System GUI
 local playerGui = player:WaitForChild("PlayerGui")
-local keySystem = utilityCreate("ScreenGui", {
+local keySystem = keyCreate("ScreenGui", {
 	Name = "XEVOR_KeySystem",
 	Parent = playerGui,
 	ResetOnSpawn = false,
 	IgnoreGuiInset = true,
 	DisplayOrder = 100
 }, {
-	utilityCreate("ImageLabel", { -- Main Frame
+	keyCreate("ImageLabel", { -- Main Frame
 		Name = "Main",
 		BackgroundTransparency = 1,
 		Position = UDim2.new(0.5, -280, 0.5, -200),
@@ -3189,7 +3256,7 @@ local keySystem = utilityCreate("ScreenGui", {
 		SliceCenter = Rect.new(4, 4, 296, 296),
 		ZIndex = 2
 	}, {
-		utilityCreate("ImageLabel", {
+		keyCreate("ImageLabel", {
 			Name = "Glow",
 			BackgroundTransparency = 1,
 			Position = UDim2.new(0, -15, 0, -15),
@@ -3200,7 +3267,7 @@ local keySystem = utilityCreate("ScreenGui", {
 			ScaleType = Enum.ScaleType.Slice,
 			SliceCenter = Rect.new(24, 24, 276, 276)
 		}),
-		utilityCreate("ImageLabel", { -- Top Bar
+		keyCreate("ImageLabel", { -- Top Bar
 			Name = "TopBar",
 			BackgroundTransparency = 1,
 			Size = UDim2.new(1, 0, 0, 50),
@@ -3210,7 +3277,7 @@ local keySystem = utilityCreate("ScreenGui", {
 			ScaleType = Enum.ScaleType.Slice,
 			SliceCenter = Rect.new(4, 4, 296, 296)
 		}, {
-			utilityCreate("TextLabel", {
+			keyCreate("TextLabel", {
 				Name = "Title",
 				-- Centre the label vertically within the 50px top bar. Without this
 				-- anchor, the label starts halfway down the bar and overflows below it.
@@ -3228,7 +3295,7 @@ local keySystem = utilityCreate("ScreenGui", {
 		}),
 
 		-- LEFT Changelog
-		utilityCreate("ImageLabel", {
+		keyCreate("ImageLabel", {
 			Name = "LeftPanel",
 			BackgroundTransparency = 1,
 			Position = UDim2.new(0, 15, 0, 65),
@@ -3239,7 +3306,7 @@ local keySystem = utilityCreate("ScreenGui", {
 			ScaleType = Enum.ScaleType.Slice,
 			SliceCenter = Rect.new(4, 4, 296, 296)
 		}, {
-			utilityCreate("TextLabel", {
+			keyCreate("TextLabel", {
 				Name = "Header",
 				BackgroundTransparency = 1,
 				Position = UDim2.new(0, 12, 0, 8),
@@ -3251,7 +3318,7 @@ local keySystem = utilityCreate("ScreenGui", {
 				TextSize = 14,
 				TextXAlignment = Enum.TextXAlignment.Left
 			}),
-			utilityCreate("ScrollingFrame", {
+			keyCreate("ScrollingFrame", {
 				Name = "ChangelogContainer",
 				BackgroundTransparency = 1,
 				Position = UDim2.new(0, 10, 0, 35),
@@ -3261,7 +3328,7 @@ local keySystem = utilityCreate("ScreenGui", {
 				ScrollBarImageColor3 = themes.LightContrast,
 				CanvasSize = UDim2.new(0, 0, 0, 800)
 			}, {
-				utilityCreate("UIListLayout", {
+				keyCreate("UIListLayout", {
 					SortOrder = Enum.SortOrder.LayoutOrder,
 					Padding = UDim.new(0, 8)
 				})
@@ -3269,7 +3336,7 @@ local keySystem = utilityCreate("ScreenGui", {
 		}),
 
 		-- RIGHT Key System
-		utilityCreate("ImageLabel", {
+		keyCreate("ImageLabel", {
 			Name = "RightPanel",
 			BackgroundTransparency = 1,
 			Position = UDim2.new(0.52, 0, 0, 65),
@@ -3280,7 +3347,7 @@ local keySystem = utilityCreate("ScreenGui", {
 			ScaleType = Enum.ScaleType.Slice,
 			SliceCenter = Rect.new(4, 4, 296, 296)
 		}, {
-			utilityCreate("TextLabel", {
+			keyCreate("TextLabel", {
 				Name = "Status",
 				BackgroundTransparency = 1,
 				Position = UDim2.new(0, 12, 0, 12),
@@ -3292,7 +3359,7 @@ local keySystem = utilityCreate("ScreenGui", {
 				TextSize = 13,
 				TextXAlignment = Enum.TextXAlignment.Center
 			}),
-			utilityCreate("ImageLabel", { -- Key Input
+			keyCreate("ImageLabel", { -- Key Input
 				Name = "KeyInput",
 				BackgroundTransparency = 1,
 				Position = UDim2.new(0, 12, 0, 45),
@@ -3303,7 +3370,7 @@ local keySystem = utilityCreate("ScreenGui", {
 				ScaleType = Enum.ScaleType.Slice,
 				SliceCenter = Rect.new(2, 2, 298, 298)
 			}, {
-				utilityCreate("TextBox", {
+				keyCreate("TextBox", {
 					Name = "Input",
 					BackgroundTransparency = 1,
 					Position = UDim2.new(0, 10, 0, 0),
@@ -3317,7 +3384,7 @@ local keySystem = utilityCreate("ScreenGui", {
 					TextXAlignment = Enum.TextXAlignment.Left
 				})
 			}),
-			utilityCreate("ImageButton", { -- VERIFY
+			keyCreate("ImageButton", { -- VERIFY
 				Name = "VerifyBtn",
 				BackgroundTransparency = 1,
 				Position = UDim2.new(0, 12, 0, 95),
@@ -3328,7 +3395,7 @@ local keySystem = utilityCreate("ScreenGui", {
 				ScaleType = Enum.ScaleType.Slice,
 				SliceCenter = Rect.new(2, 2, 298, 298)
 			}, {
-				utilityCreate("TextLabel", {
+				keyCreate("TextLabel", {
 					Name = "Label",
 					BackgroundTransparency = 1,
 					Size = UDim2.new(1, 0, 1, 0),
@@ -3339,7 +3406,7 @@ local keySystem = utilityCreate("ScreenGui", {
 					TextSize = 14
 				})
 			}),
-			utilityCreate("ImageButton", { -- GET KEY
+			keyCreate("ImageButton", { -- GET KEY
 				Name = "GetKeyBtn",
 				BackgroundTransparency = 1,
 				Position = UDim2.new(0, 12, 0, 145),
@@ -3350,7 +3417,7 @@ local keySystem = utilityCreate("ScreenGui", {
 				ScaleType = Enum.ScaleType.Slice,
 				SliceCenter = Rect.new(2, 2, 298, 298)
 			}, {
-				utilityCreate("TextLabel", {
+				keyCreate("TextLabel", {
 					Name = "Label",
 					BackgroundTransparency = 1,
 					Size = UDim2.new(1, 0, 1, 0),
@@ -3361,7 +3428,7 @@ local keySystem = utilityCreate("ScreenGui", {
 					TextSize = 13
 				})
 			}),
-			utilityCreate("ImageButton", { -- JOIN DISCORD
+			keyCreate("ImageButton", { -- JOIN DISCORD
 				Name = "DiscordBtn",
 				BackgroundTransparency = 1,
 				Position = UDim2.new(0, 12, 0, 195),
@@ -3372,7 +3439,7 @@ local keySystem = utilityCreate("ScreenGui", {
 				ScaleType = Enum.ScaleType.Slice,
 				SliceCenter = Rect.new(2, 2, 298, 298)
 			}, {
-				utilityCreate("TextLabel", {
+				keyCreate("TextLabel", {
 					Name = "Label",
 					BackgroundTransparency = 1,
 					Size = UDim2.new(1, 0, 1, 0),
@@ -3387,7 +3454,7 @@ local keySystem = utilityCreate("ScreenGui", {
 	})
 })
 
-utilityDraggingEnabled(keySystem.Main.TopBar, keySystem.Main)
+keyDraggingEnabled(keySystem.Main.TopBar, keySystem.Main)
 
 -- Populate Changelog (example - edit as needed)
 local changelogFrame = keySystem.Main.LeftPanel.ChangelogContainer
@@ -3401,7 +3468,7 @@ local logs = {
 }
 
 for _, log in ipairs(logs) do
-	utilityCreate("TextLabel", {
+	keyCreate("TextLabel", {
 		Parent = changelogFrame,
 		BackgroundTransparency = 1,
 		Size = UDim2.new(1, 0, 0, 18),
@@ -3421,7 +3488,7 @@ local keyInput = keySystem.Main.RightPanel.KeyInput.Input
 local statusLabel = keySystem.Main.RightPanel.Status
 
 keySystem.Main.RightPanel.VerifyBtn.MouseButton1Click:Connect(function()
-	utilityPop(keySystem.Main.RightPanel.VerifyBtn, 8)
+	keyPop(keySystem.Main.RightPanel.VerifyBtn, 8)
 	local key = keyInput.Text:upper()
 
 	-- === YOUR KEY CHECK HERE ===
@@ -3445,7 +3512,7 @@ keySystem.Main.RightPanel.VerifyBtn.MouseButton1Click:Connect(function()
 end)
 
 keySystem.Main.RightPanel.GetKeyBtn.MouseButton1Click:Connect(function()
-	utilityPop(keySystem.Main.RightPanel.GetKeyBtn, 8)
+	keyPop(keySystem.Main.RightPanel.GetKeyBtn, 8)
 	-- Open link
 	if setclipboard then
 		setclipboard("https://yourkeysite.com")
@@ -3458,7 +3525,7 @@ keySystem.Main.RightPanel.GetKeyBtn.MouseButton1Click:Connect(function()
 end)
 
 keySystem.Main.RightPanel.DiscordBtn.MouseButton1Click:Connect(function()
-	utilityPop(keySystem.Main.RightPanel.DiscordBtn, 8)
+	keyPop(keySystem.Main.RightPanel.DiscordBtn, 8)
 	if setclipboard then
 		setclipboard("https://discord.gg/yourserver")
 	end
