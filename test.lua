@@ -264,10 +264,11 @@ do
 			return
 		end
 
+		local body = watermarkFrame:FindFirstChild("Body") or watermarkFrame
 		local glow = watermarkFrame:FindFirstChild("Glow")
-		local accentLine = watermarkFrame:FindFirstChild("AccentLine")
-		local topBar = watermarkFrame:FindFirstChild("TopBar")
-		local status = watermarkFrame:FindFirstChild("Status")
+		local accentLine = body:FindFirstChild("AccentLine") or watermarkFrame:FindFirstChild("AccentLine")
+		local topBar = body:FindFirstChild("TopBar") or watermarkFrame:FindFirstChild("TopBar")
+		local status = body:FindFirstChild("Status") or watermarkFrame:FindFirstChild("Status")
 		local titleLabel = watermarkFrame:FindFirstChild("Title", true)
 		local info = watermarkFrame:FindFirstChild("Info", true)
 
@@ -290,6 +291,8 @@ do
 		if typeof(style.BackgroundColor) == "Color3" then
 			if watermarkFrame:IsA("ImageLabel") then
 				watermarkFrame.ImageColor3 = style.BackgroundColor
+			elseif body and body:IsA("CanvasGroup") then
+				body.BackgroundColor3 = style.BackgroundColor
 			else
 				watermarkFrame.BackgroundColor3 = style.BackgroundColor
 			end
@@ -524,34 +527,41 @@ do
 			DisplayOrder = watermarkDisplayOrder,
 			ZIndexBehavior = Enum.ZIndexBehavior.Sibling
 		}, {
-			utilityCreate("Frame", {
-				Name = "Watermark",
-				AnchorPoint = watermarkAnchor,
+			-- Shell is transparent + draggable. Body is a CanvasGroup so UICorner
+		-- actually clips children on every corner (Frame + UICorner does not).
+		utilityCreate("Frame", {
+			Name = "Watermark",
+			AnchorPoint = watermarkAnchor,
+			BackgroundTransparency = 1,
+			BorderSizePixel = 0,
+			Position = watermarkPosition,
+			Size = watermarkSize,
+			ZIndex = 2
+		}, {
+			utilityCreate("ImageLabel", {
+				Name = "Glow",
+				BackgroundTransparency = 1,
+				Position = UDim2.new(0, -7, 0, -7),
+				Size = UDim2.new(1, 14, 1, 14),
+				ZIndex = 1,
+				Visible = watermarkShowGlow,
+				Image = "rbxassetid://5028857084",
+				ImageColor3 = watermarkGlow,
+				ScaleType = Enum.ScaleType.Slice,
+				SliceCenter = Rect.new(24, 24, 276, 276)
+			}),
+			utilityCreate("CanvasGroup", {
+				Name = "Body",
 				BackgroundColor3 = watermarkBackground,
 				BackgroundTransparency = 0,
 				BorderSizePixel = 0,
-				Position = watermarkPosition,
-				Size = watermarkSize,
-				ZIndex = 2,
-				ClipsDescendants = true
+				Size = UDim2.new(1, 0, 1, 0),
+				ZIndex = 2
 			}, {
-				-- Matches main-menu corner radius (slice assets ~8px)
 				utilityCreate("UICorner", {
 					CornerRadius = UDim.new(0, 8)
 				}),
-				utilityCreate("ImageLabel", {
-					Name = "Glow",
-					BackgroundTransparency = 1,
-					Position = UDim2.new(0, -7, 0, -7),
-					Size = UDim2.new(1, 14, 1, 14),
-					ZIndex = 1,
-					Visible = watermarkShowGlow,
-					Image = "rbxassetid://5028857084",
-					ImageColor3 = watermarkGlow,
-					ScaleType = Enum.ScaleType.Slice,
-					SliceCenter = Rect.new(24, 24, 276, 276)
-				}),
-				-- Title bar (XEVOR + expand)
+				-- Title bar (XEVOR + expand) — also drag handle
 				utilityCreate("Frame", {
 					Name = "TopBar",
 					BackgroundColor3 = watermarkTopBar,
@@ -588,7 +598,7 @@ do
 						AutoButtonColor = false
 					})
 				}),
-				-- Solid purple accent under title (exact 2px, never overlaps text)
+				-- Solid purple accent under title
 				utilityCreate("Frame", {
 					Name = "AccentLine",
 					BackgroundColor3 = watermarkAccentPurple,
@@ -742,6 +752,8 @@ do
 		
 		utilityInitializeKeybind()
 		utilityDraggingEnabled(container.Main.TopBar, container.Main)
+		-- Drag watermark from the title bar
+		utilityDraggingEnabled(watermark.Watermark.Body.TopBar, watermark.Watermark)
 		
 		local window = setmetatable({
 			container = container,
@@ -779,9 +791,10 @@ do
 		end
 
 		local watermarkFrame = watermark.Watermark
-		local dropdown = watermarkFrame.Dropdown
+		local body = watermarkFrame:FindFirstChild("Body") or watermarkFrame
+		local dropdown = body.Dropdown
 		local dropdownPanel = dropdown.Panel
-		local expandBtn = watermarkFrame.TopBar.Expand
+		local expandBtn = body.TopBar.Expand
 		local watermarkExpanded = false
 		local collapsedSize = watermarkSize
 
@@ -897,7 +910,7 @@ do
 			setWatermarkExpanded(not watermarkExpanded)
 		end)
 
-		watermarkFrame.TopBar.Title.InputBegan:Connect(function(userInput)
+		body.TopBar.Title.InputBegan:Connect(function(userInput)
 			if userInput.UserInputType == Enum.UserInputType.MouseButton1 then
 				setWatermarkExpanded(not watermarkExpanded)
 			end
@@ -923,7 +936,7 @@ do
 			end
 
 			local fps = math.floor((frameCount / elapsed) + 0.5)
-			watermarkFrame.Status.Info.Text = string.format("%s  |  %d FPS  |  %d ms", player.Name, fps, ping)
+			body.Status.Info.Text = string.format("%s  |  %d FPS  |  %d ms", player.Name, fps, ping)
 
 			if watermarkExpanded then
 				dropdownPanel.GameLabel.Text = placeName
