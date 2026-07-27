@@ -749,6 +749,7 @@ do
 				})
 			})
 		})
+		})
 		
 		utilityInitializeKeybind()
 		utilityDraggingEnabled(container.Main.TopBar, container.Main)
