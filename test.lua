@@ -288,7 +288,11 @@ do
 		end
 
 		if typeof(style.BackgroundColor) == "Color3" then
-			watermarkFrame.ImageColor3 = style.BackgroundColor
+			if watermarkFrame:IsA("ImageLabel") then
+				watermarkFrame.ImageColor3 = style.BackgroundColor
+			else
+				watermarkFrame.BackgroundColor3 = style.BackgroundColor
+			end
 		end
 		if topBar and typeof(style.TopBarColor) == "Color3" then
 			if topBar:IsA("ImageLabel") then
@@ -520,19 +524,21 @@ do
 			DisplayOrder = watermarkDisplayOrder,
 			ZIndexBehavior = Enum.ZIndexBehavior.Sibling
 		}, {
-			utilityCreate("ImageLabel", {
+			utilityCreate("Frame", {
 				Name = "Watermark",
 				AnchorPoint = watermarkAnchor,
-				BackgroundTransparency = 1,
+				BackgroundColor3 = watermarkBackground,
+				BackgroundTransparency = 0,
+				BorderSizePixel = 0,
 				Position = watermarkPosition,
 				Size = watermarkSize,
 				ZIndex = 2,
-				ClipsDescendants = true,
-				Image = "rbxassetid://4641149554",
-				ImageColor3 = watermarkBackground,
-				ScaleType = Enum.ScaleType.Slice,
-				SliceCenter = Rect.new(4, 4, 296, 296)
+				ClipsDescendants = true
 			}, {
+				-- Matches main-menu corner radius (slice assets ~8px)
+				utilityCreate("UICorner", {
+					CornerRadius = UDim.new(0, 8)
+				}),
 				utilityCreate("ImageLabel", {
 					Name = "Glow",
 					BackgroundTransparency = 1,
