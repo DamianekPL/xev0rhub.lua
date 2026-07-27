@@ -1,830 +1,6 @@
-local Players = game:GetService("Players")
-local TweenSvc = game:GetService("TweenService")
-local InputSvc = game:GetService("UserInputService")
-local player = Players.LocalPlayer
-local playerGui = player:WaitForChild("PlayerGui")
-local TI = TweenInfo.new
-
-local T = {
-	Background = Color3.fromRGB(24, 24, 24),
-	Glow = Color3.fromRGB(0, 0, 0),
-	Accent = Color3.fromRGB(10, 10, 10),
-	LightContrast = Color3.fromRGB(20, 20, 20),
-	DarkContrast = Color3.fromRGB(14, 14, 14),
-	TextColor = Color3.fromRGB(255, 255, 255),
-	Success = Color3.fromRGB(60, 179, 113),
-	Error = Color3.fromRGB(220, 80, 80),
-	Warn = Color3.fromRGB(220, 180, 60),
-}
-
-local function tw(obj, props, t, ...)
-	TweenSvc:Create(obj, TI(t, ...), props):Play()
-end
-
-local function mk(class, props, parent)
-	local o = Instance.new(class)
-	for k, v in pairs(props or {}) do
-		o[k] = v
-	end
-	if parent then
-		o.Parent = parent
-	end
-	return o
-end
-
-local function detectExecutor()
-	local execName = "Unknown"
-	local suncPass, suncTotal = 0, 0
-	local uncPass, uncTotal = 0, 0
-
-	local ok, geName = pcall(function()
-		return getexecutorname and getexecutorname()
-	end)
-	if ok and type(geName) == "string" and #geName > 0 then
-		execName = geName
-	else
-		local prints = {
-			{ id = "Synapse X", fn = function() return syn and rawget(syn, "request") end },
-			{ id = "Script-Ware", fn = function() return rawget(_G, "SCRIPTWARE") end },
-			{ id = "Sentinel", fn = function() return rawget(_G, "SENTINEL_V2") end },
-			{ id = "Krnl", fn = function() return rawget(_G, "KRNL_LOADED") end },
-			{ id = "Fluxus", fn = function() return fluxus and rawget(fluxus, "request") end },
-			{ id = "Oxygen U", fn = function() return rawget(_G, "OXYGEN_U") end },
-			{ id = "Evon", fn = function() return rawget(_G, "EVON_LOADED") end },
-			{ id = "Delta", fn = function() return rawget(_G, "DELTA_LOADED") end },
-			{ id = "Arceus X", fn = function() return rawget(_G, "ARCEUS_X") end },
-			{ id = "Comet", fn = function() return rawget(_G, "COCO_Z") end },
-		}
-		for _, fp in ipairs(prints) do
-			local s, r = pcall(fp.fn)
-			if s and r then
-				execName = fp.id
-				break
-			end
-		end
-	end
-
-	local suncChecks = {
-		{ label = "syn.request", fn = function() return syn and syn.request end },
-		{ label = "syn.protect_gui", fn = function() return syn and syn.protect_gui end },
-		{ label = "syn.write_clipboard", fn = function() return syn and syn.write_clipboard end },
-		{ label = "syn.get_bytecode", fn = function() return syn and syn.get_bytecode end },
-		{ label = "syn.run_on_actor", fn = function() return syn and syn.run_on_actor end },
-		{ label = "decompile", fn = function() return decompile end },
-		{ label = "getscriptbytecode", fn = function() return getscriptbytecode end },
-		{ label = "getscripthash", fn = function() return getscripthash end },
-		{ label = "getloadedmodules", fn = function() return getloadedmodules end },
-		{ label = "getconnections", fn = function() return getconnections end },
-	}
-
-	local uncChecks = {
-		{ label = "writefile", fn = function() return writefile end },
-		{ label = "readfile", fn = function() return readfile end },
-		{ label = "listfiles", fn = function() return listfiles end },
-		{ label = "isfile", fn = function() return isfile end },
-		{ label = "isfolder", fn = function() return isfolder end },
-		{ label = "makefolder", fn = function() return makefolder end },
-		{ label = "delfile", fn = function() return delfile end },
-		{ label = "getrawmetatable", fn = function() return getrawmetatable end },
-		{ label = "setrawmetatable", fn = function() return setrawmetatable end },
-		{ label = "hookfunction", fn = function() return hookfunction end },
-		{ label = "newcclosure", fn = function() return newcclosure end },
-		{ label = "getcallingscript", fn = function() return getcallingscript end },
-		{ label = "getgenv", fn = function() return getgenv end },
-		{ label = "getsenv", fn = function() return getsenv end },
-		{ label = "getmenv", fn = function() return getmenv end },
-		{ label = "setclipboard", fn = function() return setclipboard end },
-		{ label = "request / http_request", fn = function() return request or http_request end },
-		{ label = "loadstring", fn = function() return loadstring end },
-		{ label = "Drawing", fn = function() return Drawing end },
-		{ label = "getinstances", fn = function() return getinstances end },
-	}
-
-	for _, c in ipairs(suncChecks) do
-		suncTotal = suncTotal + 1
-		local s, r = pcall(c.fn)
-		if s and r then
-			suncPass = suncPass + 1
-		end
-	end
-
-	for _, c in ipairs(uncChecks) do
-		uncTotal = uncTotal + 1
-		local s, r = pcall(c.fn)
-		if s and r then
-			uncPass = uncPass + 1
-		end
-	end
-
-	return {
-		name = execName,
-		suncPass = suncPass,
-		suncTotal = suncTotal,
-		uncPass = uncPass,
-		uncTotal = uncTotal,
-	}
-end
-
-local function safeWrite(path, data)
-	return pcall(writefile, path, data)
-end
-
-local function safeRead(path)
-	local ok, data = pcall(readfile, path)
-	return ok and data or nil
-end
-
-local function safeIsFile(path)
-	local ok, r = pcall(isfile, path)
-	return ok and r
-end
-
-local function buildLoadingScreen(config)
-	config = config or {}
-	local title = config.Title or "Xev0r"
-	local subtitle = config.Subtitle or "Loading..."
-	local version = config.Version or "v1.0"
-
-	local guiParent = playerGui or game:GetService("CoreGui")
-	local gui = mk("ScreenGui", {
-		Name = "XevorLoader",
-		Parent = guiParent,
-		IgnoreGuiInset = true,
-		ResetOnSpawn = false,
-		DisplayOrder = 99999,
-		ZIndexBehavior = Enum.ZIndexBehavior.Sibling,
-	})
-
-	pcall(function()
-		if syn and syn.protect_gui then
-			syn.protect_gui(gui)
-		elseif protectgui then
-			protectgui(gui)
-		end
-	end)
-
-	local backdrop = mk("Frame", {
-		Name = "Backdrop",
-		Parent = gui,
-		Size = UDim2.new(1, 0, 1, 0),
-		BackgroundColor3 = Color3.fromRGB(10, 10, 10),
-		BackgroundTransparency = 0,
-		BorderSizePixel = 0,
-		ZIndex = 1,
-	})
-
-	local card = mk("ImageLabel", {
-		Name = "Card",
-		Parent = backdrop,
-		AnchorPoint = Vector2.new(0.5, 0.5),
-		Position = UDim2.new(0.5, 0, 0.5, 0),
-		Size = UDim2.new(0, 420, 0, 260),
-		BackgroundTransparency = 1,
-		Image = "rbxassetid://4641149554",
-		ImageColor3 = T.Background,
-		ScaleType = Enum.ScaleType.Slice,
-		SliceCenter = Rect.new(4, 4, 296, 296),
-		ZIndex = 2,
-	})
-
-	mk("ImageLabel", {
-		Name = "Glow",
-		Parent = card,
-		Position = UDim2.new(0, -20, 0, -20),
-		Size = UDim2.new(1, 40, 1, 40),
-		BackgroundTransparency = 1,
-		Image = "rbxassetid://5028857084",
-		ImageColor3 = T.Glow,
-		ScaleType = Enum.ScaleType.Slice,
-		SliceCenter = Rect.new(24, 24, 276, 276),
-		ZIndex = 1,
-	})
-
-	local topBar = mk("ImageLabel", {
-		Name = "TopBar",
-		Parent = card,
-		Size = UDim2.new(1, 0, 0, 36),
-		BackgroundTransparency = 1,
-		Image = "rbxassetid://4595286933",
-		ImageColor3 = T.Accent,
-		ScaleType = Enum.ScaleType.Slice,
-		SliceCenter = Rect.new(4, 4, 296, 296),
-		ZIndex = 3,
-	})
-
-	mk("TextLabel", {
-		Parent = topBar,
-		Position = UDim2.new(0, 14, 0, 0),
-		Size = UDim2.new(0.6, 0, 1, 0),
-		BackgroundTransparency = 1,
-		Font = Enum.Font.GothamBold,
-		Text = title,
-		TextColor3 = T.TextColor,
-		TextSize = 14,
-		TextXAlignment = Enum.TextXAlignment.Left,
-		ZIndex = 4,
-	})
-
-	mk("TextLabel", {
-		Name = "Version",
-		Parent = topBar,
-		AnchorPoint = Vector2.new(1, 0.5),
-		Position = UDim2.new(1, -14, 0.5, 0),
-		Size = UDim2.new(0, 60, 0, 14),
-		BackgroundTransparency = 1,
-		Font = Enum.Font.Gotham,
-		Text = version,
-		TextColor3 = T.TextColor,
-		TextSize = 11,
-		TextXAlignment = Enum.TextXAlignment.Right,
-		TextTransparency = 0.4,
-		ZIndex = 4,
-	})
-
-	mk("ImageLabel", {
-		Parent = card,
-		Position = UDim2.new(0, 8, 0, 35),
-		Size = UDim2.new(1, -16, 0, 1),
-		BackgroundTransparency = 1,
-		Image = "rbxassetid://4595286933",
-		ImageColor3 = T.LightContrast,
-		ScaleType = Enum.ScaleType.Slice,
-		SliceCenter = Rect.new(4, 4, 296, 296),
-		ZIndex = 3,
-	})
-
-	local body = mk("Frame", {
-		Parent = card,
-		Position = UDim2.new(0, 14, 0, 44),
-		Size = UDim2.new(1, -28, 1, -54),
-		BackgroundTransparency = 1,
-		ZIndex = 3,
-	})
-
-	local statusLabel = mk("TextLabel", {
-		Name = "Status",
-		Parent = body,
-		Position = UDim2.new(0, 0, 0, 0),
-		Size = UDim2.new(1, 0, 0, 18),
-		BackgroundTransparency = 1,
-		Font = Enum.Font.Gotham,
-		Text = subtitle,
-		TextColor3 = T.TextColor,
-		TextSize = 12,
-		TextTransparency = 0.3,
-		TextXAlignment = Enum.TextXAlignment.Left,
-		ZIndex = 4,
-	})
-
-	local execLabel = mk("TextLabel", {
-		Name = "Exec",
-		Parent = body,
-		Position = UDim2.new(0, 0, 0, 24),
-		Size = UDim2.new(1, 0, 0, 18),
-		BackgroundTransparency = 1,
-		Font = Enum.Font.GothamSemibold,
-		Text = "Executor: detecting...",
-		TextColor3 = T.TextColor,
-		TextSize = 12,
-		TextXAlignment = Enum.TextXAlignment.Left,
-		ZIndex = 4,
-	})
-
-	local suncLabel = mk("TextLabel", {
-		Name = "sUNCLabel",
-		Parent = body,
-		Position = UDim2.new(0, 0, 0, 52),
-		Size = UDim2.new(0.5, 0, 0, 14),
-		BackgroundTransparency = 1,
-		Font = Enum.Font.Gotham,
-		Text = "sUNC  0 / 0",
-		TextColor3 = T.TextColor,
-		TextSize = 11,
-		TextTransparency = 0.25,
-		TextXAlignment = Enum.TextXAlignment.Left,
-		ZIndex = 4,
-	})
-
-	local suncTrack = mk("ImageLabel", {
-		Parent = body,
-		Position = UDim2.new(0, 0, 0, 68),
-		Size = UDim2.new(1, 0, 0, 6),
-		BackgroundTransparency = 1,
-		Image = "rbxassetid://5028857472",
-		ImageColor3 = T.LightContrast,
-		ScaleType = Enum.ScaleType.Slice,
-		SliceCenter = Rect.new(2, 2, 298, 298),
-		ZIndex = 4,
-	})
-
-	local suncFill = mk("ImageLabel", {
-		Name = "Fill",
-		Parent = suncTrack,
-		Size = UDim2.new(0, 0, 1, 0),
-		BackgroundTransparency = 1,
-		Image = "rbxassetid://5028857472",
-		ImageColor3 = T.Success,
-		ScaleType = Enum.ScaleType.Slice,
-		SliceCenter = Rect.new(2, 2, 298, 298),
-		ZIndex = 5,
-	})
-
-	local uncLabel = mk("TextLabel", {
-		Name = "UNCLabel",
-		Parent = body,
-		Position = UDim2.new(0, 0, 0, 82),
-		Size = UDim2.new(0.5, 0, 0, 14),
-		BackgroundTransparency = 1,
-		Font = Enum.Font.Gotham,
-		Text = "UNC   0 / 0",
-		TextColor3 = T.TextColor,
-		TextSize = 11,
-		TextTransparency = 0.25,
-		TextXAlignment = Enum.TextXAlignment.Left,
-		ZIndex = 4,
-	})
-
-	local uncTrack = mk("ImageLabel", {
-		Parent = body,
-		Position = UDim2.new(0, 0, 0, 98),
-		Size = UDim2.new(1, 0, 0, 6),
-		BackgroundTransparency = 1,
-		Image = "rbxassetid://5028857472",
-		ImageColor3 = T.LightContrast,
-		ScaleType = Enum.ScaleType.Slice,
-		SliceCenter = Rect.new(2, 2, 298, 298),
-		ZIndex = 4,
-	})
-
-	local uncFill = mk("ImageLabel", {
-		Name = "Fill",
-		Parent = uncTrack,
-		Size = UDim2.new(0, 0, 1, 0),
-		BackgroundTransparency = 1,
-		Image = "rbxassetid://5028857472",
-		ImageColor3 = T.Success,
-		ScaleType = Enum.ScaleType.Slice,
-		SliceCenter = Rect.new(2, 2, 298, 298),
-		ZIndex = 5,
-	})
-
-	local progressTrack = mk("ImageLabel", {
-		Parent = card,
-		AnchorPoint = Vector2.new(0, 1),
-		Position = UDim2.new(0, 8, 1, -10),
-		Size = UDim2.new(1, -16, 0, 4),
-		BackgroundTransparency = 1,
-		Image = "rbxassetid://5028857472",
-		ImageColor3 = T.LightContrast,
-		ScaleType = Enum.ScaleType.Slice,
-		SliceCenter = Rect.new(2, 2, 298, 298),
-		ZIndex = 4,
-	})
-
-	local progressFill = mk("ImageLabel", {
-		Name = "Fill",
-		Parent = progressTrack,
-		Size = UDim2.new(0, 0, 1, 0),
-		BackgroundTransparency = 1,
-		Image = "rbxassetid://5028857472",
-		ImageColor3 = T.TextColor,
-		ScaleType = Enum.ScaleType.Slice,
-		SliceCenter = Rect.new(2, 2, 298, 298),
-		ZIndex = 5,
-	})
-
-	card.Size = UDim2.new(0, 0, 0, 0)
-	tw(card, { Size = UDim2.new(0, 420, 0, 260) }, 0.25, Enum.EasingStyle.Quart, Enum.EasingDirection.Out)
-	tw(progressFill, { Size = UDim2.new(0.4, 0, 1, 0) }, 0.3)
-
-	task.wait(0.3)
-	local info = detectExecutor()
-
-	execLabel.Text = "Executor: " .. info.name
-	execLabel.TextColor3 = T.Success
-
-	suncLabel.Text = string.format("sUNC  %d / %d  (%d%%)", info.suncPass, info.suncTotal, math.floor((info.suncPass / math.max(info.suncTotal, 1)) * 100))
-	tw(suncFill, { Size = UDim2.new(info.suncPass / math.max(info.suncTotal, 1), 0, 1, 0) }, 0.35)
-
-	uncLabel.Text = string.format("UNC   %d / %d  (%d%%)", info.uncPass, info.uncTotal, math.floor((info.uncPass / math.max(info.uncTotal, 1)) * 100))
-	tw(uncFill, { Size = UDim2.new(info.uncPass / math.max(info.uncTotal, 1), 0, 1, 0) }, 0.35)
-
-	tw(progressFill, { Size = UDim2.new(0.65, 0, 1, 0) }, 0.25)
-	statusLabel.Text = "Executor verified — loading key system..."
-	task.wait(0.5)
-
-	local function setProgress(pct, msg)
-		tw(progressFill, { Size = UDim2.new(pct, 0, 1, 0) }, 0.2)
-		if msg then
-			statusLabel.Text = msg
-		end
-	end
-
-	local function destroy()
-		tw(card, { Size = UDim2.new(0, 0, 0, 0) }, 0.2, Enum.EasingStyle.Quart, Enum.EasingDirection.In)
-		tw(backdrop, { BackgroundTransparency = 1 }, 0.25)
-		task.wait(0.28)
-		gui:Destroy()
-	end
-
-	return setProgress, destroy, info
-end
-
-local KeySystem = {}
-KeySystem.__index = KeySystem
-
-function KeySystem.new(config)
-	config = config or {}
-	local self = setmetatable({}, KeySystem)
-	self.title = config.Title or "Xev0r"
-	self.subtitle = config.Subtitle or "Enter your key to continue."
-	self.keys = type(config.Key) == "table" and config.Key or { tostring(config.Key or "") }
-	self.savePath = config.SavePath or "xevor_key.dat"
-	self.keyUrl = config.GetKeyUrl or "discord.gg/xevor"
-	self.onSuccess = config.OnSuccess
-	self.onFail = config.OnFail
-	self._resolved = false
-	return self
-end
-
-function KeySystem:_isValidKey(k)
-	for _, v in ipairs(self.keys) do
-		if k == v then
-			return true
-		end
-	end
-	return false
-end
-
-function KeySystem:_saveKey(k)
-	safeWrite(self.savePath, k)
-end
-
-function KeySystem:_loadSavedKey()
-	if not safeIsFile(self.savePath) then
-		return nil
-	end
-	local raw = safeRead(self.savePath)
-	if raw and #raw > 0 then
-		return raw
-	end
-	return nil
-end
-
-function KeySystem:Await()
-	local saved = self:_loadSavedKey()
-	if saved and self:_isValidKey(saved) then
-		if self.onSuccess then
-			self.onSuccess(saved)
-		end
-		return true, saved
-	end
-
-	local guiParent = playerGui or game:GetService("CoreGui")
-	local gui = mk("ScreenGui", {
-		Name = "XevorKeySystem",
-		Parent = guiParent,
-		IgnoreGuiInset = true,
-		ResetOnSpawn = false,
-		DisplayOrder = 99998,
-		ZIndexBehavior = Enum.ZIndexBehavior.Sibling,
-	})
-
-	pcall(function()
-		if syn and syn.protect_gui then
-			syn.protect_gui(gui)
-		elseif protectgui then
-			protectgui(gui)
-		end
-	end)
-
-	local backdrop = mk("Frame", {
-		Parent = gui,
-		Size = UDim2.new(1, 0, 1, 0),
-		BackgroundColor3 = Color3.fromRGB(8, 8, 8),
-		BackgroundTransparency = 0.15,
-		BorderSizePixel = 0,
-		ZIndex = 1,
-	})
-
-	local card = mk("ImageLabel", {
-		Parent = backdrop,
-		AnchorPoint = Vector2.new(0.5, 0.5),
-		Position = UDim2.new(0.5, 0, 0.5, 0),
-		Size = UDim2.new(0, 380, 0, 220),
-		BackgroundTransparency = 1,
-		Image = "rbxassetid://4641149554",
-		ImageColor3 = T.Background,
-		ScaleType = Enum.ScaleType.Slice,
-		SliceCenter = Rect.new(4, 4, 296, 296),
-		ZIndex = 2,
-	})
-
-	mk("ImageLabel", {
-		Parent = card,
-		Position = UDim2.new(0, -18, 0, -18),
-		Size = UDim2.new(1, 36, 1, 36),
-		BackgroundTransparency = 1,
-		Image = "rbxassetid://5028857084",
-		ImageColor3 = T.Glow,
-		ScaleType = Enum.ScaleType.Slice,
-		SliceCenter = Rect.new(24, 24, 276, 276),
-		ZIndex = 1,
-	})
-
-	local topBar = mk("ImageLabel", {
-		Parent = card,
-		Size = UDim2.new(1, 0, 0, 34),
-		BackgroundTransparency = 1,
-		Image = "rbxassetid://4595286933",
-		ImageColor3 = T.Accent,
-		ScaleType = Enum.ScaleType.Slice,
-		SliceCenter = Rect.new(4, 4, 296, 296),
-		ZIndex = 3,
-	})
-
-	mk("TextLabel", {
-		Parent = topBar,
-		Position = UDim2.new(0, 14, 0, 0),
-		Size = UDim2.new(0.7, 0, 1, 0),
-		BackgroundTransparency = 1,
-		Font = Enum.Font.GothamBold,
-		Text = self.title .. "  —  Key System",
-		TextColor3 = T.TextColor,
-		TextSize = 13,
-		TextXAlignment = Enum.TextXAlignment.Left,
-		ZIndex = 4,
-	})
-
-	local closeBtn = mk("TextButton", {
-		Parent = topBar,
-		AnchorPoint = Vector2.new(1, 0.5),
-		Position = UDim2.new(1, -8, 0.5, 0),
-		Size = UDim2.new(0, 28, 0, 28),
-		BackgroundTransparency = 1,
-		Font = Enum.Font.GothamBold,
-		Text = "✕",
-		TextColor3 = T.TextColor,
-		TextSize = 14,
-		TextTransparency = 0.3,
-		ZIndex = 5,
-	})
-
-	mk("ImageLabel", {
-		Parent = card,
-		Position = UDim2.new(0, 8, 0, 33),
-		Size = UDim2.new(1, -16, 0, 1),
-		BackgroundTransparency = 1,
-		Image = "rbxassetid://4595286933",
-		ImageColor3 = T.LightContrast,
-		ScaleType = Enum.ScaleType.Slice,
-		SliceCenter = Rect.new(4, 4, 296, 296),
-		ZIndex = 3,
-	})
-
-	mk("TextLabel", {
-		Parent = card,
-		Position = UDim2.new(0, 14, 0, 42),
-		Size = UDim2.new(1, -28, 0, 18),
-		BackgroundTransparency = 1,
-		Font = Enum.Font.Gotham,
-		Text = self.subtitle,
-		TextColor3 = T.TextColor,
-		TextSize = 11,
-		TextTransparency = 0.35,
-		TextXAlignment = Enum.TextXAlignment.Left,
-		ZIndex = 3,
-	})
-
-	mk("TextLabel", {
-		Parent = card,
-		Position = UDim2.new(0, 14, 0, 60),
-		Size = UDim2.new(1, -28, 0, 16),
-		BackgroundTransparency = 1,
-		Font = Enum.Font.Gotham,
-		Text = "Get key:  " .. self.keyUrl,
-		TextColor3 = T.TextColor,
-		TextSize = 10,
-		TextTransparency = 0.55,
-		TextXAlignment = Enum.TextXAlignment.Left,
-		ZIndex = 3,
-	})
-
-	local inputBg = mk("ImageLabel", {
-		Parent = card,
-		Position = UDim2.new(0, 14, 0, 84),
-		Size = UDim2.new(1, -28, 0, 32),
-		BackgroundTransparency = 1,
-		Image = "rbxassetid://5028857472",
-		ImageColor3 = T.DarkContrast,
-		ScaleType = Enum.ScaleType.Slice,
-		SliceCenter = Rect.new(2, 2, 298, 298),
-		ZIndex = 3,
-	})
-
-	local keyBox = mk("TextBox", {
-		Parent = inputBg,
-		Position = UDim2.new(0, 10, 0, 0),
-		Size = UDim2.new(1, -20, 1, 0),
-		BackgroundTransparency = 1,
-		ClearTextOnFocus = false,
-		Font = Enum.Font.GothamSemibold,
-		PlaceholderText = "Paste your key here...",
-		PlaceholderColor3 = Color3.fromRGB(120, 120, 120),
-		Text = "",
-		TextColor3 = T.TextColor,
-		TextSize = 12,
-		ZIndex = 4,
-	})
-
-	local statusLabel = mk("TextLabel", {
-		Parent = card,
-		Position = UDim2.new(0, 14, 0, 122),
-		Size = UDim2.new(1, -28, 0, 16),
-		BackgroundTransparency = 1,
-		Font = Enum.Font.Gotham,
-		Text = "",
-		TextColor3 = T.Warn,
-		TextSize = 11,
-		TextXAlignment = Enum.TextXAlignment.Left,
-		ZIndex = 3,
-	})
-
-	local submitBtn = mk("ImageButton", {
-		Parent = card,
-		Position = UDim2.new(0, 14, 0, 146),
-		Size = UDim2.new(1, -28, 0, 32),
-		BackgroundTransparency = 1,
-		Image = "rbxassetid://5028857472",
-		ImageColor3 = T.LightContrast,
-		ScaleType = Enum.ScaleType.Slice,
-		SliceCenter = Rect.new(2, 2, 298, 298),
-		ZIndex = 3,
-		AutoButtonColor = false,
-	})
-
-	mk("TextLabel", {
-		Parent = submitBtn,
-		Size = UDim2.new(1, 0, 1, 0),
-		BackgroundTransparency = 1,
-		Font = Enum.Font.GothamSemibold,
-		Text = "Submit Key",
-		TextColor3 = T.TextColor,
-		TextSize = 12,
-		ZIndex = 4,
-	})
-
-	card.Size = UDim2.new(0, 0, 0, 0)
-	tw(card, { Size = UDim2.new(0, 380, 0, 220) }, 0.22, Enum.EasingStyle.Quart, Enum.EasingDirection.Out)
-
-	local dragging, dragStart, startPos
-	topBar.InputBegan:Connect(function(i)
-		if i.UserInputType == Enum.UserInputType.MouseButton1 then
-			dragging = true
-			dragStart = i.Position
-			startPos = card.Position
-		end
-	end)
-	InputSvc.InputChanged:Connect(function(i)
-		if dragging and i.UserInputType == Enum.UserInputType.MouseMovement then
-			local d = i.Position - dragStart
-			card.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + d.X, startPos.Y.Scale, startPos.Y.Offset + d.Y)
-		end
-	end)
-	InputSvc.InputEnded:Connect(function(i)
-		if i.UserInputType == Enum.UserInputType.MouseButton1 then
-			dragging = false
-		end
-	end)
-
-	local thread = coroutine.running()
-	local result, resultKey = false, nil
-
-	local function resolveSuccess(k)
-		if self._resolved then
-			return
-		end
-		self._resolved = true
-		result, resultKey = true, k
-		statusLabel.TextColor3 = T.Success
-		statusLabel.Text = "Key accepted — welcome."
-		tw(submitBtn, { ImageColor3 = T.Success }, 0.2)
-		task.wait(0.6)
-		tw(card, { Size = UDim2.new(0, 0, 0, 0) }, 0.18, Enum.EasingStyle.Quart, Enum.EasingDirection.In)
-		tw(backdrop, { BackgroundTransparency = 1 }, 0.22)
-		task.wait(0.25)
-		gui:Destroy()
-		if self.onSuccess then
-			self.onSuccess(k)
-		end
-		coroutine.resume(thread)
-	end
-
-	local function resolveFail()
-		if self._resolved then
-			return
-		end
-		self._resolved = true
-		tw(card, { Size = UDim2.new(0, 0, 0, 0) }, 0.18, Enum.EasingStyle.Quart, Enum.EasingDirection.In)
-		tw(backdrop, { BackgroundTransparency = 1 }, 0.22)
-		task.wait(0.25)
-		gui:Destroy()
-		if self.onFail then
-			self.onFail()
-		end
-		coroutine.resume(thread)
-	end
-
-	local function tryKey(raw)
-		local k = raw:match("^%s*(.-)%s*$")
-		if self:_isValidKey(k) then
-			self:_saveKey(k)
-			resolveSuccess(k)
-		else
-			statusLabel.TextColor3 = T.Error
-			statusLabel.Text = "Invalid key. Try again or get a new one."
-			tw(inputBg, { ImageColor3 = T.Error }, 0.15)
-			task.wait(0.5)
-			tw(inputBg, { ImageColor3 = T.DarkContrast }, 0.15)
-		end
-	end
-
-	submitBtn.MouseButton1Click:Connect(function()
-		if self._resolved then
-			return
-		end
-		tryKey(keyBox.Text)
-	end)
-
-	keyBox.FocusLost:Connect(function(enter)
-		if enter and not self._resolved then
-			tryKey(keyBox.Text)
-		end
-	end)
-
-	closeBtn.MouseButton1Click:Connect(resolveFail)
-
-	submitBtn.MouseEnter:Connect(function()
-		tw(submitBtn, { ImageColor3 = T.LightContrast }, 0.1)
-	end)
-	submitBtn.MouseLeave:Connect(function()
-		if not self._resolved then
-			tw(submitBtn, { ImageColor3 = T.LightContrast }, 0.1)
-		end
-	end)
-
-	coroutine.yield()
-	return result, resultKey
-end
-
-local XevorLoader = {}
-
-function XevorLoader.Init(config)
-	config = config or {}
-
-	local setProgress, destroyLoading, execInfo = buildLoadingScreen({
-		Title = config.Title or "Xev0r",
-		Subtitle = "Detecting executor...",
-		Version = config.Version or "v1.0",
-	})
-
-	setProgress(0.75, "Key system loading...")
-	task.wait(0.2)
-
-	local ks = KeySystem.new({
-		Title = config.Title or "Xev0r",
-		Subtitle = config.Subtitle or "Enter your key to continue.",
-		Key = config.Key or { "" },
-		SavePath = config.SavePath or "xevor_key.dat",
-		GetKeyUrl = config.GetKeyUrl or "discord.gg/xevor",
-		OnSuccess = function(k)
-			-- key validated
-		end,
-		OnFail = function()
-			-- user closed the key system
-		end,
-	})
-
-	setProgress(0.88, "Awaiting key validation...")
-	local ok, validatedKey = ks:Await()
-
-	if not ok then
-		destroyLoading()
-		return
-	end
-
-	setProgress(1.0, "Access granted. Loading interface...")
-	task.wait(0.35)
-	destroyLoading()
-
-	if config.OnReady then
-		config.OnReady(validatedKey, execInfo)
-	end
-end
-
-local function buildLibrary()
-	local player = game.Players.LocalPlayer
-	local mouse = player:GetMouse()
+-- init
+local player = game.Players.LocalPlayer
+local mouse = player:GetMouse()
 
 -- services
 local input = game:GetService("UserInputService")
@@ -839,12 +15,12 @@ local utility = {}
 -- themes
 local objects = {}
 local themes = {
-	Background = Color3.fromRGB(24, 24, 24),
-	Glow = Color3.fromRGB(0, 0, 0),
-	Accent = Color3.fromRGB(10, 10, 10),
+	Background    = Color3.fromRGB(24, 24, 24),
+	Glow          = Color3.fromRGB(0, 0, 0),
+	Accent        = Color3.fromRGB(10, 10, 10),
 	LightContrast = Color3.fromRGB(20, 20, 20),
-	DarkContrast = Color3.fromRGB(14, 14, 14),
-	TextColor = Color3.fromRGB(255, 255, 255)
+	DarkContrast  = Color3.fromRGB(14, 14, 14),
+	TextColor     = Color3.fromRGB(255, 255, 255)
 }
 
 do
@@ -1020,6 +196,479 @@ do
 	end
 end
 
+-- ============================================================
+-- SAFE FILE HELPERS
+-- Sanitises path so dots/slashes can't escape working dir.
+-- ============================================================
+
+local function sanitizeName(name)
+	-- Strip anything that isn't alphanumeric, dash, or underscore.
+	return tostring(name or "default"):gsub("[^%w%-_]", "_")
+end
+
+local function safeWrite(path, data)
+	local ok = pcall(writefile, path, data)
+	return ok
+end
+
+local function safeRead(path)
+	local ok, data = pcall(readfile, path)
+	if ok then return data end
+	return nil
+end
+
+-- ============================================================
+-- CONFIG SYSTEM
+-- Proper recursive JSON-like serialiser / deserialiser.
+-- Fixes: trailing-entry regex drop, nested object parse,
+--        path sanitisation.
+-- ============================================================
+
+local configRegistry = {}  -- { id = { getter, setter } }
+
+local function encodeValue(v)
+	local t = type(v)
+	if t == "boolean" then
+		return v and "true" or "false"
+	elseif t == "number" then
+		return tostring(v)
+	elseif t == "string" then
+		return '"' .. v:gsub('\\', '\\\\'):gsub('"', '\\"') .. '"'
+	elseif t == "table" then
+		if v.r ~= nil and v.g ~= nil and v.b ~= nil then
+			return string.format('{"__type":"Color3","r":%s,"g":%s,"b":%s}', v.r, v.g, v.b)
+		end
+		local items = {}
+		for _, item in ipairs(v) do
+			table.insert(items, encodeValue(item))
+		end
+		return "[" .. table.concat(items, ",") .. "]"
+	end
+	return "null"
+end
+
+local function serializeConfig()
+	local parts = {}
+	for id, entry in pairs(configRegistry) do
+		local key = '"' .. id:gsub('"', '\\"') .. '"'
+		table.insert(parts, key .. ":" .. encodeValue(entry.getter()))
+	end
+	return "{" .. table.concat(parts, ",") .. "}"
+end
+
+-- State-machine JSON value parser — handles bool, number, string,
+-- Color3 object, and string arrays reliably without regex fragility.
+local function parseJsonValue(s)
+	s = s:match("^%s*(.-)%s*$")
+	if s == "true"  then return true  end
+	if s == "false" then return false end
+	if s == "null"  then return nil   end
+
+	-- Quoted string
+	if s:sub(1, 1) == '"' then
+		return s:sub(2, -2):gsub('\\"', '"'):gsub('\\\\', '\\')
+	end
+
+	-- Object (Color3)
+	if s:sub(1, 1) == "{" then
+		local r = tonumber(s:match('"r"%s*:%s*([%d%.]+)'))
+		local g = tonumber(s:match('"g"%s*:%s*([%d%.]+)'))
+		local b = tonumber(s:match('"b"%s*:%s*([%d%.]+)'))
+		if r and g and b then
+			return {r = r, g = g, b = b}
+		end
+		return nil
+	end
+
+	-- Array of quoted strings
+	if s:sub(1, 1) == "[" then
+		local arr = {}
+		local inner = s:sub(2, -2)
+		for item in inner:gmatch('"(.-[^\\])"') do
+			table.insert(arr, item)
+		end
+		-- Fallback for empty or single-entry arrays
+		if #arr == 0 then
+			local single = inner:match('^%s*"(.-)"%s*$')
+			if single then arr = {single} end
+		end
+		return arr
+	end
+
+	-- Number
+	return tonumber(s)
+end
+
+-- Walk the JSON string token by token — immune to trailing-entry
+-- loss and handles Color3 nested objects correctly.
+local function deserializeConfig(raw)
+	local result = {}
+	raw = raw:match("^%s*(.-)%s*$")
+
+	-- Strip outer braces
+	if raw:sub(1,1) == "{" then
+		raw = raw:sub(2, -2)
+	end
+
+	local pos = 1
+	local len = #raw
+
+	local function skipWS()
+		while pos <= len and raw:sub(pos,pos):match("%s") do
+			pos = pos + 1
+		end
+	end
+
+	local function readString()
+		-- pos is currently on the opening quote
+		pos = pos + 1  -- skip "
+		local buf = {}
+		while pos <= len do
+			local ch = raw:sub(pos, pos)
+			if ch == '\\' then
+				pos = pos + 1
+				local esc = raw:sub(pos, pos)
+				if esc == '"' then table.insert(buf, '"')
+				elseif esc == '\\' then table.insert(buf, '\\')
+				else table.insert(buf, esc) end
+			elseif ch == '"' then
+				pos = pos + 1  -- skip closing "
+				break
+			else
+				table.insert(buf, ch)
+			end
+			pos = pos + 1
+		end
+		return table.concat(buf)
+	end
+
+	local function readValue()
+		skipWS()
+		local ch = raw:sub(pos, pos)
+
+		if ch == '"' then
+			return readString()
+
+		elseif ch == '{' then
+			-- Nested object — collect until matching }
+			local depth = 0
+			local start = pos
+			repeat
+				local c = raw:sub(pos, pos)
+				if c == '{' then depth = depth + 1
+				elseif c == '}' then depth = depth - 1 end
+				pos = pos + 1
+			until depth == 0 or pos > len
+			return parseJsonValue(raw:sub(start, pos - 1))
+
+		elseif ch == '[' then
+			-- Array — collect until matching ]
+			local depth = 0
+			local start = pos
+			repeat
+				local c = raw:sub(pos, pos)
+				if c == '[' then depth = depth + 1
+				elseif c == ']' then depth = depth - 1 end
+				pos = pos + 1
+			until depth == 0 or pos > len
+			return parseJsonValue(raw:sub(start, pos - 1))
+
+		else
+			-- Primitive: bool / number / null
+			local start = pos
+			while pos <= len do
+				local c = raw:sub(pos, pos)
+				if c == ',' or c == '}' or c == ']' or c:match("%s") then break end
+				pos = pos + 1
+			end
+			return parseJsonValue(raw:sub(start, pos - 1))
+		end
+	end
+
+	while pos <= len do
+		skipWS()
+		if pos > len then break end
+		if raw:sub(pos, pos) ~= '"' then pos = pos + 1 ; continue end
+
+		local key = readString()
+		skipWS()
+		if raw:sub(pos, pos) == ':' then pos = pos + 1 end
+		local value = readValue()
+		result[key] = value
+		skipWS()
+		if raw:sub(pos, pos) == ',' then pos = pos + 1 end
+	end
+
+	return result
+end
+
+-- ============================================================
+-- KEY SYSTEM
+-- Saves key to file after validation. Loads on next session
+-- so the user doesn't re-enter it. Supports optional expiry
+-- (Unix timestamp) embedded in the key via a simple format:
+--   KEY:EXPIRY_TIMESTAMP
+-- If EXPIRY_TIMESTAMP is absent, the key never expires.
+-- ============================================================
+
+local KEY_FILE = "xevor_key.dat"
+local SALT     = "xev0r_s4lt_2024"  -- change per-project
+
+local function hashString(s)
+	-- Simple non-crypto checksum — sufficient for executor env.
+	local h = 5381
+	for i = 1, #s do
+		h = ((h * 33) + string.byte(s, i)) % 0x100000000
+	end
+	return string.format("%08x", h)
+end
+
+local function buildKeyRecord(rawKey)
+	local fingerprint = hashString(rawKey .. SALT)
+	return rawKey .. "|" .. fingerprint
+end
+
+local function validateKeyRecord(record)
+	if not record then return false, nil end
+	local rawKey, storedHash = record:match("^(.+)|([0-9a-f]+)$")
+	if not rawKey or not storedHash then return false, nil end
+
+	local expected = hashString(rawKey .. SALT)
+	if expected ~= storedHash then return false, nil end  -- tampered
+
+	-- Check optional expiry embedded in key: "MYKEY:1700000000"
+	local baseKey, expiry = rawKey:match("^(.+):(%d+)$")
+	if expiry then
+		local expiryNum = tonumber(expiry)
+		-- os.time() available in most executors
+		local ok, now = pcall(os.time)
+		if ok and now and expiryNum and now > expiryNum then
+			return false, nil  -- expired
+		end
+		return true, baseKey
+	end
+
+	return true, rawKey
+end
+
+-- Public key API — attach to library after construction.
+-- library:SaveKey(rawKey)  → bool
+-- library:LoadKey()        → rawKey or nil
+-- library:ClearKey()       → void
+-- library:ValidateKey(fn)  → calls fn(rawKey) if saved key is valid
+
+local keySystem = {}
+
+function keySystem:SaveKey(rawKey)
+	rawKey = tostring(rawKey or "")
+	if rawKey == "" then return false end
+	local record = buildKeyRecord(rawKey)
+	return safeWrite(KEY_FILE, record)
+end
+
+function keySystem:LoadKey()
+	local record = safeRead(KEY_FILE)
+	local valid, rawKey = validateKeyRecord(record)
+	if valid then return rawKey end
+	return nil
+end
+
+function keySystem:ClearKey()
+	pcall(writefile, KEY_FILE, "")
+end
+
+function keySystem:ValidateKey(callback)
+	local rawKey = self:LoadKey()
+	if rawKey and callback then
+		callback(rawKey)
+		return true
+	end
+	return false
+end
+
+-- ============================================================
+-- WATERMARK KEYBIND DRAWER
+-- Clicking the watermark card toggles an animated keybind list
+-- that expands below the status bar. Same visual language as
+-- the card — no new ScreenGui, just extra rows inside the
+-- existing watermark ImageLabel.
+-- ============================================================
+
+local wmKeybindData    = {}   -- { label, key }
+local wmDrawerOpen     = false
+local wmDrawerFrame    = nil  -- ScrollingFrame injected into watermark
+local wmCardRef        = nil  -- watermark ImageLabel ref
+local wmBaseHeight     = nil  -- collapsed card height
+local WM_ROW_H         = 22
+local WM_DRAWER_PAD    = 6
+local WM_MAX_ROWS      = 5    -- rows visible before scroll
+
+local function buildWatermarkDrawer(watermarkCard, collapsedHeight)
+	wmCardRef    = watermarkCard
+	wmBaseHeight = collapsedHeight
+
+	-- Separator line above drawer
+	utility:Create("ImageLabel", {
+		Name             = "DrawerSep",
+		Parent           = watermarkCard,
+		BackgroundTransparency = 1,
+		Position         = UDim2.new(0, 8, 0, collapsedHeight - 1),
+		Size             = UDim2.new(1, -16, 0, 1),
+		ZIndex           = 5,
+		Visible          = false,
+		Image            = "rbxassetid://4595286933",
+		ImageColor3      = themes.LightContrast,
+		ScaleType        = Enum.ScaleType.Slice,
+		SliceCenter      = Rect.new(4, 4, 296, 296)
+	})
+
+	-- Drawer scroll frame
+	wmDrawerFrame = utility:Create("ScrollingFrame", {
+		Name                    = "KeybindDrawer",
+		Parent                  = watermarkCard,
+		BackgroundTransparency  = 1,
+		Position                = UDim2.new(0, 0, 0, collapsedHeight + 2),
+		Size                    = UDim2.new(1, 0, 0, 0),
+		CanvasSize              = UDim2.new(0, 0, 0, 0),
+		ZIndex                  = 4,
+		ScrollBarThickness      = 2,
+		ScrollBarImageColor3    = themes.LightContrast,
+		Visible                 = false,
+		ClipsDescendants        = true
+	})
+
+	utility:Create("UIListLayout", {
+		Name      = "Layout",
+		Parent    = wmDrawerFrame,
+		SortOrder = Enum.SortOrder.LayoutOrder,
+		Padding   = UDim.new(0, 0)
+	})
+end
+
+local function rebuildWatermarkDrawerRows()
+	if not wmDrawerFrame then return end
+
+	for _, ch in ipairs(wmDrawerFrame:GetChildren()) do
+		if ch:IsA("Frame") then ch:Destroy() end
+	end
+
+	local count = #wmKeybindData
+	for i, entry in ipairs(wmKeybindData) do
+		local row = utility:Create("Frame", {
+			Name              = "KBRow_" .. i,
+			Parent            = wmDrawerFrame,
+			BackgroundTransparency = 1,
+			Size              = UDim2.new(1, 0, 0, WM_ROW_H),
+			ZIndex            = 5
+		})
+
+		if i > 1 then
+			utility:Create("Frame", {
+				Name              = "Sep",
+				Parent            = row,
+				BackgroundColor3  = themes.LightContrast,
+				BackgroundTransparency = 0.6,
+				BorderSizePixel   = 0,
+				Position          = UDim2.new(0, WM_DRAWER_PAD, 0, 0),
+				Size              = UDim2.new(1, -(WM_DRAWER_PAD * 2), 0, 1),
+				ZIndex            = 5
+			})
+		end
+
+		utility:Create("TextLabel", {
+			Name              = "Label",
+			Parent            = row,
+			BackgroundTransparency = 1,
+			Position          = UDim2.new(0, WM_DRAWER_PAD + 4, 0, 0),
+			Size              = UDim2.new(0.65, 0, 1, 0),
+			ZIndex            = 6,
+			Font              = Enum.Font.Gotham,
+			Text              = entry.label,
+			TextColor3        = themes.TextColor,
+			TextSize          = 10,
+			TextTransparency  = 0.2,
+			TextXAlignment    = Enum.TextXAlignment.Left,
+			TextTruncate      = Enum.TextTruncate.AtEnd
+		})
+
+		utility:Create("TextLabel", {
+			Name              = "Key",
+			Parent            = row,
+			AnchorPoint       = Vector2.new(1, 0.5),
+			BackgroundTransparency = 1,
+			Position          = UDim2.new(1, -WM_DRAWER_PAD, 0.5, 0),
+			Size              = UDim2.new(0.32, 0, 0, 14),
+			ZIndex            = 6,
+			Font              = Enum.Font.GothamSemibold,
+			Text              = entry.key,
+			TextColor3        = themes.TextColor,
+			TextSize          = 10,
+			TextTransparency  = 0.1,
+			TextXAlignment    = Enum.TextXAlignment.Right
+		})
+	end
+
+	local totalH = count * WM_ROW_H
+	wmDrawerFrame.CanvasSize = UDim2.new(0, 0, 0, totalH)
+	wmDrawerFrame.ScrollBarImageTransparency = (count > WM_MAX_ROWS) and 0 or 1
+end
+
+local function refreshWatermarkDrawer()
+	if not wmCardRef or not wmDrawerFrame then return end
+
+	rebuildWatermarkDrawerRows()
+
+	local count = #wmKeybindData
+	local sep   = wmCardRef:FindFirstChild("DrawerSep")
+
+	if wmDrawerOpen and count > 0 then
+		local drawerH = math.min(count, WM_MAX_ROWS) * WM_ROW_H + WM_DRAWER_PAD
+		wmDrawerFrame.Visible = true
+		if sep then sep.Visible = true end
+
+		utility:Tween(wmDrawerFrame, {Size = UDim2.new(1, 0, 0, drawerH)}, 0.2)
+		utility:Tween(wmCardRef, {
+			Size = UDim2.new(wmCardRef.Size.X.Scale, wmCardRef.Size.X.Offset,
+			                  0, wmBaseHeight + drawerH + 4)
+		}, 0.2)
+	else
+		wmDrawerOpen = false
+		if sep then sep.Visible = false end
+		utility:Tween(wmDrawerFrame, {Size = UDim2.new(1, 0, 0, 0)}, 0.15)
+		utility:Tween(wmCardRef, {
+			Size = UDim2.new(wmCardRef.Size.X.Scale, wmCardRef.Size.X.Offset,
+			                  0, wmBaseHeight)
+		}, 0.15)
+		task.delay(0.15, function()
+			if not wmDrawerOpen then
+				wmDrawerFrame.Visible = false
+			end
+		end)
+	end
+end
+
+local function registerWmKeybind(label, keyName)
+	for _, entry in ipairs(wmKeybindData) do
+		if entry.label == label then
+			entry.key = keyName or "None"
+			if wmDrawerOpen then refreshWatermarkDrawer() end
+			return
+		end
+	end
+	table.insert(wmKeybindData, {label = label, key = keyName or "None"})
+	if wmDrawerOpen then refreshWatermarkDrawer() end
+end
+
+local function unregisterWmKeybind(label)
+	for i, entry in ipairs(wmKeybindData) do
+		if entry.label == label then
+			table.remove(wmKeybindData, i)
+			break
+		end
+	end
+	if wmDrawerOpen then refreshWatermarkDrawer() end
+end
+
 -- classes
 
 local library = {}
@@ -1074,385 +723,6 @@ local function getPageIcon(title, icon)
 	if icon then return icon end
 	local iconName = tostring(title):lower():gsub("[^%w]", "")
 	return library.Icons[iconName]
-end
-
--- ============================================================
--- CONFIG SYSTEM
--- Serialises all registered module states to JSON-like string.
--- Requires writefile / readfile (executor environment).
--- ============================================================
-
-local configRegistry = {} -- { id = { getter, setter } }
-
-local function safeWrite(path, data)
-	local ok = pcall(writefile, path, data)
-	return ok
-end
-
-local function safeRead(path)
-	local ok, data = pcall(readfile, path)
-	if ok then return data end
-	return nil
-end
-
-local function serializeConfig()
-	local tbl = {}
-	for id, entry in pairs(configRegistry) do
-		tbl[id] = entry.getter()
-	end
-
-	-- Minimal manual serialiser — no external deps.
-	local function encodeValue(v)
-		local t = type(v)
-		if t == "boolean" then
-			return v and "true" or "false"
-		elseif t == "number" then
-			return tostring(v)
-		elseif t == "string" then
-			return '"' .. v:gsub('"', '\\"') .. '"'
-		elseif t == "table" then
-			-- Color3 stored as {r,g,b}
-			if v.r ~= nil and v.g ~= nil and v.b ~= nil then
-				return string.format('{"__type":"Color3","r":%s,"g":%s,"b":%s}', v.r, v.g, v.b)
-			end
-			-- Multi-select list stored as array
-			local items = {}
-			for _, item in ipairs(v) do
-				table.insert(items, encodeValue(item))
-			end
-			return "[" .. table.concat(items, ",") .. "]"
-		end
-		return "null"
-	end
-
-	local parts = {}
-	for id, val in pairs(tbl) do
-		table.insert(parts, string.format('"%s":%s', id:gsub('"', '\\"'), encodeValue(val)))
-	end
-	return "{" .. table.concat(parts, ",") .. "}"
-end
-
-local function deserializeConfig(raw)
-	-- Strip outer braces and parse key:value pairs naively.
-	-- Sufficient for the value types we produce (bool, number, string, array, Color3 object).
-	local result = {}
-
-	-- Tokenise top-level key-value pairs (does not handle nested objects beyond Color3).
-	local function parseValue(s)
-		s = s:match("^%s*(.-)%s*$")
-		if s == "true" then return true
-		elseif s == "false" then return false
-		elseif s:sub(1,1) == '"' then
-			return s:sub(2, -2):gsub('\\"', '"')
-		elseif s:sub(1,1) == "{" then
-			-- Color3 object
-			local r = tonumber(s:match('"r":(%S+)[,}]'))
-			local g = tonumber(s:match('"g":(%S+)[,}]'))
-			local b = tonumber(s:match('"b":(%S+)[,}]'))
-			if r and g and b then
-				return {r = r, g = g, b = b}
-			end
-			return nil
-		elseif s:sub(1,1) == "[" then
-			-- Array
-			local arr = {}
-			local inner = s:sub(2, -2)
-			for item in inner:gmatch('"(.-)"') do
-				table.insert(arr, item)
-			end
-			return arr
-		else
-			return tonumber(s)
-		end
-	end
-
-	-- Walk pairs
-	local inner = raw:match("^{(.*)}$")
-	if not inner then return result end
-
-	-- Simple regex-based split — keys are always quoted strings.
-	for key, valRaw in inner:gmatch('"(.-)":(.-),?"') do
-		result[key] = parseValue(valRaw)
-	end
-
-	-- Second pass for trailing entry (no trailing comma).
-	local lastKey, lastVal = raw:match('"([^"]+)":([^,}]+)}%s*$')
-	if lastKey and not result[lastKey] then
-		result[lastKey] = parseValue(lastVal)
-	end
-
-	return result
-end
-
--- ============================================================
--- KEYBIND OVERLAY
--- Same theme as the FPS/ping watermark. Top bar shows compact
--- summary. Click expands a list of all active keybinds.
--- Click again collapses back to summary bar.
--- ============================================================
-
-local keybindOverlayData = {} -- { label = string, key = string }
-local keybindOverlayFrame = nil
-local keybindExpanded = false
-local keybindExpandedConn = nil
-
-local OVERLAY_WIDTH  = 220
-local OVERLAY_TOPBAR = 27
-local OVERLAY_ROW_H  = 22
-local OVERLAY_PAD    = 6
-
-local function buildKeybindOverlay(guiParent, watermarkDisplayOrder)
-	local screenGui = utility:Create("ScreenGui", {
-		Name = "XevorKeybindOverlay",
-		Parent = guiParent,
-		Enabled = true,
-		IgnoreGuiInset = true,
-		ResetOnSpawn = false,
-		DisplayOrder = watermarkDisplayOrder + 1,
-		ZIndexBehavior = Enum.ZIndexBehavior.Sibling
-	})
-
-	-- Root frame — matches watermark card style exactly.
-	local card = utility:Create("ImageLabel", {
-		Name = "Card",
-		Parent = screenGui,
-		AnchorPoint = Vector2.new(1, 1),
-		BackgroundTransparency = 1,
-		Position = UDim2.new(1, -16, 1, -90),
-		Size = UDim2.new(0, OVERLAY_WIDTH, 0, OVERLAY_TOPBAR),
-		ZIndex = 2,
-		Image = "rbxassetid://4641149554",
-		ImageColor3 = themes.Background,
-		ScaleType = Enum.ScaleType.Slice,
-		SliceCenter = Rect.new(4, 4, 296, 296),
-		ClipsDescendants = true
-	})
-
-	utility:Create("ImageLabel", {
-		Name = "Glow",
-		Parent = card,
-		BackgroundTransparency = 1,
-		Position = UDim2.new(0, -7, 0, -7),
-		Size = UDim2.new(1, 14, 1, 14),
-		ZIndex = 1,
-		Image = "rbxassetid://5028857084",
-		ImageColor3 = themes.Glow,
-		ScaleType = Enum.ScaleType.Slice,
-		SliceCenter = Rect.new(24, 24, 276, 276)
-	})
-
-	-- Top bar — identical height and colour as watermark TopBar.
-	local topBar = utility:Create("ImageButton", {
-		Name = "TopBar",
-		Parent = card,
-		BackgroundTransparency = 1,
-		Position = UDim2.new(0, 0, 0, 0),
-		Size = UDim2.new(1, 0, 0, OVERLAY_TOPBAR),
-		ZIndex = 3,
-		AutoButtonColor = false,
-		Image = "rbxassetid://4595286933",
-		ImageColor3 = themes.Accent,
-		ScaleType = Enum.ScaleType.Slice,
-		SliceCenter = Rect.new(4, 4, 296, 296)
-	})
-
-	utility:Create("TextLabel", {
-		Name = "Title",
-		Parent = topBar,
-		BackgroundTransparency = 1,
-		Position = UDim2.new(0, 10, 0, 0),
-		Size = UDim2.new(1, -28, 1, 0),
-		ZIndex = 4,
-		Font = Enum.Font.GothamBold,
-		Text = "KEYBINDS",
-		TextColor3 = themes.TextColor,
-		TextSize = 11,
-		TextXAlignment = Enum.TextXAlignment.Left
-	})
-
-	-- Chevron arrow — flips on expand.
-	local arrow = utility:Create("TextLabel", {
-		Name = "Arrow",
-		Parent = topBar,
-		AnchorPoint = Vector2.new(1, 0.5),
-		BackgroundTransparency = 1,
-		Position = UDim2.new(1, -8, 0.5, 0),
-		Size = UDim2.new(0, 14, 0, 14),
-		ZIndex = 4,
-		Font = Enum.Font.GothamBold,
-		Text = "▲",
-		TextColor3 = themes.TextColor,
-		TextSize = 9
-	})
-
-	-- Accent line under top bar (same as watermark AccentLine).
-	utility:Create("ImageLabel", {
-		Name = "AccentLine",
-		Parent = card,
-		BackgroundTransparency = 1,
-		Position = UDim2.new(0, 6, 0, OVERLAY_TOPBAR - 1),
-		Size = UDim2.new(1, -12, 0, 1),
-		ZIndex = 5,
-		Image = "rbxassetid://4595286933",
-		ImageColor3 = themes.LightContrast,
-		ScaleType = Enum.ScaleType.Slice,
-		SliceCenter = Rect.new(4, 4, 296, 296)
-	})
-
-	-- Scrollable list container — sits below top bar.
-	local listFrame = utility:Create("ScrollingFrame", {
-		Name = "List",
-		Parent = card,
-		BackgroundTransparency = 1,
-		Position = UDim2.new(0, 0, 0, OVERLAY_TOPBAR + 2),
-		Size = UDim2.new(1, 0, 1, -(OVERLAY_TOPBAR + 2)),
-		ZIndex = 3,
-		ScrollBarThickness = 2,
-		ScrollBarImageColor3 = themes.LightContrast,
-		CanvasSize = UDim2.new(0, 0, 0, 0)
-	})
-
-	utility:Create("UIListLayout", {
-		Name = "Layout",
-		Parent = listFrame,
-		SortOrder = Enum.SortOrder.LayoutOrder,
-		Padding = UDim.new(0, 0)
-	})
-
-	keybindOverlayFrame = {
-		screenGui = screenGui,
-		card = card,
-		topBar = topBar,
-		arrow = arrow,
-		listFrame = listFrame
-	}
-
-	utility:DraggingEnabled(topBar, card)
-
-	-- Click top bar to toggle expand / collapse.
-	topBar.MouseButton1Click:Connect(function()
-		keybindExpanded = not keybindExpanded
-		library:_refreshKeybindOverlay()
-	end)
-end
-
-function library:_rebuildKeybindList()
-	if not keybindOverlayFrame then return end
-
-	local listFrame = keybindOverlayFrame.listFrame
-
-	-- Clear existing rows.
-	for _, child in ipairs(listFrame:GetChildren()) do
-		if child:IsA("Frame") then
-			child:Destroy()
-		end
-	end
-
-	local rowIndex = 0
-	for _, entry in ipairs(keybindOverlayData) do
-		local row = utility:Create("Frame", {
-			Name = "Row_" .. rowIndex,
-			Parent = listFrame,
-			BackgroundTransparency = 1,
-			Size = UDim2.new(1, 0, 0, OVERLAY_ROW_H),
-			ZIndex = 3
-		})
-
-		utility:Create("TextLabel", {
-			Name = "Label",
-			Parent = row,
-			BackgroundTransparency = 1,
-			Position = UDim2.new(0, OVERLAY_PAD + 2, 0, 0),
-			Size = UDim2.new(0.65, 0, 1, 0),
-			ZIndex = 4,
-			Font = Enum.Font.Gotham,
-			Text = entry.label,
-			TextColor3 = themes.TextColor,
-			TextSize = 11,
-			TextTransparency = 0.15,
-			TextXAlignment = Enum.TextXAlignment.Left,
-			TextTruncate = Enum.TextTruncate.AtEnd
-		})
-
-		utility:Create("TextLabel", {
-			Name = "Key",
-			Parent = row,
-			AnchorPoint = Vector2.new(1, 0.5),
-			BackgroundTransparency = 1,
-			Position = UDim2.new(1, -OVERLAY_PAD, 0.5, 0),
-			Size = UDim2.new(0.32, 0, 0, 16),
-			ZIndex = 4,
-			Image = "rbxassetid://5028857472",
-			Font = Enum.Font.GothamSemibold,
-			Text = entry.key,
-			TextColor3 = themes.TextColor,
-			TextSize = 10,
-			TextXAlignment = Enum.TextXAlignment.Right
-		})
-
-		-- Subtle separator line between rows.
-		if rowIndex > 0 then
-			utility:Create("Frame", {
-				Name = "Sep",
-				Parent = row,
-				BackgroundColor3 = themes.LightContrast,
-				BackgroundTransparency = 0.5,
-				BorderSizePixel = 0,
-				Position = UDim2.new(0, OVERLAY_PAD, 0, 0),
-				Size = UDim2.new(1, -(OVERLAY_PAD * 2), 0, 1),
-				ZIndex = 4
-			})
-		end
-
-		rowIndex = rowIndex + 1
-	end
-
-	local totalH = rowIndex * OVERLAY_ROW_H
-	listFrame.CanvasSize = UDim2.new(0, 0, 0, totalH)
-end
-
-function library:_refreshKeybindOverlay()
-	if not keybindOverlayFrame then return end
-
-	self:_rebuildKeybindList()
-
-	local card  = keybindOverlayFrame.card
-	local arrow = keybindOverlayFrame.arrow
-	local count = #keybindOverlayData
-
-	if keybindExpanded and count > 0 then
-		local listH   = math.min(count, 6) * OVERLAY_ROW_H + OVERLAY_PAD
-		local totalH  = OVERLAY_TOPBAR + listH
-		arrow.Text    = "▼"
-		utility:Tween(card, {Size = UDim2.new(0, OVERLAY_WIDTH, 0, totalH)}, 0.2)
-	else
-		keybindExpanded = false
-		arrow.Text = "▲"
-		utility:Tween(card, {Size = UDim2.new(0, OVERLAY_WIDTH, 0, OVERLAY_TOPBAR)}, 0.2)
-	end
-end
-
-function library:_registerKeybindOverlayEntry(label, keyName)
-	-- Update existing entry or append new one.
-	for _, entry in ipairs(keybindOverlayData) do
-		if entry.label == label then
-			entry.key = keyName or "None"
-			self:_refreshKeybindOverlay()
-			return
-		end
-	end
-	table.insert(keybindOverlayData, {label = label, key = keyName or "None"})
-	self:_refreshKeybindOverlay()
-end
-
-function library:_unregisterKeybindOverlayEntry(label)
-	for i, entry in ipairs(keybindOverlayData) do
-		if entry.label == label then
-			table.remove(keybindOverlayData, i)
-			break
-		end
-	end
-	self:_refreshKeybindOverlay()
 end
 
 do
@@ -1529,13 +799,13 @@ do
 
 	-- ============================================================
 	-- CONFIG API
-	-- library:SaveConfig(name)  — writes to workspace name.json
-	-- library:LoadConfig(name)  — reads and applies saved values
-	-- library:ListConfigs()     — returns array of saved config names
+	-- library:SaveConfig(name)   writes <name>.json
+	-- library:LoadConfig(name)   reads and applies saved values
+	-- library:ListConfigs()      returns array of saved config names
 	-- ============================================================
 
 	function library:SaveConfig(name)
-		name = tostring(name or "default")
+		name = sanitizeName(name)
 		local data = serializeConfig()
 		local path = name .. ".json"
 		if safeWrite(path, data) then
@@ -1545,7 +815,7 @@ do
 	end
 
 	function library:LoadConfig(name)
-		name = tostring(name or "default")
+		name = sanitizeName(name)
 		local path = name .. ".json"
 		local raw = safeRead(path)
 		if not raw then return false end
@@ -1577,13 +847,40 @@ do
 		return list
 	end
 
+	-- ============================================================
+	-- KEY API — forwarded from keySystem
+	-- library:SaveKey(rawKey)
+	-- library:LoadKey()   → rawKey | nil
+	-- library:ClearKey()
+	-- library:ValidateKey(fn)
+	-- ============================================================
+
+	function library:SaveKey(rawKey)
+		return keySystem:SaveKey(rawKey)
+	end
+
+	function library:LoadKey()
+		return keySystem:LoadKey()
+	end
+
+	function library:ClearKey()
+		keySystem:ClearKey()
+	end
+
+	function library:ValidateKey(callback)
+		return keySystem:ValidateKey(callback)
+	end
+
 	function library:Destroy()
 		if self.toggleKeyConnection then self.toggleKeyConnection:Disconnect() end
-		if self.watermarkConnection then self.watermarkConnection:Disconnect() end
-		if self.watermark then self.watermark:Destroy() end
-		if keybindOverlayFrame and keybindOverlayFrame.screenGui then
-			keybindOverlayFrame.screenGui:Destroy()
-		end
+		if self.watermarkConnection  then self.watermarkConnection:Disconnect() end
+		if self.watermark            then self.watermark:Destroy() end
+		-- Reset watermark drawer state so next library.new() starts clean.
+		wmKeybindData  = {}
+		wmDrawerOpen   = false
+		wmDrawerFrame  = nil
+		wmCardRef      = nil
+		wmBaseHeight   = nil
 		self.container:Destroy()
 	end
 
@@ -1612,7 +909,7 @@ do
 		local watermarkGlow        = typeof(watermarkOptions.GlowColor)       == "Color3" and watermarkOptions.GlowColor       or themes.Glow
 		local watermarkAccent      = typeof(watermarkOptions.AccentColor)     == "Color3" and watermarkOptions.AccentColor     or themes.LightContrast
 		local watermarkText        = typeof(watermarkOptions.TextColor)       == "Color3" and watermarkOptions.TextColor       or themes.TextColor
-		local watermarkTextSize    = tonumber(watermarkOptions.TextSize) or 13
+		local watermarkTextSize    = tonumber(watermarkOptions.TextSize)    or 13
 		local watermarkTopbarH     = math.clamp(tonumber(watermarkOptions.TopBarHeight) or 27, 22, 40)
 		local watermarkShowGlow    = watermarkOptions.Glow ~= false
 		local watermarkShowAccent  = watermarkOptions.AccentLine ~= false
@@ -1729,6 +1026,111 @@ do
 			})
 		})
 
+		-- Watermark card height = topbar + status area
+		local wmCollapsedH = watermarkSize.Y.Offset  -- e.g. 58
+
+		local watermarkCard = utility:Create("ImageLabel", {
+			Name = "Watermark",
+			AnchorPoint = watermarkAnchor,
+			BackgroundTransparency = 1,
+			Position = watermarkPosition,
+			Size = watermarkSize,
+			ZIndex = 2,
+			Image = "rbxassetid://4641149554",
+			ImageColor3 = watermarkBackground,
+			ScaleType = Enum.ScaleType.Slice,
+			SliceCenter = Rect.new(4, 4, 296, 296)
+		}, {
+			utility:Create("ImageLabel", {
+				Name = "Glow",
+				BackgroundTransparency = 1,
+				Position = UDim2.new(0, -7, 0, -7),
+				Size = UDim2.new(1, 14, 1, 14),
+				ZIndex = 1,
+				Visible = watermarkShowGlow,
+				Image = "rbxassetid://5028857084",
+				ImageColor3 = watermarkGlow,
+				ScaleType = Enum.ScaleType.Slice,
+				SliceCenter = Rect.new(24, 24, 276, 276)
+			}),
+			utility:Create("ImageLabel", {
+				Name = "TopBar",
+				BackgroundTransparency = 1,
+				Position = UDim2.new(0, 0, 0, 0),
+				Size = UDim2.new(1, 0, 0, watermarkTopbarH),
+				ZIndex = 3,
+				Image = "rbxassetid://4595286933",
+				ImageColor3 = watermarkTopBar,
+				ScaleType = Enum.ScaleType.Slice,
+				SliceCenter = Rect.new(4, 4, 296, 296)
+			}, {
+				utility:Create("TextLabel", {
+					Name = "Title",
+					BackgroundTransparency = 1,
+					Position = UDim2.new(0, 14, 0, 0),
+					Size = UDim2.new(1, -28, 1, 0),
+					ZIndex = 4,
+					Font = Enum.Font.GothamBold,
+					Text = title,
+					TextColor3 = watermarkText,
+					TextSize = watermarkTextSize + 1,
+					TextTruncate = Enum.TextTruncate.AtEnd,
+					TextXAlignment = Enum.TextXAlignment.Left
+				}),
+				-- Click indicator chevron in top-right of watermark topbar
+				utility:Create("TextLabel", {
+					Name = "DrawerArrow",
+					AnchorPoint = Vector2.new(1, 0.5),
+					BackgroundTransparency = 1,
+					Position = UDim2.new(1, -8, 0.5, 0),
+					Size = UDim2.new(0, 14, 0, 14),
+					ZIndex = 4,
+					Font = Enum.Font.GothamBold,
+					Text = "▲",
+					TextColor3 = watermarkText,
+					TextTransparency = 0.5,
+					TextSize = 8
+				})
+			}),
+			utility:Create("ImageLabel", {
+				Name = "Status",
+				BackgroundTransparency = 1,
+				Position = UDim2.new(0, 6, 0, watermarkTopbarH + 4),
+				Size = UDim2.new(1, -12, 1, -(watermarkTopbarH + 10)),
+				ZIndex = 3,
+				Image = "rbxassetid://5012534273",
+				ImageColor3 = watermarkStatus,
+				ScaleType = Enum.ScaleType.Slice,
+				SliceCenter = Rect.new(4, 4, 296, 296)
+			}, {
+				utility:Create("TextLabel", {
+					Name = "Info",
+					BackgroundTransparency = 1,
+					Position = UDim2.new(0, 10, 0, 0),
+					Size = UDim2.new(1, -20, 1, 0),
+					ZIndex = 4,
+					Font = Enum.Font.GothamSemibold,
+					Text = player.Name .. " | -- FPS | -- ms",
+					TextColor3 = watermarkText,
+					TextSize = watermarkTextSize,
+					TextTruncate = Enum.TextTruncate.AtEnd,
+					TextXAlignment = Enum.TextXAlignment.Left
+				})
+			}),
+			utility:Create("ImageLabel", {
+				Name = "AccentLine",
+				BackgroundTransparency = 1,
+				Position = UDim2.new(0, 8, 0, watermarkTopbarH - 1),
+				Size = UDim2.new(1, -16, 0, 1),
+				ZIndex = 5,
+				Visible = watermarkShowAccent,
+				Image = "rbxassetid://4595286933",
+				ImageColor3 = watermarkAccent,
+				ScaleType = Enum.ScaleType.Slice,
+				SliceCenter = Rect.new(4, 4, 296, 296)
+			})
+		})
+
 		local watermark = utility:Create("ScreenGui", {
 			Name = title .. "_Watermark",
 			Parent = guiParent,
@@ -1737,95 +1139,58 @@ do
 			ResetOnSpawn = false,
 			DisplayOrder = watermarkDisplayOrder,
 			ZIndexBehavior = Enum.ZIndexBehavior.Sibling
-		}, {
-			utility:Create("ImageLabel", {
-				Name = "Watermark",
-				AnchorPoint = watermarkAnchor,
-				BackgroundTransparency = 1,
-				Position = watermarkPosition,
-				Size = watermarkSize,
-				ZIndex = 2,
-				Image = "rbxassetid://4641149554",
-				ImageColor3 = watermarkBackground,
-				ScaleType = Enum.ScaleType.Slice,
-				SliceCenter = Rect.new(4, 4, 296, 296)
-			}, {
-				utility:Create("ImageLabel", {
-					Name = "Glow",
-					BackgroundTransparency = 1,
-					Position = UDim2.new(0, -7, 0, -7),
-					Size = UDim2.new(1, 14, 1, 14),
-					ZIndex = 1,
-					Visible = watermarkShowGlow,
-					Image = "rbxassetid://5028857084",
-					ImageColor3 = watermarkGlow,
-					ScaleType = Enum.ScaleType.Slice,
-					SliceCenter = Rect.new(24, 24, 276, 276)
-				}),
-				utility:Create("ImageLabel", {
-					Name = "TopBar",
-					BackgroundTransparency = 1,
-					Position = UDim2.new(0, 0, 0, 0),
-					Size = UDim2.new(1, 0, 0, watermarkTopbarH),
-					ZIndex = 3,
-					Image = "rbxassetid://4595286933",
-					ImageColor3 = watermarkTopBar,
-					ScaleType = Enum.ScaleType.Slice,
-					SliceCenter = Rect.new(4, 4, 296, 296)
-				}, {
-					utility:Create("TextLabel", {
-						Name = "Title",
-						BackgroundTransparency = 1,
-						Position = UDim2.new(0, 14, 0, 0),
-						Size = UDim2.new(1, -28, 1, 0),
-						ZIndex = 4,
-						Font = Enum.Font.GothamBold,
-						Text = title,
-						TextColor3 = watermarkText,
-						TextSize = watermarkTextSize + 1,
-						TextTruncate = Enum.TextTruncate.AtEnd,
-						TextXAlignment = Enum.TextXAlignment.Left
-					})
-				}),
-				utility:Create("ImageLabel", {
-					Name = "Status",
-					BackgroundTransparency = 1,
-					Position = UDim2.new(0, 6, 0, watermarkTopbarH + 4),
-					Size = UDim2.new(1, -12, 1, -(watermarkTopbarH + 10)),
-					ZIndex = 3,
-					Image = "rbxassetid://5012534273",
-					ImageColor3 = watermarkStatus,
-					ScaleType = Enum.ScaleType.Slice,
-					SliceCenter = Rect.new(4, 4, 296, 296)
-				}, {
-					utility:Create("TextLabel", {
-						Name = "Info",
-						BackgroundTransparency = 1,
-						Position = UDim2.new(0, 10, 0, 0),
-						Size = UDim2.new(1, -20, 1, 0),
-						ZIndex = 4,
-						Font = Enum.Font.GothamSemibold,
-						Text = player.Name .. " | -- FPS | -- ms",
-						TextColor3 = watermarkText,
-						TextSize = watermarkTextSize,
-						TextTruncate = Enum.TextTruncate.AtEnd,
-						TextXAlignment = Enum.TextXAlignment.Left
-					})
-				}),
-				utility:Create("ImageLabel", {
-					Name = "AccentLine",
-					BackgroundTransparency = 1,
-					Position = UDim2.new(0, 8, 0, watermarkTopbarH - 1),
-					Size = UDim2.new(1, -16, 0, 1),
-					ZIndex = 5,
-					Visible = watermarkShowAccent,
-					Image = "rbxassetid://4595286933",
-					ImageColor3 = watermarkAccent,
-					ScaleType = Enum.ScaleType.Slice,
-					SliceCenter = Rect.new(4, 4, 296, 296)
-				})
-			})
 		})
+
+		watermarkCard.Parent = watermark
+
+		-- Build the keybind drawer attached to the watermark card.
+		buildWatermarkDrawer(watermarkCard, wmCollapsedH)
+
+		-- Wire the click-toggle on the watermark card's topbar.
+		-- Use InputBegan on the ImageLabel (not a button) — reliable across all input types.
+		local wmTopBar = watermarkCard:FindFirstChild("TopBar")
+		if wmTopBar then
+			local wmDragging = false
+			local wmDragStart
+
+			wmTopBar.InputBegan:Connect(function(inp)
+				if inp.UserInputType == Enum.UserInputType.MouseButton1
+					or inp.UserInputType == Enum.UserInputType.Touch then
+					wmDragging = false
+					wmDragStart = inp.Position
+				end
+			end)
+
+			wmTopBar.InputChanged:Connect(function(inp)
+				if inp.UserInputType == Enum.UserInputType.MouseMovement
+					or inp.UserInputType == Enum.UserInputType.Touch then
+					if wmDragStart then
+						local delta = (inp.Position - wmDragStart).Magnitude
+						if delta > 4 then wmDragging = true end
+					end
+				end
+			end)
+
+			wmTopBar.InputEnded:Connect(function(inp)
+				if (inp.UserInputType == Enum.UserInputType.MouseButton1
+					or inp.UserInputType == Enum.UserInputType.Touch)
+					and not wmDragging then
+
+					wmDrawerOpen = not wmDrawerOpen
+					local arrow = wmTopBar:FindFirstChild("DrawerArrow")
+					if arrow then
+						arrow.Text = wmDrawerOpen and "▼" or "▲"
+					end
+					refreshWatermarkDrawer()
+				end
+				if inp.UserInputType == Enum.UserInputType.MouseButton1
+					or inp.UserInputType == Enum.UserInputType.Touch then
+					wmDragStart = nil
+				end
+			end)
+
+			utility:DraggingEnabled(wmTopBar, watermarkCard)
+		end
 
 		pcall(function()
 			if syn and syn.protect_gui then
@@ -1852,10 +1217,7 @@ do
 
 		window:SetToggleKey(options.ToggleKey or Enum.KeyCode.RightShift)
 
-		-- Build keybind overlay — same guiParent as watermark, one layer above.
-		buildKeybindOverlay(guiParent, watermarkDisplayOrder)
-
-		-- FPS / ping ticker.
+		-- FPS / ping ticker
 		local frameCount = 0
 		local lastSample = os.clock()
 
@@ -1874,7 +1236,8 @@ do
 			end
 
 			local fps = math.floor((frameCount / elapsed) + 0.5)
-			watermark.Watermark.Status.Info.Text = string.format("%s | %d FPS | %d ms", player.Name, fps, ping)
+			watermarkCard.Status.Info.Text = string.format(
+				"%s | %d FPS | %d ms", player.Name, fps, ping)
 			frameCount = 0
 			lastSample = now
 		end)
@@ -2124,12 +1487,12 @@ do
 			ZIndex = 3,
 			ClipsDescendants = true
 		}, {
-			utility:Create("ImageLabel", {Name="Flash", Size=UDim2.new(1,0,1,0), BackgroundTransparency=1, Image="rbxassetid://4641149554", ImageColor3=themes.TextColor, ZIndex=5}),
-			utility:Create("ImageLabel", {Name="Glow", BackgroundTransparency=1, Position=UDim2.new(0,-15,0,-15), Size=UDim2.new(1,30,1,30), ZIndex=2, Image="rbxassetid://5028857084", ImageColor3=themes.Glow, ScaleType=Enum.ScaleType.Slice, SliceCenter=Rect.new(24,24,276,276)}),
-			utility:Create("TextLabel", {Name="Title", BackgroundTransparency=1, Position=UDim2.new(0,10,0,8), Size=UDim2.new(1,-40,0,16), ZIndex=4, Font=Enum.Font.GothamSemibold, TextColor3=themes.TextColor, TextSize=14, TextXAlignment=Enum.TextXAlignment.Left}),
-			utility:Create("TextLabel", {Name="Text",  BackgroundTransparency=1, Position=UDim2.new(0,10,1,-24), Size=UDim2.new(1,-40,0,16), ZIndex=4, Font=Enum.Font.Gotham, TextColor3=themes.TextColor, TextSize=12, TextXAlignment=Enum.TextXAlignment.Left}),
-			utility:Create("ImageButton", {Name="Accept",  BackgroundTransparency=1, Position=UDim2.new(1,-26,0,8),   Size=UDim2.new(0,16,0,16), Image="rbxassetid://5012538259", ImageColor3=themes.TextColor, ZIndex=4}),
-			utility:Create("ImageButton", {Name="Decline", BackgroundTransparency=1, Position=UDim2.new(1,-26,1,-24), Size=UDim2.new(0,16,0,16), Image="rbxassetid://5012538583", ImageColor3=themes.TextColor, ZIndex=4})
+			utility:Create("ImageLabel", {Name="Flash",   Size=UDim2.new(1,0,1,0), BackgroundTransparency=1, Image="rbxassetid://4641149554", ImageColor3=themes.TextColor, ZIndex=5}),
+			utility:Create("ImageLabel", {Name="Glow",    BackgroundTransparency=1, Position=UDim2.new(0,-15,0,-15), Size=UDim2.new(1,30,1,30), ZIndex=2, Image="rbxassetid://5028857084", ImageColor3=themes.Glow, ScaleType=Enum.ScaleType.Slice, SliceCenter=Rect.new(24,24,276,276)}),
+			utility:Create("TextLabel",  {Name="Title",   BackgroundTransparency=1, Position=UDim2.new(0,10,0,8), Size=UDim2.new(1,-40,0,16), ZIndex=4, Font=Enum.Font.GothamSemibold, TextColor3=themes.TextColor, TextSize=14, TextXAlignment=Enum.TextXAlignment.Left}),
+			utility:Create("TextLabel",  {Name="Text",    BackgroundTransparency=1, Position=UDim2.new(0,10,1,-24), Size=UDim2.new(1,-40,0,16), ZIndex=4, Font=Enum.Font.Gotham, TextColor3=themes.TextColor, TextSize=12, TextXAlignment=Enum.TextXAlignment.Left}),
+			utility:Create("ImageButton",{Name="Accept",  BackgroundTransparency=1, Position=UDim2.new(1,-26,0,8),   Size=UDim2.new(0,16,0,16), Image="rbxassetid://5012538259", ImageColor3=themes.TextColor, ZIndex=4}),
+			utility:Create("ImageButton",{Name="Decline", BackgroundTransparency=1, Position=UDim2.new(1,-26,1,-24), Size=UDim2.new(0,16,0,16), Image="rbxassetid://5012538583", ImageColor3=themes.TextColor, ZIndex=4})
 		})
 
 		title = title or "Notification"
@@ -2241,20 +1604,13 @@ do
 	end
 
 	-- ============================================================
-	-- addLabel  — NEW
-	-- A read-only styled text line inside a section. Useful for
-	-- separators, status readouts, and sub-headers.
-	-- section:addLabel(text, options)
-	--   options.Align  = "Left" | "Center" | "Right"  (default "Left")
-	--   options.Size   = number (TextSize, default 12)
-	--   options.Alpha  = number (TextTransparency, default 0.35)
-	-- Returns the label frame so caller can call updateLabel() on it.
+	-- addLabel
 	-- ============================================================
 
 	function section:addLabel(text, options)
 		options = type(options) == "table" and options or {}
 
-		local align = ({Left=true,Center=true,Right=true})[options.Align] and options.Align or "Left"
+		local align     = ({Left=true,Center=true,Right=true})[options.Align] and options.Align or "Left"
 		local textSize  = math.clamp(tonumber(options.Size) or 12, 8, 24)
 		local textAlpha = math.clamp(tonumber(options.Alpha) or 0.35, 0, 1)
 
@@ -2352,7 +1708,6 @@ do
 		local active = default
 		self:updateToggle(toggle, nil, active)
 
-		-- Config registration
 		if configId then
 			configRegistry[configId] = {
 				getter = function() return active end,
@@ -2367,7 +1722,6 @@ do
 		toggle.MouseButton1Click:Connect(function()
 			active = not active
 			self:updateToggle(toggle, nil, active)
-
 			if callback then
 				callback(active, function(...) self:updateToggle(toggle, ...) end)
 			end
@@ -2545,8 +1899,8 @@ do
 			self:updateKeybind(keybind, nil, default)
 		end
 
-		-- Register in overlay on creation.
-		library:_registerKeybindOverlayEntry(title, default and default.Name or "None")
+		-- Register in watermark drawer on creation
+		registerWmKeybind(title, default and default.Name or "None")
 
 		if configId then
 			configRegistry[configId] = {
@@ -2579,8 +1933,8 @@ do
 				self:updateKeybind(keybind, nil, key.KeyCode)
 				animate()
 
-				-- Update overlay with new key name.
-				library:_registerKeybindOverlayEntry(title, key.KeyCode.Name)
+				-- Sync watermark drawer
+				registerWmKeybind(title, key.KeyCode.Name)
 
 				if changedCallback then
 					changedCallback(key, function(...) self:updateKeybind(keybind, ...) end)
@@ -2965,7 +2319,7 @@ do
 	end
 
 	-- ============================================================
-	-- addDropdown  (single-select, unchanged)
+	-- addDropdown  (single-select)
 	-- ============================================================
 
 	function section:addDropdown(title, list, callback, configId)
@@ -3051,19 +2405,15 @@ do
 	end
 
 	-- ============================================================
-	-- addMultiDropdown  — NEW
-	-- Multi-select dropdown with per-entry checkboxes.
-	-- section:addMultiDropdown(title, list, defaults, callback, configId)
-	--   defaults  = array of pre-selected values
-	--   callback  = function(selectedTable)  where selectedTable is
-	--               { [value] = true } for all checked entries
+	-- addMultiDropdown
+	-- Fixed: header click now uses InputBegan guard (ImageLabel
+	-- doesn't fire MouseButton1Click reliably).
 	-- ============================================================
 
 	function section:addMultiDropdown(title, list, defaults, callback, configId)
 		list     = list     or {}
 		defaults = defaults or {}
 
-		-- Selected state: { [value] = bool }
 		local selected = {}
 		for _, v in ipairs(defaults) do
 			selected[v] = true
@@ -3126,10 +2476,9 @@ do
 		self:Resize()
 
 		local search   = dropdown.Search
-		local label    = search.TextBox  -- TextLabel, not TextBox — read-only header
+		local label    = search.TextBox
 		local listOpen = false
 
-		-- Config registration
 		if configId then
 			configRegistry[configId] = {
 				getter = function()
@@ -3151,8 +2500,9 @@ do
 			}
 		end
 
-		-- Build checkbox rows
-		local function buildRows()
+		local buildRows  -- forward declare so toggle can call it
+
+		buildRows = function()
 			local frame = dropdown.List.Frame
 
 			for _, child in ipairs(frame:GetChildren()) do
@@ -3174,8 +2524,7 @@ do
 					SliceCenter = Rect.new(2, 2, 298, 298)
 				})
 
-				-- Checkbox square
-				local box = utility:Create("ImageLabel", {
+				utility:Create("ImageLabel", {
 					Name = "Check",
 					Parent = row,
 					AnchorPoint = Vector2.new(0, 0.5),
@@ -3208,7 +2557,6 @@ do
 					utility:Pop(row, 8)
 					label.Text = displayText()
 					if callback then callback(selected) end
-					-- Rebuild rows to update checkboxes in place.
 					buildRows()
 				end)
 			end
@@ -3227,7 +2575,6 @@ do
 			if listOpen then
 				buildRows()
 			else
-				-- Clear rows and collapse.
 				for _, child in ipairs(dropdown.List.Frame:GetChildren()) do
 					if child:IsA("ImageButton") then child:Destroy() end
 				end
@@ -3235,17 +2582,61 @@ do
 			end
 		end
 
+		-- Arrow button — always a real GuiButton, fine to use MouseButton1Click.
 		search.Button.MouseButton1Click:Connect(toggle)
-		search.MouseButton1Click:Connect(function()
-			-- Clicking the header bar (not just the arrow) also toggles.
-			toggle()
+
+		-- Header bar is an ImageLabel — use InputBegan/InputEnded with drag guard.
+		local mdDragging = false
+		local mdDragStart
+
+		search.InputBegan:Connect(function(inp)
+			if inp.UserInputType == Enum.UserInputType.MouseButton1
+				or inp.UserInputType == Enum.UserInputType.Touch then
+				mdDragging = false
+				mdDragStart = inp.Position
+			end
+		end)
+
+		search.InputChanged:Connect(function(inp)
+			if (inp.UserInputType == Enum.UserInputType.MouseMovement
+				or inp.UserInputType == Enum.UserInputType.Touch)
+				and mdDragStart then
+				if (inp.Position - mdDragStart).Magnitude > 4 then
+					mdDragging = true
+				end
+			end
+		end)
+
+		search.InputEnded:Connect(function(inp)
+			if (inp.UserInputType == Enum.UserInputType.MouseButton1
+				or inp.UserInputType == Enum.UserInputType.Touch)
+				and not mdDragging then
+				-- Only fire if the arrow button itself wasn't clicked
+				-- (it sits inside search so events bubble — check position).
+				local btn = search:FindFirstChild("Button")
+				if btn then
+					local bPos = btn.AbsolutePosition
+					local bSz  = btn.AbsoluteSize
+					local mPos = inp.Position
+					if mPos.X >= bPos.X and mPos.X <= bPos.X + bSz.X
+						and mPos.Y >= bPos.Y and mPos.Y <= bPos.Y + bSz.Y then
+						-- Click landed on the arrow — arrow handler covers it.
+						mdDragStart = nil
+						return
+					end
+				end
+				toggle()
+			end
+			if inp.UserInputType == Enum.UserInputType.MouseButton1
+				or inp.UserInputType == Enum.UserInputType.Touch then
+				mdDragStart = nil
+			end
 		end)
 
 		dropdown:GetPropertyChangedSignal("Size"):Connect(function()
 			self:Resize()
 		end)
 
-		-- Helper exposed on the returned frame.
 		function dropdown:getSelected()
 			local arr = {}
 			for v, on in pairs(selected) do
@@ -3443,11 +2834,10 @@ do
 		if key then
 			self.binds[keybind].connection = utility:BindToKey(key, bind.callback)
 			text.Text = key.Name
-			-- Sync overlay.
-			library:_registerKeybindOverlayEntry(keybind.Title.Text, key.Name)
+			registerWmKeybind(keybind.Title.Text, key.Name)
 		else
 			text.Text = "None"
-			library:_registerKeybindOverlayEntry(keybind.Title.Text, "None")
+			registerWmKeybind(keybind.Title.Text, "None")
 		end
 	end
 
@@ -3542,7 +2932,7 @@ do
 					Text = value,
 					TextColor3 = themes.TextColor,
 					TextSize = 12,
-					TextXAlignment = "Left",
+					TextXAlignment = Enum.TextXAlignment.Left,
 					TextTransparency = 0.10000000149012
 				})
 			})
@@ -3575,27 +2965,6 @@ do
 	end
 end
 
-local function runProtectedLibrary()
-	print("xev0r was here :)")
-	return library
-end
+print("xev0r was here :)")
 
-local function bootXevor()
-	local loader = XevorLoader
-	loader.Init({
-		Title = "Xev0r",
-		Subtitle = "Licensed access only.",
-		Version = "v1.0",
-		Key = { "XEV0R-KEY" },
-		SavePath = "xevor_key.dat",
-		GetKeyUrl = "discord.gg/xevor",
-		OnReady = function(key, execInfo)
-			print("Xev0r unlocked with key:", key)
-			print("Executor:", execInfo.name)
-			print(string.format("sUNC %d/%d | UNC %d/%d", execInfo.suncPass, execInfo.suncTotal, execInfo.uncPass, execInfo.uncTotal))
-		end,
-	})
-end
-
-bootXevor()
-return runProtectedLibrary()
+return library
