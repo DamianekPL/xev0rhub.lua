@@ -362,7 +362,8 @@ do
 		local watermarkEnabled = watermarkOptions.Enabled ~= false
 		local watermarkAnchor = typeof(watermarkOptions.AnchorPoint) == "Vector2" and watermarkOptions.AnchorPoint or Vector2.new(1, 0)
 		local watermarkPosition = typeof(watermarkOptions.Position) == "UDim2" and watermarkOptions.Position or UDim2.new(1, -16, 0, 16)
-		local watermarkSize = typeof(watermarkOptions.Size) == "UDim2" and watermarkOptions.Size or UDim2.new(0, 390, 0, 58)
+		local watermarkSize = typeof(watermarkOptions.Size) == "UDim2" and watermarkOptions.Size or UDim2.new(0, 320, 0, 58)
+		local watermarkCollapsedHeight = watermarkSize.Y.Offset
 		local watermarkBackground = typeof(watermarkOptions.BackgroundColor) == "Color3" and watermarkOptions.BackgroundColor or themes.Background
 		local watermarkTopBar = typeof(watermarkOptions.TopBarColor) == "Color3" and watermarkOptions.TopBarColor or themes.Accent
 		local watermarkStatus = typeof(watermarkOptions.StatusColor) == "Color3" and watermarkOptions.StatusColor or themes.DarkContrast
@@ -500,12 +501,12 @@ do
 				Position = watermarkPosition,
 				Size = watermarkSize,
 				ZIndex = 2,
+				ClipsDescendants = true,
 				Image = "rbxassetid://4641149554",
 				ImageColor3 = watermarkBackground,
 				ScaleType = Enum.ScaleType.Slice,
 				SliceCenter = Rect.new(4, 4, 296, 296)
 			}, {
-				-- Same soft rounded glow used by the main menu.
 				utilityCreate("ImageLabel", {
 					Name = "Glow",
 					BackgroundTransparency = 1,
@@ -518,7 +519,6 @@ do
 					ScaleType = Enum.ScaleType.Slice,
 					SliceCenter = Rect.new(24, 24, 276, 276)
 				}),
-				-- Uses the exact top-bar and page colors from the primary window.
 				utilityCreate("ImageLabel", {
 					Name = "TopBar",
 					BackgroundTransparency = 1,
@@ -534,7 +534,7 @@ do
 						Name = "Title",
 						BackgroundTransparency = 1,
 						Position = UDim2.new(0, 14, 0, 0),
-						Size = UDim2.new(1, -28, 1, 0),
+						Size = UDim2.new(1, -48, 1, 0),
 						ZIndex = 4,
 						Font = Enum.Font.GothamBold,
 						Text = title,
@@ -542,13 +542,25 @@ do
 						TextSize = watermarkTextSize + 1,
 						TextTruncate = Enum.TextTruncate.AtEnd,
 						TextXAlignment = Enum.TextXAlignment.Left
+					}),
+					utilityCreate("TextButton", {
+						Name = "Expand",
+						BackgroundTransparency = 1,
+						Position = UDim2.new(1, -30, 0, 0),
+						Size = UDim2.new(0, 26, 1, 0),
+						ZIndex = 5,
+						Font = Enum.Font.GothamBold,
+						Text = "▾",
+						TextColor3 = watermarkText,
+						TextSize = 14,
+						AutoButtonColor = false
 					})
 				}),
 				utilityCreate("ImageLabel", {
 					Name = "Status",
 					BackgroundTransparency = 1,
 					Position = UDim2.new(0, 6, 0, watermarkTopbarHeight + 4),
-					Size = UDim2.new(1, -12, 1, -(watermarkTopbarHeight + 10)),
+					Size = UDim2.new(1, -12, 0, watermarkCollapsedHeight - watermarkTopbarHeight - 10),
 					ZIndex = 3,
 					Image = "rbxassetid://5012534273",
 					ImageColor3 = watermarkStatus,
@@ -580,6 +592,81 @@ do
 					ImageColor3 = watermarkAccent,
 					ScaleType = Enum.ScaleType.Slice,
 					SliceCenter = Rect.new(4, 4, 296, 296)
+				}),
+				utilityCreate("Frame", {
+					Name = "Dropdown",
+					BackgroundTransparency = 1,
+					Position = UDim2.new(0, 6, 0, watermarkCollapsedHeight - 4),
+					Size = UDim2.new(1, -12, 0, 0),
+					ZIndex = 3,
+					ClipsDescendants = true,
+					Visible = false
+				}, {
+					utilityCreate("ImageLabel", {
+						Name = "Panel",
+						BackgroundTransparency = 1,
+						Size = UDim2.new(1, 0, 1, 0),
+						ZIndex = 3,
+						Image = "rbxassetid://5012534273",
+						ImageColor3 = watermarkStatus,
+						ScaleType = Enum.ScaleType.Slice,
+						SliceCenter = Rect.new(4, 4, 296, 296)
+					}, {
+						utilityCreate("TextLabel", {
+							Name = "GameLabel",
+							BackgroundTransparency = 1,
+							Position = UDim2.new(0, 10, 0, 6),
+							Size = UDim2.new(1, -20, 0, 16),
+							ZIndex = 4,
+							Font = Enum.Font.GothamSemibold,
+							Text = "Game: ...",
+							TextColor3 = watermarkText,
+							TextSize = watermarkTextSize - 1,
+							TextTruncate = Enum.TextTruncate.AtEnd,
+							TextXAlignment = Enum.TextXAlignment.Left
+						}),
+						utilityCreate("TextLabel", {
+							Name = "TimeLabel",
+							BackgroundTransparency = 1,
+							Position = UDim2.new(0, 10, 0, 24),
+							Size = UDim2.new(1, -20, 0, 16),
+							ZIndex = 4,
+							Font = Enum.Font.GothamSemibold,
+							Text = "Time: 00:00",
+							TextColor3 = watermarkText,
+							TextSize = watermarkTextSize - 1,
+							TextTruncate = Enum.TextTruncate.AtEnd,
+							TextXAlignment = Enum.TextXAlignment.Left
+						}),
+						utilityCreate("TextLabel", {
+							Name = "KeybindsHeader",
+							BackgroundTransparency = 1,
+							Position = UDim2.new(0, 10, 0, 46),
+							Size = UDim2.new(1, -20, 0, 14),
+							ZIndex = 4,
+							Font = Enum.Font.GothamBold,
+							Text = "Keybinds",
+							TextColor3 = watermarkText,
+							TextSize = watermarkTextSize - 1,
+							TextXAlignment = Enum.TextXAlignment.Left
+						}),
+						utilityCreate("ScrollingFrame", {
+							Name = "KeybindsList",
+							BackgroundTransparency = 1,
+							BorderSizePixel = 0,
+							Position = UDim2.new(0, 6, 0, 62),
+							Size = UDim2.new(1, -12, 1, -68),
+							ZIndex = 4,
+							CanvasSize = UDim2.new(0, 0, 0, 0),
+							ScrollBarThickness = 3,
+							ScrollBarImageColor3 = themes.LightContrast
+						}, {
+							utilityCreate("UIListLayout", {
+								SortOrder = Enum.SortOrder.LayoutOrder,
+								Padding = UDim.new(0, 2)
+							})
+						})
+					})
 				})
 			})
 		})
@@ -592,12 +679,138 @@ do
 			pagesContainer = container.Main.Pages.Pages_Container,
 			pages = {},
 			watermark = watermark,
+			activeKeybinds = {},
 			topbarHeight = topbarHeight,
 			navigationWidth = navigationWidth,
 			contentLeft = contentLeft
 		}, library)
 
 		window:SetToggleKey(options.ToggleKey or Enum.KeyCode.RightShift)
+
+		local sessionStart = os.clock()
+		local placeName = game.Name
+		task.spawn(function()
+			local ok, info = pcall(function()
+				return game:GetService("MarketplaceService"):GetProductInfo(game.PlaceId)
+			end)
+			if ok and type(info) == "table" and type(info.Name) == "string" and info.Name ~= "" then
+				placeName = info.Name
+			end
+		end)
+
+		local function formatSessionTime(seconds)
+			seconds = math.max(0, math.floor(seconds))
+			local h = math.floor(seconds / 3600)
+			local m = math.floor((seconds % 3600) / 60)
+			local s = seconds % 60
+			if h > 0 then
+				return string.format("%d:%02d:%02d", h, m, s)
+			end
+			return string.format("%02d:%02d", m, s)
+		end
+
+		local watermarkFrame = watermark.Watermark
+		local dropdown = watermarkFrame.Dropdown
+		local dropdownPanel = dropdown.Panel
+		local expandBtn = watermarkFrame.TopBar.Expand
+		local watermarkExpanded = false
+		local collapsedSize = watermarkSize
+
+		local function rebuildKeybindRows()
+			local list = dropdownPanel.KeybindsList
+			for _, child in ipairs(list:GetChildren()) do
+				if child:IsA("TextLabel") then
+					child:Destroy()
+				end
+			end
+
+			local count = 0
+			local entries = {}
+			for _, entry in pairs(window.activeKeybinds) do
+				table.insert(entries, entry)
+			end
+			table.sort(entries, function(a, b)
+				return tostring(a.name) < tostring(b.name)
+			end)
+
+			if #entries == 0 then
+				utilityCreate("TextLabel", {
+					Parent = list,
+					BackgroundTransparency = 1,
+					Size = UDim2.new(1, -4, 0, 16),
+					ZIndex = 5,
+					Font = Enum.Font.Gotham,
+					Text = "None bound",
+					TextColor3 = Color3.fromRGB(160, 160, 160),
+					TextSize = watermarkTextSize - 2,
+					TextXAlignment = Enum.TextXAlignment.Left
+				})
+				count = 1
+			else
+				for _, entry in ipairs(entries) do
+					utilityCreate("TextLabel", {
+						Parent = list,
+						BackgroundTransparency = 1,
+						Size = UDim2.new(1, -4, 0, 16),
+						ZIndex = 5,
+						Font = Enum.Font.Gotham,
+						Text = string.format("%s  —  %s", entry.name, entry.key),
+						TextColor3 = watermarkText,
+						TextSize = watermarkTextSize - 2,
+						TextTruncate = Enum.TextTruncate.AtEnd,
+						TextXAlignment = Enum.TextXAlignment.Left
+					})
+					count = count + 1
+				end
+			end
+
+			local listHeight = math.min(count, 5) * 18
+			list.CanvasSize = UDim2.new(0, 0, 0, count * 18)
+			list.Size = UDim2.new(1, -12, 0, listHeight)
+			return 62 + listHeight + 8
+		end
+
+		local function setWatermarkExpanded(expanded)
+			watermarkExpanded = expanded
+			expandBtn.Text = expanded and "▴" or "▾"
+
+			if expanded then
+				local contentHeight = rebuildKeybindRows()
+				dropdown.Visible = true
+				dropdownPanel.GameLabel.Text = "Game: " .. placeName
+				dropdownPanel.TimeLabel.Text = "Time: " .. formatSessionTime(os.clock() - sessionStart)
+
+				local fullHeight = watermarkCollapsedHeight - 4 + contentHeight + 6
+				utilityTween(watermarkFrame, {
+					Size = UDim2.new(collapsedSize.X.Scale, collapsedSize.X.Offset, 0, fullHeight)
+				}, 0.2)
+				utilityTween(dropdown, {
+					Size = UDim2.new(1, -12, 0, contentHeight)
+				}, 0.2)
+			else
+				utilityTween(dropdown, {
+					Size = UDim2.new(1, -12, 0, 0)
+				}, 0.15)
+				utilityTween(watermarkFrame, {
+					Size = collapsedSize
+				}, 0.2)
+				task.delay(0.2, function()
+					if not watermarkExpanded then
+						dropdown.Visible = false
+					end
+				end)
+			end
+		end
+
+		expandBtn.MouseButton1Click:Connect(function()
+			setWatermarkExpanded(not watermarkExpanded)
+		end)
+
+		watermarkFrame.TopBar.Title.InputBegan:Connect(function(userInput)
+			if userInput.UserInputType == Enum.UserInputType.MouseButton1 then
+				setWatermarkExpanded(not watermarkExpanded)
+			end
+		end)
 
 		local frameCount = 0
 		local lastSample = os.clock()
@@ -619,7 +832,17 @@ do
 			end
 
 			local fps = math.floor((frameCount / elapsed) + 0.5)
-			watermark.Watermark.Status.Info.Text = string.format("%s | %d FPS | %d ms", player.Name, fps, ping)
+			watermarkFrame.Status.Info.Text = string.format("%s | %d FPS | %d ms", player.Name, fps, ping)
+
+			if watermarkExpanded then
+				dropdownPanel.GameLabel.Text = "Game: " .. placeName
+				dropdownPanel.TimeLabel.Text = "Time: " .. formatSessionTime(now - sessionStart)
+				local contentHeight = rebuildKeybindRows()
+				local fullHeight = watermarkCollapsedHeight - 4 + contentHeight + 6
+				watermarkFrame.Size = UDim2.new(collapsedSize.X.Scale, collapsedSize.X.Offset, 0, fullHeight)
+				dropdown.Size = UDim2.new(1, -12, 0, contentHeight)
+			end
+
 			frameCount = 0
 			lastSample = now
 		end)
@@ -2343,6 +2566,7 @@ do
 		
 		local text = keybind.Button.Text
 		local bind = self.binds[keybind]
+		local lib = self.page and self.page.library
 		
 		if title then
 			keybind.Title.Text = title
@@ -2355,8 +2579,17 @@ do
 		if key then
 			self.binds[keybind].connection = utilityBindToKey(key, bind.callback)
 			text.Text = key.Name
+			if lib and lib.activeKeybinds then
+				lib.activeKeybinds[keybind] = {
+					name = keybind.Title.Text,
+					key = key.Name
+				}
+			end
 		else
 			text.Text = "None"
+			if lib and lib.activeKeybinds then
+				lib.activeKeybinds[keybind] = nil
+			end
 		end
 	end
 	
