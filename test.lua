@@ -23,7 +23,7 @@ local ACCENT_PURPLE = Color3.fromRGB(180, 50, 255)
 local objects = {}
 local themes = {
 	Background = Color3.fromRGB(24, 24, 24), 
-	Glow = Color3.fromRGB(140, 40, 200), -- outline glow (visible behind menu/watermark) 
+	Glow = Color3.fromRGB(0, 0, 0), -- source library soft shadow glow 
 	Accent = Color3.fromRGB(10, 10, 10), 
 	LightContrast = Color3.fromRGB(20, 20, 20), 
 	DarkContrast = Color3.fromRGB(14, 14, 14),  
@@ -263,7 +263,13 @@ do
 	-- SetGlow(enabled, color?)
 	-- SetGlow({ Enabled, Color, Size, Brightness })
 	--   Size 1-100 → pad around panel (35 ≈ original -15 / +30)
-	--   Brightness 1-100 → ImageTransparency (100 = fully visible like source)
+	-- Glow from source library (exact):
+	--   ImageLabel Name=Glow, Image=rbxassetid://5028857084
+	--   Position -15, Size +30, ZIndex 0, SliceCenter 24,24,276,276
+	--   ImageColor3 = themes.Glow (default black), ImageTransparency = 0
+	-- SetGlow(enabled, color?)
+	-- SetGlow({ Enabled, Color, Size })
+	--   Size 1-100 → pad (35 = original 15px)
 	function library:SetGlow(enabledOrOpts, color)
 		local opts = {}
 		if type(enabledOrOpts) == "table" then
@@ -277,37 +283,35 @@ do
 			Enabled = true,
 			Color = themes.Glow,
 			Size = 35,
-			Brightness = 100,
 		}
 		local st = self._glowState
 		if opts.Enabled ~= nil then st.Enabled = opts.Enabled == true end
 		if typeof(opts.Color) == "Color3" then st.Color = opts.Color end
 		if tonumber(opts.Size) then st.Size = math.clamp(tonumber(opts.Size), 1, 100) end
-		if tonumber(opts.Brightness) then st.Brightness = math.clamp(tonumber(opts.Brightness), 1, 100) end
+		-- Brightness ignored — source glow is always fully visible (transparency 0)
 
 		themes.Glow = st.Color
 
-		-- Source: Position -15, Size +30  →  pad = 15 at Size 35
+		-- Source pad = 15 at default; scale with Size (35 → 15)
 		local pad = math.floor((st.Size / 35) * 15 + 0.5)
 		pad = math.clamp(pad, 4, 40)
-		-- Source has ImageTransparency = 0; Brightness scales it
-		local imageT = st.Enabled and math.clamp(1 - (st.Brightness / 100), 0, 1) or 1
 
 		local function apply(parent)
 			if not parent then return end
-			-- remove any non-source glow layers
 			for _, n in ipairs({
 				"GlowOuter", "Glow1", "Glow2", "Glow3", "Glow4", "Glow5",
 				"GlowFill1", "GlowFill2", "GlowFill3", "GlowFill4", "GlowFill5",
+				"OutlineGlow",
 			}) do
-				local old = parent:FindFirstChild(n)
-				if old then old:Destroy() end
-			end
-			local strokeParent = parent:FindFirstChild("Body") or parent
-			local stroke = strokeParent and strokeParent:FindFirstChild("OutlineGlow")
-			if stroke then
-				stroke.Enabled = false
-				stroke.Transparency = 1
+				local old = parent:FindFirstChild(n, true)
+				if old and old.Name ~= "Glow" then
+					if old:IsA("UIStroke") then
+						old.Enabled = false
+						old.Transparency = 1
+					else
+						old.Visible = false
+					end
+				end
 			end
 
 			local g = parent:FindFirstChild("Glow")
@@ -322,9 +326,10 @@ do
 				g.SliceCenter = Rect.new(24, 24, 276, 276)
 				g.Parent = parent
 			end
+			-- Exact source look: full opacity, color from themes.Glow
 			g.Visible = st.Enabled
 			g.ImageColor3 = st.Color
-			g.ImageTransparency = imageT
+			g.ImageTransparency = 0
 			g.Position = UDim2.new(0, -pad, 0, -pad)
 			g.Size = UDim2.new(1, pad * 2, 1, pad * 2)
 		end
