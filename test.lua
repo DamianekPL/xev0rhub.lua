@@ -283,12 +283,16 @@ do
 
 		themes.Glow = st.Color
 
-		-- Keep glow tight to the panel (4-12px only)
-		local pad = math.floor(4 + (st.Size / 100) * 8 + 0.5)
-		local thickness = 1 + (st.Size / 100) * 1.5
+		-- Tight pad; brightness uses a soft curve so it stays faded/realistic
+		local pad = math.floor(5 + (st.Size / 100) * 7 + 0.5)
+		local thickness = 0.8 + (st.Size / 100) * 1.2
 		local bright = st.Brightness / 100
-		local glowT = st.Enabled and math.clamp(1 - bright * 0.7, 0.1, 0.85) or 1
-		local strokeT = st.Enabled and math.clamp(1 - bright * 0.85, 0.05, 0.8) or 1
+		-- ease-out curve: mid values stay softer, max still slightly faded
+		local soft = bright * bright * (3 - 2 * bright) -- smoothstep
+		-- outer image glow = more faded halo
+		local glowT = st.Enabled and math.clamp(0.92 - soft * 0.45, 0.35, 0.92) or 1
+		-- stroke = subtle edge tint, never fully solid
+		local strokeT = st.Enabled and math.clamp(0.88 - soft * 0.5, 0.28, 0.88) or 1
 
 		local function apply(parent, isWatermark)
 			if not parent then return end
@@ -501,15 +505,15 @@ do
 					ZIndex = 0,
 					Image = "rbxassetid://5028857084",
 					ImageColor3 = themes.Glow,
-					ImageTransparency = 0.4,
+					ImageTransparency = 0.55,
 					ScaleType = Enum.ScaleType.Slice,
 					SliceCenter = Rect.new(24, 24, 276, 276)
 				}),
 				utilityCreate("UIStroke", {
 					Name = "OutlineGlow",
 					Color = themes.Glow,
-					Thickness = 1.5,
-					Transparency = 0.3,
+					Thickness = 1.2,
+					Transparency = 0.45,
 					ApplyStrokeMode = Enum.ApplyStrokeMode.Border
 				}),
 				utilityCreate("ImageLabel", {
@@ -621,7 +625,7 @@ do
 				Visible = watermarkShowGlow,
 				Image = "rbxassetid://5028857084",
 				ImageColor3 = watermarkGlow,
-				ImageTransparency = 0.4,
+				ImageTransparency = 0.55,
 				ScaleType = Enum.ScaleType.Slice,
 				SliceCenter = Rect.new(24, 24, 276, 276)
 			}),
@@ -639,8 +643,8 @@ do
 				utilityCreate("UIStroke", {
 					Name = "OutlineGlow",
 					Color = watermarkGlow,
-					Thickness = 1.5,
-					Transparency = watermarkShowGlow and 0.3 or 1,
+					Thickness = 1.2,
+					Transparency = watermarkShowGlow and 0.45 or 1,
 					ApplyStrokeMode = Enum.ApplyStrokeMode.Border
 				}),
 				-- Title bar (XEVOR + expand) — also drag handle
