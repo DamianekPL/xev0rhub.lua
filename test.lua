@@ -17,7 +17,7 @@ local tweeninfo = TweenInfo.new
 local utility = {}
 
 -- themes
--- Accent purple matches the watermark (title, line, labels, etc.)
+-- Watermark accent only (menu text / toggles / sliders stay white)
 local ACCENT_PURPLE = Color3.fromRGB(180, 50, 255)
 
 local objects = {}
@@ -27,8 +27,7 @@ local themes = {
 	Accent = Color3.fromRGB(10, 10, 10), 
 	LightContrast = Color3.fromRGB(20, 20, 20), 
 	DarkContrast = Color3.fromRGB(14, 14, 14),  
-	-- Titles, labels, toggle knobs, slider fills, dropdown text → same purple as watermark
-	TextColor = ACCENT_PURPLE
+	TextColor = Color3.fromRGB(255, 255, 255)
 }
 
 do
