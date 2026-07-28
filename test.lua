@@ -255,11 +255,11 @@ do
 		end
 	end
 
-	-- Outline glow for main menu + watermark
+	-- Soft multi-layer bloom glow for main menu + watermark.
 	-- SetGlow(enabled, color?)
 	-- SetGlow({ Enabled, Color, Size, Brightness })
-	--   Size 1-100 → how far the glow spreads (default 50)
-	--   Brightness 1-100 → how strong/bright (default 70)
+	--   Size 1-100 → how far the glow spreads (shine distance)
+	--   Brightness 1-100 → intensity
 	function library:SetGlow(enabledOrOpts, color)
 		local opts = {}
 		if type(enabledOrOpts) == "table" then
@@ -281,50 +281,57 @@ do
 		if tonumber(opts.Size) then st.Size = math.clamp(tonumber(opts.Size), 1, 100) end
 		if tonumber(opts.Brightness) then st.Brightness = math.clamp(tonumber(opts.Brightness), 1, 100) end
 
-		-- Size: base expand in pixels scales with Size%
-		local sizeMul = st.Size / 50
-		local innerPad = math.floor(18 * sizeMul + 0.5)
-		local outerPad = math.floor(36 * sizeMul + 0.5)
-		local wmInner = math.floor(12 * sizeMul + 0.5)
-		local wmOuter = math.floor(22 * sizeMul + 0.5)
+		themes.Glow = st.Color
 
-		-- Brightness 100 → transparency ~0, 1 → almost invisible
+		-- Build N soft layers. Size controls max pad; Brightness controls opacity curve.
+		local layers = 6
+		local maxPad = 12 + (st.Size / 100) * 70 -- 12px .. 82px spread
 		local bright = st.Brightness / 100
-		local innerT = math.clamp(1 - bright, 0, 0.95)
-		local outerT = math.clamp(1 - bright * 0.55, 0.2, 0.92)
 
-		local function applyPair(parent, innerName, outerName, iPad, oPad)
+		local function rebuildBloom(parent)
 			if not parent then return end
-			local inner = parent:FindFirstChild(innerName)
-			local outer = parent:FindFirstChild(outerName)
-			for _, g in ipairs({ inner, outer }) do
-				if g then
-					g.Visible = st.Enabled
-					g.ImageColor3 = st.Color
-				end
+			local bloom = parent:FindFirstChild("GlowBloom")
+			if not bloom then return end
+
+			bloom.Visible = st.Enabled
+			for _, child in ipairs(bloom:GetChildren()) do
+				child:Destroy()
 			end
-			if inner then
-				inner.Position = UDim2.new(0, -iPad, 0, -iPad)
-				inner.Size = UDim2.new(1, iPad * 2, 1, iPad * 2)
-				inner.ImageTransparency = innerT
-			end
-			if outer then
-				outer.Position = UDim2.new(0, -oPad, 0, -oPad)
-				outer.Size = UDim2.new(1, oPad * 2, 1, oPad * 2)
-				outer.ImageTransparency = outerT
+			if not st.Enabled then return end
+
+			for i = 1, layers do
+				local t = i / layers
+				-- farther layers = larger pad, more transparent
+				local pad = math.floor(maxPad * t + 0.5)
+				-- inner layers brighter, outer very soft
+				local baseT = 0.15 + t * 0.7
+				local transparency = math.clamp(1 - (1 - baseT) * bright, 0.05, 0.95)
+
+				local layer = Instance.new("ImageLabel")
+				layer.Name = "GlowLayer" .. i
+				layer.BackgroundTransparency = 1
+				layer.BorderSizePixel = 0
+				layer.Position = UDim2.new(0, -pad, 0, -pad)
+				layer.Size = UDim2.new(1, pad * 2, 1, pad * 2)
+				layer.ZIndex = 0
+				layer.Image = "rbxassetid://5028857084"
+				layer.ImageColor3 = st.Color
+				layer.ImageTransparency = transparency
+				layer.ScaleType = Enum.ScaleType.Slice
+				layer.SliceCenter = Rect.new(24, 24, 276, 276)
+				layer.Parent = bloom
 			end
 		end
 
 		local main = self.container and self.container:FindFirstChild("Main")
-		applyPair(main, "Glow", "GlowOuter", innerPad, outerPad)
+		rebuildBloom(main)
 
 		if self.watermark then
 			local shell = self.watermark:FindFirstChild("Watermark")
-			applyPair(shell, "Glow", "GlowOuter", wmInner, wmOuter)
+			rebuildBloom(shell)
 		end
-
-		themes.Glow = st.Color
 	end
+
 
 	-- Updates only the supplied watermark values, so it is safe to call from
 	-- sliders and color-picker callbacks while the hub is open.
@@ -385,20 +392,14 @@ do
 				status.BackgroundColor3 = style.StatusColor
 			end
 		end
-		if glow then
-			if style.Glow ~= nil then
-				glow.Visible = style.Glow == true
-				local glowOuter = watermarkFrame:FindFirstChild("GlowOuter")
-				if glowOuter then
-					glowOuter.Visible = style.Glow == true
-				end
-			end
-			if typeof(style.GlowColor) == "Color3" then
-				glow.ImageColor3 = style.GlowColor
-				local glowOuter = watermarkFrame:FindFirstChild("GlowOuter")
-				if glowOuter then
-					glowOuter.ImageColor3 = style.GlowColor
-				end
+		local glowBloom = watermarkFrame:FindFirstChild("GlowBloom")
+		if glowBloom then
+			if style.Glow ~= nil or typeof(style.GlowColor) == "Color3" then
+				-- Route through SetGlow so bloom layers stay in sync
+				local gOpts = {}
+				if style.Glow ~= nil then gOpts.Enabled = style.Glow == true end
+				if typeof(style.GlowColor) == "Color3" then gOpts.Color = style.GlowColor end
+				self:SetGlow(gOpts)
 			end
 		end
 		if accentLine then
@@ -511,31 +512,12 @@ do
 				ScaleType = Enum.ScaleType.Slice,
 				SliceCenter = Rect.new(4, 4, 296, 296)
 			}, {
-				-- Outer soft bloom
-				utilityCreate("ImageLabel", {
-					Name = "GlowOuter",
+				-- Multi-layer bloom (soft glow that spreads outward)
+				utilityCreate("Frame", {
+					Name = "GlowBloom",
 					BackgroundTransparency = 1,
-					Position = UDim2.new(0, -36, 0, -36),
-					Size = UDim2.new(1, 72, 1, 72),
-					ZIndex = 0,
-					Image = "rbxassetid://5028857084",
-					ImageColor3 = themes.Glow,
-					ImageTransparency = 0.45,
-					ScaleType = Enum.ScaleType.Slice,
-					SliceCenter = Rect.new(24, 24, 276, 276)
-				}),
-				-- Inner tighter outline
-				utilityCreate("ImageLabel", {
-					Name = "Glow",
-					BackgroundTransparency = 1,
-					Position = UDim2.new(0, -18, 0, -18),
-					Size = UDim2.new(1, 36, 1, 36),
-					ZIndex = 0,
-					Image = "rbxassetid://5028857084",
-					ImageColor3 = themes.Glow,
-					ImageTransparency = 0.05,
-					ScaleType = Enum.ScaleType.Slice,
-					SliceCenter = Rect.new(24, 24, 276, 276)
+					Size = UDim2.new(1, 0, 1, 0),
+					ZIndex = 0
 				}),
 				utilityCreate("ImageLabel", {
 				Name = "Pages",
@@ -637,31 +619,12 @@ do
 			Size = watermarkSize,
 			ZIndex = 2
 		}, {
-			utilityCreate("ImageLabel", {
-				Name = "GlowOuter",
+			utilityCreate("Frame", {
+				Name = "GlowBloom",
 				BackgroundTransparency = 1,
-				Position = UDim2.new(0, -22, 0, -22),
-				Size = UDim2.new(1, 44, 1, 44),
+				Size = UDim2.new(1, 0, 1, 0),
 				ZIndex = 0,
-				Visible = watermarkShowGlow,
-				Image = "rbxassetid://5028857084",
-				ImageColor3 = watermarkGlow,
-				ImageTransparency = 0.5,
-				ScaleType = Enum.ScaleType.Slice,
-				SliceCenter = Rect.new(24, 24, 276, 276)
-			}),
-			utilityCreate("ImageLabel", {
-				Name = "Glow",
-				BackgroundTransparency = 1,
-				Position = UDim2.new(0, -12, 0, -12),
-				Size = UDim2.new(1, 24, 1, 24),
-				ZIndex = 1,
-				Visible = watermarkShowGlow,
-				Image = "rbxassetid://5028857084",
-				ImageColor3 = watermarkGlow,
-				ImageTransparency = 0.1,
-				ScaleType = Enum.ScaleType.Slice,
-				SliceCenter = Rect.new(24, 24, 276, 276)
+				Visible = watermarkShowGlow
 			}),
 			utilityCreate("CanvasGroup", {
 				Name = "Body",
@@ -937,6 +900,13 @@ do
 		}, library)
 
 		window:SetToggleKey(options.ToggleKey or Enum.KeyCode.RightShift)
+		-- Build initial soft bloom layers
+		window:SetGlow({
+			Enabled = watermarkShowGlow ~= false,
+			Color = themes.Glow,
+			Size = 55,
+			Brightness = 75,
+		})
 
 		local sessionStart = os.clock()
 		local placeName = game.Name
