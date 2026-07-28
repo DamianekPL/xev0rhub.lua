@@ -255,11 +255,11 @@ do
 		end
 	end
 
-	-- Single outline glow (UIStroke only) on main menu + watermark.
+	-- Soft bloom glow BEHIND main menu + watermark (realistic falloff).
 	-- SetGlow(enabled, color?)
 	-- SetGlow({ Enabled, Color, Size, Brightness })
-	--   Size 1-100 → stroke thickness
-	--   Brightness 1-100 → how visible (soft fade, never fully solid)
+	--   Size 1-100 → how far the soft glow spreads behind the panel
+	--   Brightness 1-100 → intensity (faded, never neon-solid)
 	function library:SetGlow(enabledOrOpts, color)
 		local opts = {}
 		if type(enabledOrOpts) == "table" then
@@ -272,8 +272,8 @@ do
 		self._glowState = self._glowState or {
 			Enabled = true,
 			Color = themes.Glow,
-			Size = 40,
-			Brightness = 70,
+			Size = 55,
+			Brightness = 75,
 		}
 		local st = self._glowState
 		if opts.Enabled ~= nil then st.Enabled = opts.Enabled == true end
@@ -283,41 +283,72 @@ do
 
 		themes.Glow = st.Color
 
-		-- One line only: thickness from Size, soft transparency from Brightness
-		local thickness = 1 + (st.Size / 100) * 2.5 -- ~1 to 3.5
+		local t = st.Size / 100
+		-- outer soft halo spreads farther; inner is tighter
+		local outerPad = math.floor(10 + t * 28 + 0.5) -- ~10..38
+		local innerPad = math.floor(4 + t * 10 + 0.5)  -- ~4..14
 		local bright = st.Brightness / 100
 		local soft = bright * bright * (3 - 2 * bright) -- smoothstep
-		local strokeT = st.Enabled and math.clamp(0.85 - soft * 0.55, 0.2, 0.85) or 1
+		-- higher transparency = softer/more realistic; still visible at high brightness
+		local outerT = st.Enabled and math.clamp(0.92 - soft * 0.42, 0.42, 0.92) or 1
+		local innerT = st.Enabled and math.clamp(0.82 - soft * 0.5, 0.28, 0.82) or 1
+		-- thin edge stroke stays very soft so it does not look like a hard border
+		local strokeT = st.Enabled and math.clamp(0.9 - soft * 0.35, 0.45, 0.9) or 1
+		local strokeThick = 0.8 + t * 0.8
 
-		local function applyStroke(parent)
+		local function ensureGlow(parent, name, z)
+			if not parent then return nil end
+			local g = parent:FindFirstChild(name)
+			if not g then
+				g = Instance.new("ImageLabel")
+				g.Name = name
+				g.BackgroundTransparency = 1
+				g.BorderSizePixel = 0
+				g.ZIndex = z or 0
+				g.Image = "rbxassetid://5028857084"
+				g.ScaleType = Enum.ScaleType.Slice
+				g.SliceCenter = Rect.new(24, 24, 276, 276)
+				g.Parent = parent
+			end
+			return g
+		end
+
+		local function apply(parent, isWatermark)
 			if not parent then return end
-			-- hide any legacy image glow so only one outline shows
-			local glow = parent:FindFirstChild("Glow")
-			if glow then
-				glow.Visible = false
+			local outer = ensureGlow(parent, "GlowOuter", 0)
+			local inner = ensureGlow(parent, "Glow", 0)
+			if outer then
+				outer.Visible = st.Enabled
+				outer.ImageColor3 = st.Color
+				outer.ImageTransparency = outerT
+				outer.Position = UDim2.new(0, -outerPad, 0, -outerPad)
+				outer.Size = UDim2.new(1, outerPad * 2, 1, outerPad * 2)
 			end
-			local stroke = parent:FindFirstChild("OutlineGlow")
-			if not stroke then
-				local body = parent:FindFirstChild("Body")
-				if body then stroke = body:FindFirstChild("OutlineGlow") end
+			if inner then
+				inner.Visible = st.Enabled
+				inner.ImageColor3 = st.Color
+				inner.ImageTransparency = innerT
+				inner.Position = UDim2.new(0, -innerPad, 0, -innerPad)
+				inner.Size = UDim2.new(1, innerPad * 2, 1, innerPad * 2)
 			end
+			-- stroke lives on the solid panel (Main itself or watermark Body)
+			local strokeParent = parent
+			if isWatermark then
+				strokeParent = parent:FindFirstChild("Body") or parent
+			end
+			local stroke = strokeParent and strokeParent:FindFirstChild("OutlineGlow")
 			if stroke and stroke:IsA("UIStroke") then
 				stroke.Enabled = st.Enabled
 				stroke.Color = st.Color
-				stroke.Thickness = thickness
+				stroke.Thickness = strokeThick
 				stroke.Transparency = strokeT
 			end
 		end
 
 		local main = self.container and self.container:FindFirstChild("Main")
-		applyStroke(main)
+		apply(main, false)
 		if self.watermark then
-			local wm = self.watermark:FindFirstChild("Watermark")
-			if wm then
-				applyStroke(wm)
-				local body = wm:FindFirstChild("Body")
-				if body then applyStroke(body) end
-			end
+			apply(self.watermark:FindFirstChild("Watermark"), true)
 		end
 	end
 
@@ -496,12 +527,37 @@ do
 				ScaleType = Enum.ScaleType.Slice,
 				SliceCenter = Rect.new(4, 4, 296, 296)
 			}, {
-				-- Single outline glow (one line, follows rounded corners)
+				-- Soft bloom behind the panel (ZIndex 0 = under content)
+				utilityCreate("ImageLabel", {
+					Name = "GlowOuter",
+					BackgroundTransparency = 1,
+					Position = UDim2.new(0, -22, 0, -22),
+					Size = UDim2.new(1, 44, 1, 44),
+					ZIndex = 0,
+					Image = "rbxassetid://5028857084",
+					ImageColor3 = themes.Glow,
+					ImageTransparency = 0.72,
+					ScaleType = Enum.ScaleType.Slice,
+					SliceCenter = Rect.new(24, 24, 276, 276)
+				}),
+				utilityCreate("ImageLabel", {
+					Name = "Glow",
+					BackgroundTransparency = 1,
+					Position = UDim2.new(0, -10, 0, -10),
+					Size = UDim2.new(1, 20, 1, 20),
+					ZIndex = 0,
+					Image = "rbxassetid://5028857084",
+					ImageColor3 = themes.Glow,
+					ImageTransparency = 0.55,
+					ScaleType = Enum.ScaleType.Slice,
+					SliceCenter = Rect.new(24, 24, 276, 276)
+				}),
+				-- Very soft edge tint (not a hard border)
 				utilityCreate("UIStroke", {
 					Name = "OutlineGlow",
 					Color = themes.Glow,
-					Thickness = 1.5,
-					Transparency = 0.4,
+					Thickness = 1,
+					Transparency = 0.65,
 					ApplyStrokeMode = Enum.ApplyStrokeMode.Border
 				}),
 				utilityCreate("ImageLabel", {
@@ -604,6 +660,32 @@ do
 			Size = watermarkSize,
 			ZIndex = 2
 		}, {
+			utilityCreate("ImageLabel", {
+				Name = "GlowOuter",
+				BackgroundTransparency = 1,
+				Position = UDim2.new(0, -18, 0, -18),
+				Size = UDim2.new(1, 36, 1, 36),
+				ZIndex = 0,
+				Visible = watermarkShowGlow,
+				Image = "rbxassetid://5028857084",
+				ImageColor3 = watermarkGlow,
+				ImageTransparency = 0.72,
+				ScaleType = Enum.ScaleType.Slice,
+				SliceCenter = Rect.new(24, 24, 276, 276)
+			}),
+			utilityCreate("ImageLabel", {
+				Name = "Glow",
+				BackgroundTransparency = 1,
+				Position = UDim2.new(0, -8, 0, -8),
+				Size = UDim2.new(1, 16, 1, 16),
+				ZIndex = 0,
+				Visible = watermarkShowGlow,
+				Image = "rbxassetid://5028857084",
+				ImageColor3 = watermarkGlow,
+				ImageTransparency = 0.55,
+				ScaleType = Enum.ScaleType.Slice,
+				SliceCenter = Rect.new(24, 24, 276, 276)
+			}),
 			utilityCreate("CanvasGroup", {
 				Name = "Body",
 				BackgroundColor3 = watermarkBackground,
@@ -618,8 +700,8 @@ do
 				utilityCreate("UIStroke", {
 					Name = "OutlineGlow",
 					Color = watermarkGlow,
-					Thickness = 1.2,
-					Transparency = watermarkShowGlow and 0.45 or 1,
+					Thickness = 1,
+					Transparency = watermarkShowGlow and 0.65 or 1,
 					ApplyStrokeMode = Enum.ApplyStrokeMode.Border
 				}),
 				-- Title bar (XEVOR + expand) — also drag handle
