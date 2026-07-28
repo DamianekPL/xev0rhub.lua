@@ -286,12 +286,13 @@ do
 		themes.Glow = st.Color
 
 		-- pad ~15 at mid size (matches original -15 / +30)
-		-- Size locked around classic look (default 35 ≈ original -15 pad)
-		local pad = math.floor(6 + (st.Size / 100) * 24 + 0.5) -- 6..30
+		-- Size: 35 ≈ original pad 15 (Position -15, Size +30)
+		-- Range ~8..28 so it stays a soft edge, not huge boxes
+		local pad = math.floor(8 + (st.Size / 100) * 20 + 0.5) -- 8..28
 		local bright = st.Brightness / 100
-		-- ~40% stronger: map brightness higher so the soft glow reads brighter
-		local boosted = math.clamp(bright * 1.4, 0, 1.15)
-		local imageT = st.Enabled and math.clamp(1 - boosted, 0, 0.85) or 1
+		-- Stronger visibility (~40% boost); at 100% nearly fully opaque glow image
+		local boosted = math.clamp(bright * 1.4, 0, 1.2)
+		local imageT = st.Enabled and math.clamp(1 - boosted, 0, 0.75) or 1
 
 		local function hideExtras(parent)
 			if not parent then return end
