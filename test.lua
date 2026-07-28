@@ -23,7 +23,7 @@ local ACCENT_PURPLE = Color3.fromRGB(180, 50, 255)
 local objects = {}
 local themes = {
 	Background = Color3.fromRGB(24, 24, 24), 
-	Glow = Color3.fromRGB(0, 0, 0), 
+	Glow = Color3.fromRGB(140, 40, 200), -- outline glow (visible behind menu/watermark) 
 	Accent = Color3.fromRGB(10, 10, 10), 
 	LightContrast = Color3.fromRGB(20, 20, 20), 
 	DarkContrast = Color3.fromRGB(14, 14, 14),  
@@ -255,6 +255,38 @@ do
 		end
 	end
 
+	-- Outline glow for main menu + watermark
+	-- enabled: boolean, color: Color3? (optional)
+	function library:SetGlow(enabled, color)
+		local function apply(glow)
+			if not glow then return end
+			if enabled ~= nil then
+				glow.Visible = enabled == true
+			end
+			if typeof(color) == "Color3" then
+				glow.ImageColor3 = color
+			end
+		end
+
+		-- Main menu
+		local main = self.container and self.container:FindFirstChild("Main")
+		if main then
+			apply(main:FindFirstChild("Glow"))
+		end
+
+		-- Watermark
+		if self.watermark then
+			local shell = self.watermark:FindFirstChild("Watermark")
+			if shell then
+				apply(shell:FindFirstChild("Glow"))
+			end
+		end
+
+		if typeof(color) == "Color3" then
+			themes.Glow = color
+		end
+	end
+
 	-- Updates only the supplied watermark values, so it is safe to call from
 	-- sliders and color-picker callbacks while the hub is open.
 	function library:SetWatermarkStyle(style)
@@ -435,11 +467,12 @@ do
 				utilityCreate("ImageLabel", {
 					Name = "Glow",
 					BackgroundTransparency = 1,
-					Position = UDim2.new(0, -15, 0, -15),
-					Size = UDim2.new(1, 30, 1, 30),
+					Position = UDim2.new(0, -22, 0, -22),
+					Size = UDim2.new(1, 44, 1, 44),
 					ZIndex = 0,
 					Image = "rbxassetid://5028857084",
 					ImageColor3 = themes.Glow,
+					ImageTransparency = 0.15,
 					ScaleType = Enum.ScaleType.Slice,
 					SliceCenter = Rect.new(24, 24, 276, 276)
 				}),
@@ -546,12 +579,13 @@ do
 			utilityCreate("ImageLabel", {
 				Name = "Glow",
 				BackgroundTransparency = 1,
-				Position = UDim2.new(0, -7, 0, -7),
-				Size = UDim2.new(1, 14, 1, 14),
+				Position = UDim2.new(0, -14, 0, -14),
+				Size = UDim2.new(1, 28, 1, 28),
 				ZIndex = 1,
 				Visible = watermarkShowGlow,
 				Image = "rbxassetid://5028857084",
 				ImageColor3 = watermarkGlow,
+				ImageTransparency = 0.15,
 				ScaleType = Enum.ScaleType.Slice,
 				SliceCenter = Rect.new(24, 24, 276, 276)
 			}),
