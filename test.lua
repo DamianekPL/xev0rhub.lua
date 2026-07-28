@@ -389,9 +389,11 @@ do
 		local watermarkAnchor = typeof(watermarkOptions.AnchorPoint) == "Vector2" and watermarkOptions.AnchorPoint or Vector2.new(1, 0)
 		local watermarkPosition = typeof(watermarkOptions.Position) == "UDim2" and watermarkOptions.Position or UDim2.new(1, -16, 0, 16)
 		local watermarkAccentPurple = typeof(watermarkOptions.AccentPurple) == "Color3" and watermarkOptions.AccentPurple or Color3.fromRGB(180, 50, 255)
-		local watermarkBackground = typeof(watermarkOptions.BackgroundColor) == "Color3" and watermarkOptions.BackgroundColor or themes.Background
-		local watermarkTopBar = typeof(watermarkOptions.TopBarColor) == "Color3" and watermarkOptions.TopBarColor or themes.Accent
-		local watermarkStatus = typeof(watermarkOptions.StatusColor) == "Color3" and watermarkOptions.StatusColor or themes.DarkContrast
+		-- One solid black for the whole watermark so no gray strip shows under panels
+		local watermarkPanelBlack = Color3.fromRGB(14, 14, 14)
+		local watermarkBackground = typeof(watermarkOptions.BackgroundColor) == "Color3" and watermarkOptions.BackgroundColor or watermarkPanelBlack
+		local watermarkTopBar = typeof(watermarkOptions.TopBarColor) == "Color3" and watermarkOptions.TopBarColor or watermarkPanelBlack
+		local watermarkStatus = typeof(watermarkOptions.StatusColor) == "Color3" and watermarkOptions.StatusColor or watermarkPanelBlack
 		local watermarkGlow = typeof(watermarkOptions.GlowColor) == "Color3" and watermarkOptions.GlowColor or themes.Glow
 		local watermarkAccent = typeof(watermarkOptions.AccentColor) == "Color3" and watermarkOptions.AccentColor or themes.LightContrast
 		local watermarkText = typeof(watermarkOptions.TextColor) == "Color3" and watermarkOptions.TextColor or themes.TextColor
@@ -400,8 +402,8 @@ do
 		local watermarkTopbarHeight = 26
 		local watermarkAccentHeight = 2
 		local watermarkStatusHeight = 24
-		local watermarkPad = 4
-		local watermarkCollapsedHeight = watermarkTopbarHeight + watermarkAccentHeight + watermarkStatusHeight + watermarkPad
+		local watermarkPad = 0 -- no bottom gap (gap was showing a lighter gray strip)
+		local watermarkCollapsedHeight = watermarkTopbarHeight + watermarkAccentHeight + watermarkStatusHeight
 		local watermarkSize = typeof(watermarkOptions.Size) == "UDim2" and watermarkOptions.Size or UDim2.new(0, 268, 0, watermarkCollapsedHeight)
 		-- Force height to our calculated layout even if a custom Size is passed
 		watermarkSize = UDim2.new(watermarkSize.X.Scale, watermarkSize.X.Offset, 0, watermarkCollapsedHeight)
@@ -639,7 +641,7 @@ do
 					BackgroundColor3 = watermarkStatus,
 					BackgroundTransparency = 0,
 					BorderSizePixel = 0,
-					Position = UDim2.new(0, 0, 0, watermarkCollapsedHeight - watermarkPad),
+					Position = UDim2.new(0, 0, 0, watermarkCollapsedHeight),
 					Size = UDim2.new(1, 0, 0, 0),
 					ZIndex = 3,
 					ClipsDescendants = true,
@@ -885,7 +887,7 @@ do
 				dropdownPanel.GameLabel.Text = placeName
 				dropdownPanel.TimeLabel.Text = formatSessionTime(os.clock() - sessionStart)
 
-				local fullHeight = watermarkCollapsedHeight - watermarkPad + contentHeight + watermarkPad
+				local fullHeight = watermarkCollapsedHeight + contentHeight
 				utilityTween(watermarkFrame, {
 					Size = UDim2.new(collapsedSize.X.Scale, collapsedSize.X.Offset, 0, fullHeight)
 				}, 0.18)
@@ -943,7 +945,7 @@ do
 				dropdownPanel.GameLabel.Text = placeName
 				dropdownPanel.TimeLabel.Text = formatSessionTime(now - sessionStart)
 				local contentHeight = rebuildKeybindRows()
-				local fullHeight = watermarkCollapsedHeight - watermarkPad + contentHeight + watermarkPad
+				local fullHeight = watermarkCollapsedHeight + contentHeight
 				watermarkFrame.Size = UDim2.new(collapsedSize.X.Scale, collapsedSize.X.Offset, 0, fullHeight)
 				dropdown.Size = UDim2.new(1, 0, 0, contentHeight)
 			end
@@ -3445,26 +3447,99 @@ local keySystem = keyCreate("ScreenGui", {
 					TextSize = 14
 				})
 			}),
-			keyCreate("ImageButton", { -- GET KEY
-				Name = "GetKeyBtn",
+			-- GET KEY dropdown (24h free / lifetime)
+			keyCreate("Frame", {
+				Name = "GetKeyDropdown",
 				BackgroundTransparency = 1,
 				Position = UDim2.new(0, 12, 0, 145),
 				Size = UDim2.new(1, -24, 0, 36),
-				ZIndex = 4,
-				Image = "rbxassetid://5028857472",
-				ImageColor3 = themes.DarkContrast,
-				ScaleType = Enum.ScaleType.Slice,
-				SliceCenter = Rect.new(2, 2, 298, 298)
+				ZIndex = 6,
+				ClipsDescendants = true
 			}, {
-				keyCreate("TextLabel", {
-					Name = "Label",
+				keyCreate("ImageButton", {
+					Name = "Header",
 					BackgroundTransparency = 1,
-					Size = UDim2.new(1, 0, 1, 0),
-					ZIndex = 5,
-					Font = Enum.Font.GothamSemibold,
-					Text = "GET KEY",
-					TextColor3 = themes.TextColor,
-					TextSize = 13
+					Size = UDim2.new(1, 0, 0, 36),
+					ZIndex = 7,
+					Image = "rbxassetid://5028857472",
+					ImageColor3 = themes.LightContrast,
+					ScaleType = Enum.ScaleType.Slice,
+					SliceCenter = Rect.new(2, 2, 298, 298)
+				}, {
+					keyCreate("TextLabel", {
+						Name = "Label",
+						BackgroundTransparency = 1,
+						Position = UDim2.new(0, 12, 0, 0),
+						Size = UDim2.new(1, -40, 1, 0),
+						ZIndex = 8,
+						Font = Enum.Font.GothamSemibold,
+						Text = "GET KEY",
+						TextColor3 = themes.TextColor,
+						TextSize = 13,
+						TextXAlignment = Enum.TextXAlignment.Left
+					}),
+					keyCreate("TextLabel", {
+						Name = "Arrow",
+						BackgroundTransparency = 1,
+						Position = UDim2.new(1, -28, 0, 0),
+						Size = UDim2.new(0, 24, 1, 0),
+						ZIndex = 8,
+						Font = Enum.Font.GothamBold,
+						Text = "v",
+						TextColor3 = Color3.fromRGB(160, 160, 168),
+						TextSize = 12
+					})
+				}),
+				keyCreate("Frame", {
+					Name = "List",
+					BackgroundTransparency = 1,
+					Position = UDim2.new(0, 0, 0, 40),
+					Size = UDim2.new(1, 0, 0, 76),
+					ZIndex = 7
+				}, {
+					keyCreate("ImageButton", {
+						Name = "Free24h",
+						BackgroundTransparency = 1,
+						Size = UDim2.new(1, 0, 0, 34),
+						ZIndex = 8,
+						Image = "rbxassetid://5028857472",
+						ImageColor3 = themes.DarkContrast,
+						ScaleType = Enum.ScaleType.Slice,
+						SliceCenter = Rect.new(2, 2, 298, 298)
+					}, {
+						keyCreate("TextLabel", {
+							Name = "Label",
+							BackgroundTransparency = 1,
+							Size = UDim2.new(1, 0, 1, 0),
+							ZIndex = 9,
+							Font = Enum.Font.GothamSemibold,
+							Text = "Get Key (24h Free)",
+							TextColor3 = themes.TextColor,
+							TextSize = 12
+						})
+					}),
+					keyCreate("ImageButton", {
+						Name = "Lifetime",
+						BackgroundTransparency = 1,
+						Position = UDim2.new(0, 0, 0, 38),
+						Size = UDim2.new(1, 0, 0, 34),
+						ZIndex = 8,
+						Image = "rbxassetid://5028857472",
+						ImageColor3 = themes.DarkContrast,
+						ScaleType = Enum.ScaleType.Slice,
+						SliceCenter = Rect.new(2, 2, 298, 298)
+					}, {
+						keyCreate("TextLabel", {
+							Name = "Label",
+							BackgroundTransparency = 1,
+							Size = UDim2.new(1, 0, 1, 0),
+							ZIndex = 9,
+							Font = Enum.Font.GothamSemibold,
+							Text = "Buy Key (Lifetime)",
+							TextColor3 = themes.AccentPurple,
+							TextSize = 12
+						})
+					})
 				})
 			}),
 			keyCreate("ImageButton", { -- JOIN DISCORD
@@ -3499,8 +3574,8 @@ keyDraggingEnabled(keySystem.Main.TopBar, keySystem.Main)
 local changelogFrame = keySystem.Main.LeftPanel.ChangelogContainer
 local logs = {
 	"• v1.2.3 - New UI overhaul",
-	"• Added 5 new scripts",
-	"• Fixed anti-cheat bypass",
+	"• Added key saving + Get Key dropdown",
+	"• Watermark game / time / keybinds",
 	"• Performance improvements",
 	"• More games supported",
 	"• UI now fully customizable"
@@ -3522,57 +3597,160 @@ for _, log in ipairs(logs) do
 end
 changelogFrame.CanvasSize = UDim2.new(0, 0, 0, #logs * 26)
 
--- Button logic
+-- =========================
+-- Key save / load helpers
+-- =========================
+local KEY_FILE = "xevor_key.txt"
+local LINK_FREE_24H = "https://yourkeysite.com/free-24h"      -- edit me
+local LINK_LIFETIME = "https://yourkeysite.com/buy-lifetime"  -- edit me
+local LINK_DISCORD = "https://discord.gg/yourserver"          -- edit me
+
+local function saveKey(key)
+	local ok = pcall(function()
+		if writefile then
+			writefile(KEY_FILE, key)
+		end
+	end)
+	return ok
+end
+
+local function loadSavedKey()
+	local ok, data = pcall(function()
+		if isfile and isfile(KEY_FILE) and readfile then
+			return readfile(KEY_FILE)
+		end
+		return nil
+	end)
+	if ok and type(data) == "string" and #data > 0 then
+		return data:gsub("%s+", ""):upper()
+	end
+	return nil
+end
+
+local function isValidKey(key)
+	-- === YOUR KEY CHECK HERE ===
+	key = (key or ""):upper()
+	return key == "XEVOR-TEST-KEY-1234" or key == "VALIDKEY"
+end
+
+local function openMainMenu()
+	local Window = XevorLibrary.new("XEVOR", {
+		ToggleKey = Enum.KeyCode.RightControl
+	})
+	print("Key accepted! Main UI loaded. Press Right Ctrl to toggle it.")
+	return Window
+end
+
+-- Button logic refs (needed before acceptKey)
 local keyInput = keySystem.Main.RightPanel.KeyInput.Input
 local statusLabel = keySystem.Main.RightPanel.Status
+local getKeyDropdown = keySystem.Main.RightPanel.GetKeyDropdown
+local getKeyHeader = getKeyDropdown.Header
+local getKeyList = getKeyDropdown.List
+local discordBtn = keySystem.Main.RightPanel.DiscordBtn
+local getKeyOpen = false
+
+local function acceptKey(key, fromSave)
+	statusLabel.Text = fromSave and "Saved key accepted ✓" or "Key Verified ✓"
+	statusLabel.TextColor3 = Color3.fromRGB(80, 255, 80)
+	saveKey(key)
+	task.wait(fromSave and 0.6 or 1.0)
+	if keySystem and keySystem.Parent then
+		keySystem:Destroy()
+	end
+	openMainMenu()
+end
+
+-- Prefill + auto-verify saved key
+do
+	local saved = loadSavedKey()
+	if saved then
+		keyInput.Text = saved
+		statusLabel.Text = "Saved key loaded..."
+		statusLabel.TextColor3 = Color3.fromRGB(180, 180, 190)
+		if isValidKey(saved) then
+			task.spawn(function()
+				task.wait(0.35)
+				acceptKey(saved, true)
+			end)
+		else
+			statusLabel.Text = "Saved key invalid — enter a new one"
+			statusLabel.TextColor3 = Color3.fromRGB(255, 140, 80)
+		end
+	end
+end
+
+local function setGetKeyOpen(open)
+	getKeyOpen = open
+	getKeyHeader.Arrow.Text = open and "^" or "v"
+	if open then
+		keyTween(getKeyDropdown, {Size = UDim2.new(1, -24, 0, 120)}, 0.18)
+		-- push Discord down while open
+		keyTween(discordBtn, {Position = UDim2.new(0, 12, 0, 275)}, 0.18)
+	else
+		keyTween(getKeyDropdown, {Size = UDim2.new(1, -24, 0, 36)}, 0.15)
+		keyTween(discordBtn, {Position = UDim2.new(0, 12, 0, 195)}, 0.15)
+	end
+end
+
+getKeyHeader.MouseButton1Click:Connect(function()
+	keyPop(getKeyHeader, 8)
+	setGetKeyOpen(not getKeyOpen)
+end)
+
+local function copyLink(url, label)
+	if setclipboard then
+		setclipboard(url)
+	end
+	pcall(function()
+		game:GetService("StarterGui"):SetCore("SendNotification", {
+			Title = "XEVOR",
+			Text = label .. " link copied!",
+			Duration = 4
+		})
+	end)
+	statusLabel.Text = label .. " link copied"
+	statusLabel.TextColor3 = Color3.fromRGB(180, 160, 255)
+	setGetKeyOpen(false)
+end
+
+getKeyList.Free24h.MouseButton1Click:Connect(function()
+	keyPop(getKeyList.Free24h, 6)
+	copyLink(LINK_FREE_24H, "24h Free")
+end)
+
+getKeyList.Lifetime.MouseButton1Click:Connect(function()
+	keyPop(getKeyList.Lifetime, 6)
+	copyLink(LINK_LIFETIME, "Lifetime")
+end)
 
 keySystem.Main.RightPanel.VerifyBtn.MouseButton1Click:Connect(function()
 	keyPop(keySystem.Main.RightPanel.VerifyBtn, 8)
-	local key = keyInput.Text:upper()
+	local key = keyInput.Text:gsub("%s+", ""):upper()
 
-	-- === YOUR KEY CHECK HERE ===
-	if key == "XEVOR-TEST-KEY-1234" or key == "VALIDKEY" then
-		statusLabel.Text = "Key Verified ✓"
-		statusLabel.TextColor3 = Color3.fromRGB(80, 255, 80)
-		wait(1.2)
-		keySystem:Destroy()
-		-- Open the main menu only after the key is accepted.
-		local Window = XevorLibrary.new("XEVOR", {
-			ToggleKey = Enum.KeyCode.RightControl
-		})
-		print("Key accepted! Main UI loaded. Press Right Ctrl to toggle it.")
+	if isValidKey(key) then
+		acceptKey(key, false)
 	else
 		statusLabel.Text = "Invalid Key ✕"
 		statusLabel.TextColor3 = Color3.fromRGB(255, 80, 80)
-		wait(2)
+		task.wait(2)
 		statusLabel.Text = "Enter Key"
 		statusLabel.TextColor3 = themes.TextColor
 	end
 end)
 
-keySystem.Main.RightPanel.GetKeyBtn.MouseButton1Click:Connect(function()
-	keyPop(keySystem.Main.RightPanel.GetKeyBtn, 8)
-	-- Open link
+discordBtn.MouseButton1Click:Connect(function()
+	keyPop(discordBtn, 8)
 	if setclipboard then
-		setclipboard("https://yourkeysite.com")
+		setclipboard(LINK_DISCORD)
 	end
-	game:GetService("StarterGui"):SetCore("SendNotification", {
-		Title = "XEVOR",
-		Text = "Link copied to clipboard!",
-		Duration = 4
-	})
+	pcall(function()
+		game:GetService("StarterGui"):SetCore("SendNotification", {
+			Title = "XEVOR",
+			Text = "Discord link copied!",
+			Duration = 4
+		})
+	end)
 end)
 
-keySystem.Main.RightPanel.DiscordBtn.MouseButton1Click:Connect(function()
-	keyPop(keySystem.Main.RightPanel.DiscordBtn, 8)
-	if setclipboard then
-		setclipboard("https://discord.gg/yourserver")
-	end
-	game:GetService("StarterGui"):SetCore("SendNotification", {
-		Title = "XEVOR",
-		Text = "Discord link copied!",
-		Duration = 4
-	})
-end)
-
-print("XEVOR Key System Loaded - BlackGray themed with changelogs")
+print("XEVOR Key System Loaded - key save + Get Key dropdown")
