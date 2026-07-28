@@ -1831,7 +1831,7 @@ do
 				Size = UDim2.new(0, 40, 0, 14),
 				ZIndex = 2,
 				Image = "rbxassetid://5028857472",
-				ImageColor3 = Color3.fromRGB(255, 255, 255),
+				ImageColor3 = default or Color3.fromRGB(255, 255, 255),
 				ScaleType = Enum.ScaleType.Slice,
 				SliceCenter = Rect.new(2, 2, 298, 298)
 			})
@@ -2101,6 +2101,21 @@ do
 		
 		utilityDraggingEnabled(tab)
 		table.insert(self.modules, colorpicker)
+		-- Prevent theme system from overwriting the color swatch
+		do
+			local swatch = colorpicker:FindFirstChild("Button")
+			if swatch then
+				for themeName, props in pairs(objects) do
+					for prop, list in pairs(props) do
+						for i = #list, 1, -1 do
+							if list[i] == swatch then
+								table.remove(list, i)
+							end
+						end
+					end
+				end
+			end
+		end
 		--self:Resize()
 		
 		local allowed = {
@@ -2310,11 +2325,17 @@ do
 		colorpicker.MouseButton1Click:Connect(toggleTab)
 		
 		tab.Container.Button.MouseButton1Click:Connect(function()
+			-- Commit current selection
+			lastColor = Color3.fromHSV(hue, sat, brightness)
+			self:UpdateColorPicker(colorpicker, nil, lastColor)
+			fireCallback(lastColor)
 			animate()
 		end)
 		
 		tab.Close.MouseButton1Click:Connect(function()
+			-- Revert to color from when the picker was opened
 			self:UpdateColorPicker(colorpicker, nil, lastColor)
+			fireCallback(lastColor)
 			animate()
 		end)
 		
@@ -2810,8 +2831,8 @@ do
 		colorpicker = self:GetModule(colorpicker)
 		
 		local picker = self.colorpickers[colorpicker]
+		if not picker then return end
 		local tab = picker.tab
-		local callback = picker.callback
 		
 		if title then
 			colorpicker.Title.Text = title
@@ -2821,7 +2842,7 @@ do
 		local color3
 		local hue, sat, brightness
 		
-		if type(color) == "table" then -- roblox is literally retarded x2
+		if type(color) == "table" then
 			hue, sat, brightness = unpack(color)
 			color3 = Color3.fromHSV(hue, sat, brightness)
 		else
@@ -2829,18 +2850,24 @@ do
 			hue, sat, brightness = Color3.toHSV(color3)
 		end
 		
-		utilityTween(colorpicker.Button, {ImageColor3 = color3}, 0.5)
-		utilityTween(tab.Container.Color.Select, {Position = UDim2.new(hue, 0, 0, 0)}, 0.1)
+		-- Force swatch color immediately so it never desyncs from the real value
+		local swatch = colorpicker:FindFirstChild("Button")
+		if swatch then
+			swatch.ImageColor3 = color3
+		end
 		
+		utilityTween(tab.Container.Color.Select, {Position = UDim2.new(hue, 0, 0, 0)}, 0.1)
 		utilityTween(tab.Container.Canvas, {ImageColor3 = Color3.fromHSV(hue, 1, 1)}, 0.5)
 		utilityTween(tab.Container.Canvas.Cursor, {Position = UDim2.new(sat, 0, 1 - brightness)}, 0.5)
 		
-		for i, container in pairs(tab.Container.Inputs:GetChildren()) do
+		for _, container in pairs(tab.Container.Inputs:GetChildren()) do
 			if container:IsA("ImageLabel") then
-				local value = math.clamp(color3[container.Name], 0, 1) * 255
-				
-				container.Textbox.Text = math.floor(value)
-				--callback(container.Name:lower(), value)
+				local channel = container.Name -- "R" / "G" / "B"
+				local value = math.clamp(color3[channel], 0, 1) * 255
+				local box = container:FindFirstChild("Textbox")
+				if box then
+					box.Text = tostring(math.floor(value + 0.5))
+				end
 			end
 		end
 	end
