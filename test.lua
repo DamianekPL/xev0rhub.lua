@@ -3638,11 +3638,18 @@ local function isValidKey(key)
 end
 
 local function openMainMenu()
-	local Window = XevorLibrary.new("XEVOR", {
-		ToggleKey = Enum.KeyCode.RightControl
-	})
-	print("Key accepted! Main UI loaded. Press Right Ctrl to toggle it.")
-	return Window
+	-- Library only — build pages in YOUR example script (not here).
+	getgenv().XEVOR_Verified = true
+	getgenv().XevorLibrary = XevorLibrary
+
+	-- Optional: set before loadstring to auto-run your hub after key:
+	--   getgenv().XEVOR_OnKey = function() ... end
+	if typeof(getgenv().XEVOR_OnKey) == "function" then
+		task.spawn(getgenv().XEVOR_OnKey)
+	else
+		print("[XEVOR] Key accepted. XevorLibrary is ready — add pages in your example script.")
+		print("[XEVOR] Tip: set getgenv().XEVOR_OnKey = function() ... end before loading.")
+	end
 end
 
 -- Button logic refs (needed before acceptKey)
