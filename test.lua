@@ -638,6 +638,54 @@ do
 						TextYAlignment = Enum.TextYAlignment.Center
 					})
 				}),
+				-- Notification strip (roll-down from watermark)
+				utilityCreate("Frame", {
+					Name = "NotifyPanel",
+					BackgroundColor3 = watermarkStatus,
+					BackgroundTransparency = 0,
+					BorderSizePixel = 0,
+					Position = UDim2.new(0, 0, 0, watermarkCollapsedHeight),
+					Size = UDim2.new(1, 0, 0, 0),
+					ZIndex = 4,
+					ClipsDescendants = true,
+					Visible = false
+				}, {
+					utilityCreate("Frame", {
+						Name = "Divider",
+						BackgroundColor3 = Color3.fromRGB(36, 36, 42),
+						BorderSizePixel = 0,
+						Position = UDim2.new(0, 10, 0, 0),
+						Size = UDim2.new(1, -20, 0, 1),
+						ZIndex = 5
+					}),
+					utilityCreate("TextLabel", {
+						Name = "Title",
+						BackgroundTransparency = 1,
+						Position = UDim2.new(0, 12, 0, 6),
+						Size = UDim2.new(1, -24, 0, 14),
+						ZIndex = 5,
+						Font = Enum.Font.GothamBold,
+						Text = "Notification",
+						TextColor3 = watermarkAccentPurple,
+						TextSize = 11,
+						TextXAlignment = Enum.TextXAlignment.Left,
+						TextTruncate = Enum.TextTruncate.AtEnd
+					}),
+					utilityCreate("TextLabel", {
+						Name = "Body",
+						BackgroundTransparency = 1,
+						Position = UDim2.new(0, 12, 0, 22),
+						Size = UDim2.new(1, -24, 0, 28),
+						ZIndex = 5,
+						Font = Enum.Font.Gotham,
+						Text = "",
+						TextColor3 = watermarkText,
+						TextSize = 11,
+						TextWrapped = true,
+						TextXAlignment = Enum.TextXAlignment.Left,
+						TextYAlignment = Enum.TextYAlignment.Top
+					})
+				}),
 				-- Expandable details panel
 				utilityCreate("Frame", {
 					Name = "Dropdown",
@@ -964,6 +1012,55 @@ do
 			window:Destroy()
 		end)
 		
+
+		-- Watermark notification roll-down
+		local notifyPanel = body:FindFirstChild("NotifyPanel")
+		local notifyToken = 0
+		local notifyHeight = 54
+
+		window._showWatermarkNotify = function(title, text, duration, callback)
+			if not notifyPanel then
+				if callback then task.defer(callback, true) end
+				return
+			end
+
+			notifyToken = notifyToken + 1
+			local token = notifyToken
+			duration = tonumber(duration) or 3
+
+			-- Hide details dropdown while showing notify
+			local wasExpanded = watermarkExpanded
+			if wasExpanded then
+				setWatermarkExpanded(false)
+			end
+
+			notifyPanel.Title.Text = tostring(title or "Notification")
+			notifyPanel.Body.Text = tostring(text or "")
+			notifyPanel.Visible = true
+			notifyPanel.Position = UDim2.new(0, 0, 0, watermarkCollapsedHeight)
+
+			utilityTween(notifyPanel, {Size = UDim2.new(1, 0, 0, notifyHeight)}, 0.18)
+			utilityTween(watermarkFrame, {
+				Size = UDim2.new(collapsedSize.X.Scale, collapsedSize.X.Offset, 0, watermarkCollapsedHeight + notifyHeight)
+			}, 0.18)
+
+			task.delay(duration, function()
+				if token ~= notifyToken then
+					return -- superseded by a newer notify
+				end
+				utilityTween(notifyPanel, {Size = UDim2.new(1, 0, 0, 0)}, 0.15)
+				utilityTween(watermarkFrame, {Size = collapsedSize}, 0.18)
+				task.delay(0.18, function()
+					if token == notifyToken then
+						notifyPanel.Visible = false
+						if callback then
+							pcall(callback, true)
+						end
+					end
+				end)
+			end)
+		end
+
 		return window
 	end
 	
@@ -1168,165 +1265,20 @@ do
 	-- new modules
 	
 	function library:Notify(title, text, callback)
-	
-		-- overwrite last notification
-		if self.activeNotification then
-			self.activeNotification = self.activeNotification()
-		end
-		
-		-- standard create
-		local notification = utilityCreate("ImageLabel", {
-			Name = "Notification",
-			Parent = self.container,
-			BackgroundTransparency = 1,
-			Size = UDim2.new(0, 200, 0, 60),
-			Image = "rbxassetid://5028857472",
-			ImageColor3 = themes.Background,
-			ScaleType = Enum.ScaleType.Slice,
-			SliceCenter = Rect.new(4, 4, 296, 296),
-			ZIndex = 3,
-			ClipsDescendants = true
-		}, {
-			utilityCreate("ImageLabel", {
-				Name = "Flash",
-				Size = UDim2.new(1, 0, 1, 0),
-				BackgroundTransparency = 1,
-				Image = "rbxassetid://4641149554",
-				ImageColor3 = themes.TextColor,
-				ZIndex = 5
-			}),
-			utilityCreate("ImageLabel", {
-				Name = "Glow",
-				BackgroundTransparency = 1,
-				Position = UDim2.new(0, -15, 0, -15),
-				Size = UDim2.new(1, 30, 1, 30),
-				ZIndex = 2,
-				Image = "rbxassetid://5028857084",
-				ImageColor3 = themes.Glow,
-				ScaleType = Enum.ScaleType.Slice,
-				SliceCenter = Rect.new(24, 24, 276, 276)
-			}),
-			utilityCreate("TextLabel", {
-				Name = "Title",
-				BackgroundTransparency = 1,
-				Position = UDim2.new(0, 10, 0, 8),
-				Size = UDim2.new(1, -40, 0, 16),
-				ZIndex = 4,
-				Font = Enum.Font.GothamSemibold,
-				TextColor3 = themes.TextColor,
-				TextSize = 14.000,
-				TextXAlignment = Enum.TextXAlignment.Left
-			}),
-			utilityCreate("TextLabel", {
-				Name = "Text",
-				BackgroundTransparency = 1,
-				Position = UDim2.new(0, 10, 1, -24),
-				Size = UDim2.new(1, -40, 0, 16),
-				ZIndex = 4,
-				Font = Enum.Font.Gotham,
-				TextColor3 = themes.TextColor,
-				TextSize = 12.000,
-				TextXAlignment = Enum.TextXAlignment.Left
-			}),
-			utilityCreate("ImageButton", {
-				Name = "Accept",
-				BackgroundTransparency = 1,
-				Position = UDim2.new(1, -26, 0, 8),
-				Size = UDim2.new(0, 16, 0, 16),
-				Image = "rbxassetid://5012538259",
-				ImageColor3 = themes.TextColor,
-				ZIndex = 4
-			}),
-			utilityCreate("ImageButton", {
-				Name = "Decline",
-				BackgroundTransparency = 1,
-				Position = UDim2.new(1, -26, 1, -24),
-				Size = UDim2.new(0, 16, 0, 16),
-				Image = "rbxassetid://5012538583",
-				ImageColor3 = themes.TextColor,
-				ZIndex = 4
-			})
-		})
-		
-		-- dragging
-		utilityDraggingEnabled(notification)
-		
-		-- position and size
+		-- Watermark roll-down notification (no floating popup / typing).
 		title = title or "Notification"
 		text = text or ""
-		
-		notification.Title.Text = title
-		notification.Text.Text = text
-		
-		local padding = 10
-		local textSize = game:GetService("TextService"):GetTextSize(text, 12, Enum.Font.Gotham, Vector2.new(math.huge, 16))
-		
-		notification.Position = library.lastNotification or UDim2.new(0, padding, 1, -(notification.AbsoluteSize.Y + padding))
-		notification.Size = UDim2.new(0, 0, 0, 60)
-		
-		utilityTween(notification, {Size = UDim2.new(0, textSize.X + 70, 0, 60)}, 0.2)
-		wait(0.2)
-		
-		notification.ClipsDescendants = false
-		utilityTween(notification.Flash, {
-			Size = UDim2.new(0, 0, 0, 60),
-			Position = UDim2.new(1, 0, 0, 0)
-		}, 0.2)
-		
-		-- callbacks
-		local active = true
-		local close = function()
-		
-			if not active then
-				return
+		if self._showWatermarkNotify then
+			self._showWatermarkNotify(title, text, 3, callback)
+		else
+			-- Fallback if watermark missing
+			warn("[XEVOR]", title, text)
+			if callback then
+				task.defer(callback, true)
 			end
-			
-			active = false
-			notification.ClipsDescendants = true
-			
-			library.lastNotification = notification.Position
-			notification.Flash.Position = UDim2.new(0, 0, 0, 0)
-			utilityTween(notification.Flash, {Size = UDim2.new(1, 0, 1, 0)}, 0.2)
-			
-			wait(0.2)
-			utilityTween(notification, {
-				Size = UDim2.new(0, 0, 0, 60),
-				Position = notification.Position + UDim2.new(0, textSize.X + 70, 0, 0)
-			}, 0.2)
-			
-			wait(0.2)
-			notification:Destroy()
 		end
-		
-		self.activeNotification = close
-		
-		notification.Accept.MouseButton1Click:Connect(function()
-		
-			if not active then 
-				return
-			end
-			
-			if callback then
-				callback(true)
-			end
-			
-			close()
-		end)
-		
-		notification.Decline.MouseButton1Click:Connect(function()
-		
-			if not active then 
-				return
-			end
-			
-			if callback then
-				callback(false)
-			end
-			
-			close()
-		end)
 	end
-	
+
 	function section:AddButton(title, callback)
 		local button = utilityCreate("ImageButton", {
 			Name = "Button",
@@ -2373,7 +2325,7 @@ do
 				ScaleType = Enum.ScaleType.Slice,
 				SliceCenter = Rect.new(2, 2, 298, 298)
 			}, {
-				utilityCreate("TextBox", {
+				utilityCreate("TextLabel", {
 					Name = "TextBox",
 					AnchorPoint = Vector2.new(0, 0.5),
 					BackgroundTransparency = 1,
@@ -2436,7 +2388,6 @@ do
 		--self:Resize()
 		
 		local search = dropdown.Search
-		local focused
 		
 		list = list or {}
 		
@@ -2448,26 +2399,7 @@ do
 			end
 		end)
 		
-		search.TextBox.Focused:Connect(function()
-			if search.Button.Rotation == 0 then
-				self:UpdateDropdown(dropdown, nil, list, callback)
-			end
-			
-			focused = true
-		end)
-		
-		search.TextBox.FocusLost:Connect(function()
-			focused = false
-		end)
-		
-		search.TextBox:GetPropertyChangedSignal("Text"):Connect(function()
-			if focused then
-				local list = utilitySort(search.TextBox.Text, list)
-				list = #list ~= 0 and list 
-				
-				self:UpdateDropdown(dropdown, nil, list, callback)
-			end
-		end)
+		-- typing/search disabled on dropdowns
 		
 		dropdown:GetPropertyChangedSignal("Size"):Connect(function()
 			self:Resize()
