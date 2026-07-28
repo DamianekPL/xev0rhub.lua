@@ -23,7 +23,7 @@ local ACCENT_PURPLE = Color3.fromRGB(180, 50, 255)
 local objects = {}
 local themes = {
 	Background = Color3.fromRGB(24, 24, 24), 
-	Glow = Color3.fromRGB(140, 40, 200), -- outline glow (visible behind menu/watermark) 
+	Glow = Color3.fromRGB(0, 0, 0), 
 	Accent = Color3.fromRGB(10, 10, 10), 
 	LightContrast = Color3.fromRGB(20, 20, 20), 
 	DarkContrast = Color3.fromRGB(14, 14, 14),  
@@ -255,110 +255,6 @@ do
 		end
 	end
 
-	-- Soft multi-layer bloom BEHIND main menu + watermark (no hard border).
-	-- SetGlow(enabled, color?)
-	-- SetGlow({ Enabled, Color, Size, Brightness, Softness })
-	--   Size 1-100      → how far the shine spreads outward
-	--   Brightness 1-100 → overall intensity
-	--   Softness 1-100   → how faded/blurry the falloff is
-	function library:SetGlow(enabledOrOpts, color)
-		local opts = {}
-		if type(enabledOrOpts) == "table" then
-			opts = enabledOrOpts
-		else
-			opts.Enabled = enabledOrOpts
-			opts.Color = color
-		end
-
-		self._glowState = self._glowState or {
-			Enabled = true,
-			Color = themes.Glow,
-			Size = 60,
-			Brightness = 80,
-			Softness = 70,
-		}
-		local st = self._glowState
-		if opts.Enabled ~= nil then st.Enabled = opts.Enabled == true end
-		if typeof(opts.Color) == "Color3" then st.Color = opts.Color end
-		if tonumber(opts.Size) then st.Size = math.clamp(tonumber(opts.Size), 1, 100) end
-		if tonumber(opts.Brightness) then st.Brightness = math.clamp(tonumber(opts.Brightness), 1, 100) end
-		if tonumber(opts.Softness) then st.Softness = math.clamp(tonumber(opts.Softness), 1, 100) end
-
-		themes.Glow = st.Color
-
-		local sizeT = st.Size / 100
-		local bright = st.Brightness / 100
-		local softN = st.Softness / 100
-		-- smooth brightness so it stays faded, not neon-solid
-		local intensity = bright * bright * (3 - 2 * bright)
-
-		-- 5 soft layers: inner (tighter/brighter) → outer (wider/fainter)
-		-- pad grows with Size; Softness pushes more energy into outer layers
-		local layers = {
-			{ name = "Glow1", pad = 4  + sizeT * 8,  weight = 0.55 - softN * 0.15 },
-			{ name = "Glow2", pad = 10 + sizeT * 14, weight = 0.40 - softN * 0.05 },
-			{ name = "Glow3", pad = 18 + sizeT * 22, weight = 0.28 + softN * 0.05 },
-			{ name = "Glow4", pad = 28 + sizeT * 32, weight = 0.18 + softN * 0.10 },
-			{ name = "Glow5", pad = 40 + sizeT * 48, weight = 0.10 + softN * 0.12 },
-		}
-
-		local function ensureLayer(parent, name)
-			if not parent then return nil end
-			local g = parent:FindFirstChild(name)
-			if not g then
-				g = Instance.new("ImageLabel")
-				g.Name = name
-				g.BackgroundTransparency = 1
-				g.BorderSizePixel = 0
-				g.ZIndex = 0
-				g.Image = "rbxassetid://5028857084"
-				g.ScaleType = Enum.ScaleType.Slice
-				g.SliceCenter = Rect.new(24, 24, 276, 276)
-				g.Parent = parent
-			end
-			return g
-		end
-
-		local function apply(parent, isWatermark)
-			if not parent then return end
-
-			-- kill hard border stroke — real glow is soft bloom only
-			local strokeParent = isWatermark and (parent:FindFirstChild("Body") or parent) or parent
-			local stroke = strokeParent and strokeParent:FindFirstChild("OutlineGlow")
-			if stroke and stroke:IsA("UIStroke") then
-				stroke.Enabled = false
-				stroke.Transparency = 1
-			end
-			-- hide legacy single-layer names
-			for _, legacy in ipairs({ "Glow", "GlowOuter" }) do
-				local old = parent:FindFirstChild(legacy)
-				if old then old.Visible = false end
-			end
-
-			for _, layer in ipairs(layers) do
-				local g = ensureLayer(parent, layer.name)
-				if g then
-					local pad = math.floor(layer.pad + 0.5)
-					-- transparency: lower weight + softness → more faded
-					local baseT = 1 - (layer.weight * intensity)
-					-- keep a floor so even max brightness stays slightly soft
-					local t = st.Enabled and math.clamp(baseT, 0.15, 0.97) or 1
-					g.Visible = st.Enabled
-					g.ImageColor3 = st.Color
-					g.ImageTransparency = t
-					g.Position = UDim2.new(0, -pad, 0, -pad)
-					g.Size = UDim2.new(1, pad * 2, 1, pad * 2)
-				end
-			end
-		end
-
-		local main = self.container and self.container:FindFirstChild("Main")
-		apply(main, false)
-		if self.watermark then
-			apply(self.watermark:FindFirstChild("Watermark"), true)
-		end
-	end
-
 	-- Updates only the supplied watermark values, so it is safe to call from
 	-- sliders and color-picker callbacks while the hub is open.
 	function library:SetWatermarkStyle(style)
@@ -418,11 +314,13 @@ do
 				status.BackgroundColor3 = style.StatusColor
 			end
 		end
-		if style.Glow ~= nil or typeof(style.GlowColor) == "Color3" then
-			local gOpts = {}
-			if style.Glow ~= nil then gOpts.Enabled = style.Glow == true end
-			if typeof(style.GlowColor) == "Color3" then gOpts.Color = style.GlowColor end
-			self:SetGlow(gOpts)
+		if glow then
+			if style.Glow ~= nil then
+				glow.Visible = style.Glow == true
+			end
+			if typeof(style.GlowColor) == "Color3" then
+				glow.ImageColor3 = style.GlowColor
+			end
 		end
 		if accentLine then
 			if style.AccentLine ~= nil then
@@ -534,74 +432,16 @@ do
 				ScaleType = Enum.ScaleType.Slice,
 				SliceCenter = Rect.new(4, 4, 296, 296)
 			}, {
-				-- Soft multi-layer bloom behind panel (no hard border)
 				utilityCreate("ImageLabel", {
-					Name = "Glow1",
+					Name = "Glow",
 					BackgroundTransparency = 1,
-					Position = UDim2.new(0, -6, 0, -6),
-					Size = UDim2.new(1, 12, 1, 12),
+					Position = UDim2.new(0, -15, 0, -15),
+					Size = UDim2.new(1, 30, 1, 30),
 					ZIndex = 0,
 					Image = "rbxassetid://5028857084",
 					ImageColor3 = themes.Glow,
-					ImageTransparency = 0.55,
 					ScaleType = Enum.ScaleType.Slice,
 					SliceCenter = Rect.new(24, 24, 276, 276)
-				}),
-				utilityCreate("ImageLabel", {
-					Name = "Glow2",
-					BackgroundTransparency = 1,
-					Position = UDim2.new(0, -14, 0, -14),
-					Size = UDim2.new(1, 28, 1, 28),
-					ZIndex = 0,
-					Image = "rbxassetid://5028857084",
-					ImageColor3 = themes.Glow,
-					ImageTransparency = 0.68,
-					ScaleType = Enum.ScaleType.Slice,
-					SliceCenter = Rect.new(24, 24, 276, 276)
-				}),
-				utilityCreate("ImageLabel", {
-					Name = "Glow3",
-					BackgroundTransparency = 1,
-					Position = UDim2.new(0, -24, 0, -24),
-					Size = UDim2.new(1, 48, 1, 48),
-					ZIndex = 0,
-					Image = "rbxassetid://5028857084",
-					ImageColor3 = themes.Glow,
-					ImageTransparency = 0.78,
-					ScaleType = Enum.ScaleType.Slice,
-					SliceCenter = Rect.new(24, 24, 276, 276)
-				}),
-				utilityCreate("ImageLabel", {
-					Name = "Glow4",
-					BackgroundTransparency = 1,
-					Position = UDim2.new(0, -36, 0, -36),
-					Size = UDim2.new(1, 72, 1, 72),
-					ZIndex = 0,
-					Image = "rbxassetid://5028857084",
-					ImageColor3 = themes.Glow,
-					ImageTransparency = 0.86,
-					ScaleType = Enum.ScaleType.Slice,
-					SliceCenter = Rect.new(24, 24, 276, 276)
-				}),
-				utilityCreate("ImageLabel", {
-					Name = "Glow5",
-					BackgroundTransparency = 1,
-					Position = UDim2.new(0, -52, 0, -52),
-					Size = UDim2.new(1, 104, 1, 104),
-					ZIndex = 0,
-					Image = "rbxassetid://5028857084",
-					ImageColor3 = themes.Glow,
-					ImageTransparency = 0.92,
-					ScaleType = Enum.ScaleType.Slice,
-					SliceCenter = Rect.new(24, 24, 276, 276)
-				}),
-				utilityCreate("UIStroke", {
-					Name = "OutlineGlow",
-					Color = themes.Glow,
-					Thickness = 1,
-					Transparency = 1,
-					Enabled = false,
-					ApplyStrokeMode = Enum.ApplyStrokeMode.Border
 				}),
 				utilityCreate("ImageLabel", {
 				Name = "Pages",
@@ -704,71 +544,17 @@ do
 			ZIndex = 2
 		}, {
 			utilityCreate("ImageLabel", {
-				Name = "Glow1",
+				Name = "Glow",
 				BackgroundTransparency = 1,
-				Position = UDim2.new(0, -5, 0, -5),
-				Size = UDim2.new(1, 10, 1, 10),
-				ZIndex = 0,
+				Position = UDim2.new(0, -7, 0, -7),
+				Size = UDim2.new(1, 14, 1, 14),
+				ZIndex = 1,
 				Visible = watermarkShowGlow,
 				Image = "rbxassetid://5028857084",
 				ImageColor3 = watermarkGlow,
-				ImageTransparency = 0.55,
 				ScaleType = Enum.ScaleType.Slice,
 				SliceCenter = Rect.new(24, 24, 276, 276)
 			}),
-			utilityCreate("ImageLabel", {
-				Name = "Glow2",
-				BackgroundTransparency = 1,
-				Position = UDim2.new(0, -12, 0, -12),
-				Size = UDim2.new(1, 24, 1, 24),
-				ZIndex = 0,
-				Visible = watermarkShowGlow,
-				Image = "rbxassetid://5028857084",
-				ImageColor3 = watermarkGlow,
-				ImageTransparency = 0.68,
-				ScaleType = Enum.ScaleType.Slice,
-				SliceCenter = Rect.new(24, 24, 276, 276)
-			}),
-			utilityCreate("ImageLabel", {
-				Name = "Glow3",
-				BackgroundTransparency = 1,
-				Position = UDim2.new(0, -20, 0, -20),
-				Size = UDim2.new(1, 40, 1, 40),
-				ZIndex = 0,
-				Visible = watermarkShowGlow,
-				Image = "rbxassetid://5028857084",
-				ImageColor3 = watermarkGlow,
-				ImageTransparency = 0.78,
-				ScaleType = Enum.ScaleType.Slice,
-				SliceCenter = Rect.new(24, 24, 276, 276)
-			}),
-			utilityCreate("ImageLabel", {
-				Name = "Glow4",
-				BackgroundTransparency = 1,
-				Position = UDim2.new(0, -30, 0, -30),
-				Size = UDim2.new(1, 60, 1, 60),
-				ZIndex = 0,
-				Visible = watermarkShowGlow,
-				Image = "rbxassetid://5028857084",
-				ImageColor3 = watermarkGlow,
-				ImageTransparency = 0.86,
-				ScaleType = Enum.ScaleType.Slice,
-				SliceCenter = Rect.new(24, 24, 276, 276)
-			}),
-			utilityCreate("ImageLabel", {
-				Name = "Glow5",
-				BackgroundTransparency = 1,
-				Position = UDim2.new(0, -42, 0, -42),
-				Size = UDim2.new(1, 84, 1, 84),
-				ZIndex = 0,
-				Visible = watermarkShowGlow,
-				Image = "rbxassetid://5028857084",
-				ImageColor3 = watermarkGlow,
-				ImageTransparency = 0.92,
-				ScaleType = Enum.ScaleType.Slice,
-				SliceCenter = Rect.new(24, 24, 276, 276)
-			}),
-
 			utilityCreate("CanvasGroup", {
 				Name = "Body",
 				BackgroundColor3 = watermarkBackground,
@@ -779,14 +565,6 @@ do
 			}, {
 				utilityCreate("UICorner", {
 					CornerRadius = UDim.new(0, 8)
-				}),
-				utilityCreate("UIStroke", {
-					Name = "OutlineGlow",
-					Color = watermarkGlow,
-					Thickness = 1,
-					Transparency = 1,
-					Enabled = false,
-					ApplyStrokeMode = Enum.ApplyStrokeMode.Border
 				}),
 				-- Title bar (XEVOR + expand) — also drag handle
 				utilityCreate("Frame", {
@@ -858,54 +636,6 @@ do
 						TextTruncate = Enum.TextTruncate.AtEnd,
 						TextXAlignment = Enum.TextXAlignment.Left,
 						TextYAlignment = Enum.TextYAlignment.Center
-					})
-				}),
-				-- Notification strip (roll-down from watermark)
-				utilityCreate("Frame", {
-					Name = "NotifyPanel",
-					BackgroundColor3 = watermarkStatus,
-					BackgroundTransparency = 0,
-					BorderSizePixel = 0,
-					Position = UDim2.new(0, 0, 0, watermarkCollapsedHeight),
-					Size = UDim2.new(1, 0, 0, 0),
-					ZIndex = 4,
-					ClipsDescendants = true,
-					Visible = false
-				}, {
-					utilityCreate("Frame", {
-						Name = "Divider",
-						BackgroundColor3 = Color3.fromRGB(36, 36, 42),
-						BorderSizePixel = 0,
-						Position = UDim2.new(0, 10, 0, 0),
-						Size = UDim2.new(1, -20, 0, 1),
-						ZIndex = 5
-					}),
-					utilityCreate("TextLabel", {
-						Name = "Title",
-						BackgroundTransparency = 1,
-						Position = UDim2.new(0, 12, 0, 6),
-						Size = UDim2.new(1, -24, 0, 14),
-						ZIndex = 5,
-						Font = Enum.Font.GothamBold,
-						Text = "Notification",
-						TextColor3 = watermarkAccentPurple,
-						TextSize = 11,
-						TextXAlignment = Enum.TextXAlignment.Left,
-						TextTruncate = Enum.TextTruncate.AtEnd
-					}),
-					utilityCreate("TextLabel", {
-						Name = "Body",
-						BackgroundTransparency = 1,
-						Position = UDim2.new(0, 12, 0, 22),
-						Size = UDim2.new(1, -24, 0, 28),
-						ZIndex = 5,
-						Font = Enum.Font.Gotham,
-						Text = "",
-						TextColor3 = watermarkText,
-						TextSize = 11,
-						TextWrapped = true,
-						TextXAlignment = Enum.TextXAlignment.Left,
-						TextYAlignment = Enum.TextYAlignment.Top
 					})
 				}),
 				-- Expandable details panel
@@ -1043,13 +773,6 @@ do
 		}, library)
 
 		window:SetToggleKey(options.ToggleKey or Enum.KeyCode.RightShift)
-		-- Build initial soft bloom layers
-		window:SetGlow({
-			Enabled = watermarkShowGlow ~= false,
-			Color = themes.Glow,
-			Size = 55,
-			Brightness = 75,
-		})
 
 		local sessionStart = os.clock()
 		local placeName = game.Name
@@ -1241,102 +964,6 @@ do
 			window:Destroy()
 		end)
 		
-
-		-- Watermark notification roll-down
-		local notifyPanel = body:FindFirstChild("NotifyPanel")
-		local notifyToken = 0
-		local notifyHeight = 54
-
-		local NOTIFY_STYLES = {
-			success = {
-				color = watermarkAccentPurple,
-				sound = "rbxassetid://4590657391", -- soft UI chime
-			},
-			good = {
-				color = watermarkAccentPurple,
-				sound = "rbxassetid://4590657391",
-			},
-			warning = {
-				color = Color3.fromRGB(255, 196, 48),
-				sound = "rbxassetid://4590658115",
-			},
-			warn = {
-				color = Color3.fromRGB(255, 196, 48),
-				sound = "rbxassetid://4590658115",
-			},
-			error = {
-				color = Color3.fromRGB(255, 72, 72),
-				sound = "rbxassetid://4590659233",
-			},
-		}
-
-		local function playNotifySound(soundId)
-			pcall(function()
-				local s = Instance.new("Sound")
-				s.Name = "XEVOR_NotifySound"
-				s.SoundId = soundId
-				s.Volume = 0.55
-				s.PlaybackSpeed = 1
-				s.Parent = watermark -- plays even if menu is hidden
-				s:Play()
-				s.Ended:Connect(function()
-					s:Destroy()
-				end)
-				task.delay(4, function()
-					if s and s.Parent then s:Destroy() end
-				end)
-			end)
-		end
-
-		window._showWatermarkNotify = function(title, text, duration, callback, kind)
-			if not notifyPanel then
-				if callback then task.defer(callback, true) end
-				return
-			end
-
-			kind = string.lower(tostring(kind or "success"))
-			local style = NOTIFY_STYLES[kind] or NOTIFY_STYLES.success
-			local accent = style.color
-
-			notifyToken = notifyToken + 1
-			local token = notifyToken
-			duration = tonumber(duration) or 3
-
-			-- Hide details dropdown while showing notify
-			if watermarkExpanded then
-				setWatermarkExpanded(false)
-			end
-
-			notifyPanel.Title.Text = tostring(title or "Notification")
-			notifyPanel.Title.TextColor3 = accent
-			notifyPanel.Body.Text = tostring(text or "")
-			notifyPanel.Visible = true
-			notifyPanel.Position = UDim2.new(0, 0, 0, watermarkCollapsedHeight)
-
-			playNotifySound(style.sound)
-
-			utilityTween(notifyPanel, {Size = UDim2.new(1, 0, 0, notifyHeight)}, 0.18)
-			utilityTween(watermarkFrame, {
-				Size = UDim2.new(collapsedSize.X.Scale, collapsedSize.X.Offset, 0, watermarkCollapsedHeight + notifyHeight)
-			}, 0.18)
-
-			task.delay(duration, function()
-				if token ~= notifyToken then
-					return -- superseded by a newer notify
-				end
-				utilityTween(notifyPanel, {Size = UDim2.new(1, 0, 0, 0)}, 0.15)
-				utilityTween(watermarkFrame, {Size = collapsedSize}, 0.18)
-				task.delay(0.18, function()
-					if token == notifyToken then
-						notifyPanel.Visible = false
-						if callback then
-							pcall(callback, true)
-						end
-					end
-				end)
-			end)
-		end
-
 		return window
 	end
 	
@@ -1540,35 +1167,166 @@ do
 	
 	-- new modules
 	
-	function library:Notify(title, text, callbackOrKind, kind)
-		-- Watermark roll-down notification with type + sound.
-		-- Usage:
-		--   Window:Notify("Title", "Message")
-		--   Window:Notify("Title", "Message", "warning")
-		--   Window:Notify("Title", "Message", "error")
-		--   Window:Notify("Title", "Message", callback, "success")
+	function library:Notify(title, text, callback)
+	
+		-- overwrite last notification
+		if self.activeNotification then
+			self.activeNotification = self.activeNotification()
+		end
+		
+		-- standard create
+		local notification = utilityCreate("ImageLabel", {
+			Name = "Notification",
+			Parent = self.container,
+			BackgroundTransparency = 1,
+			Size = UDim2.new(0, 200, 0, 60),
+			Image = "rbxassetid://5028857472",
+			ImageColor3 = themes.Background,
+			ScaleType = Enum.ScaleType.Slice,
+			SliceCenter = Rect.new(4, 4, 296, 296),
+			ZIndex = 3,
+			ClipsDescendants = true
+		}, {
+			utilityCreate("ImageLabel", {
+				Name = "Flash",
+				Size = UDim2.new(1, 0, 1, 0),
+				BackgroundTransparency = 1,
+				Image = "rbxassetid://4641149554",
+				ImageColor3 = themes.TextColor,
+				ZIndex = 5
+			}),
+			utilityCreate("ImageLabel", {
+				Name = "Glow",
+				BackgroundTransparency = 1,
+				Position = UDim2.new(0, -15, 0, -15),
+				Size = UDim2.new(1, 30, 1, 30),
+				ZIndex = 2,
+				Image = "rbxassetid://5028857084",
+				ImageColor3 = themes.Glow,
+				ScaleType = Enum.ScaleType.Slice,
+				SliceCenter = Rect.new(24, 24, 276, 276)
+			}),
+			utilityCreate("TextLabel", {
+				Name = "Title",
+				BackgroundTransparency = 1,
+				Position = UDim2.new(0, 10, 0, 8),
+				Size = UDim2.new(1, -40, 0, 16),
+				ZIndex = 4,
+				Font = Enum.Font.GothamSemibold,
+				TextColor3 = themes.TextColor,
+				TextSize = 14.000,
+				TextXAlignment = Enum.TextXAlignment.Left
+			}),
+			utilityCreate("TextLabel", {
+				Name = "Text",
+				BackgroundTransparency = 1,
+				Position = UDim2.new(0, 10, 1, -24),
+				Size = UDim2.new(1, -40, 0, 16),
+				ZIndex = 4,
+				Font = Enum.Font.Gotham,
+				TextColor3 = themes.TextColor,
+				TextSize = 12.000,
+				TextXAlignment = Enum.TextXAlignment.Left
+			}),
+			utilityCreate("ImageButton", {
+				Name = "Accept",
+				BackgroundTransparency = 1,
+				Position = UDim2.new(1, -26, 0, 8),
+				Size = UDim2.new(0, 16, 0, 16),
+				Image = "rbxassetid://5012538259",
+				ImageColor3 = themes.TextColor,
+				ZIndex = 4
+			}),
+			utilityCreate("ImageButton", {
+				Name = "Decline",
+				BackgroundTransparency = 1,
+				Position = UDim2.new(1, -26, 1, -24),
+				Size = UDim2.new(0, 16, 0, 16),
+				Image = "rbxassetid://5012538583",
+				ImageColor3 = themes.TextColor,
+				ZIndex = 4
+			})
+		})
+		
+		-- dragging
+		utilityDraggingEnabled(notification)
+		
+		-- position and size
 		title = title or "Notification"
 		text = text or ""
-		local callback
-		local notifyKind = "success"
-		if typeof(callbackOrKind) == "function" then
-			callback = callbackOrKind
-			if typeof(kind) == "string" then
-				notifyKind = kind
+		
+		notification.Title.Text = title
+		notification.Text.Text = text
+		
+		local padding = 10
+		local textSize = game:GetService("TextService"):GetTextSize(text, 12, Enum.Font.Gotham, Vector2.new(math.huge, 16))
+		
+		notification.Position = library.lastNotification or UDim2.new(0, padding, 1, -(notification.AbsoluteSize.Y + padding))
+		notification.Size = UDim2.new(0, 0, 0, 60)
+		
+		utilityTween(notification, {Size = UDim2.new(0, textSize.X + 70, 0, 60)}, 0.2)
+		wait(0.2)
+		
+		notification.ClipsDescendants = false
+		utilityTween(notification.Flash, {
+			Size = UDim2.new(0, 0, 0, 60),
+			Position = UDim2.new(1, 0, 0, 0)
+		}, 0.2)
+		
+		-- callbacks
+		local active = true
+		local close = function()
+		
+			if not active then
+				return
 			end
-		elseif typeof(callbackOrKind) == "string" then
-			notifyKind = callbackOrKind
+			
+			active = false
+			notification.ClipsDescendants = true
+			
+			library.lastNotification = notification.Position
+			notification.Flash.Position = UDim2.new(0, 0, 0, 0)
+			utilityTween(notification.Flash, {Size = UDim2.new(1, 0, 1, 0)}, 0.2)
+			
+			wait(0.2)
+			utilityTween(notification, {
+				Size = UDim2.new(0, 0, 0, 60),
+				Position = notification.Position + UDim2.new(0, textSize.X + 70, 0, 0)
+			}, 0.2)
+			
+			wait(0.2)
+			notification:Destroy()
 		end
-		if self._showWatermarkNotify then
-			self._showWatermarkNotify(title, text, 3, callback, notifyKind)
-		else
-			warn("[XEVOR]", title, text)
+		
+		self.activeNotification = close
+		
+		notification.Accept.MouseButton1Click:Connect(function()
+		
+			if not active then 
+				return
+			end
+			
 			if callback then
-				task.defer(callback, true)
+				callback(true)
 			end
-		end
+			
+			close()
+		end)
+		
+		notification.Decline.MouseButton1Click:Connect(function()
+		
+			if not active then 
+				return
+			end
+			
+			if callback then
+				callback(false)
+			end
+			
+			close()
+		end)
 	end
-
+	
 	function section:AddButton(title, callback)
 		local button = utilityCreate("ImageButton", {
 			Name = "Button",
@@ -2615,7 +2373,7 @@ do
 				ScaleType = Enum.ScaleType.Slice,
 				SliceCenter = Rect.new(2, 2, 298, 298)
 			}, {
-				utilityCreate("TextLabel", {
+				utilityCreate("TextBox", {
 					Name = "TextBox",
 					AnchorPoint = Vector2.new(0, 0.5),
 					BackgroundTransparency = 1,
@@ -2678,6 +2436,7 @@ do
 		--self:Resize()
 		
 		local search = dropdown.Search
+		local focused
 		
 		list = list or {}
 		
@@ -2689,7 +2448,26 @@ do
 			end
 		end)
 		
-		-- typing/search disabled on dropdowns
+		search.TextBox.Focused:Connect(function()
+			if search.Button.Rotation == 0 then
+				self:UpdateDropdown(dropdown, nil, list, callback)
+			end
+			
+			focused = true
+		end)
+		
+		search.TextBox.FocusLost:Connect(function()
+			focused = false
+		end)
+		
+		search.TextBox:GetPropertyChangedSignal("Text"):Connect(function()
+			if focused then
+				local list = utilitySort(search.TextBox.Text, list)
+				list = #list ~= 0 and list 
+				
+				self:UpdateDropdown(dropdown, nil, list, callback)
+			end
+		end)
 		
 		dropdown:GetPropertyChangedSignal("Size"):Connect(function()
 			self:Resize()
