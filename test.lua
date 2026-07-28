@@ -255,12 +255,9 @@ do
 		end
 	end
 
-	-- Soft multi-layer bloom BEHIND main menu + watermark (no hard border).
+	-- Filled soft glow BEHIND main menu + watermark (faded haze, not nested borders).
 	-- SetGlow(enabled, color?)
 	-- SetGlow({ Enabled, Color, Size, Brightness, Softness })
-	--   Size 1-100      → how far the shine spreads outward
-	--   Brightness 1-100 → overall intensity
-	--   Softness 1-100   → how faded/blurry the falloff is
 	function library:SetGlow(enabledOrOpts, color)
 		local opts = {}
 		if type(enabledOrOpts) == "table" then
@@ -273,9 +270,9 @@ do
 		self._glowState = self._glowState or {
 			Enabled = true,
 			Color = themes.Glow,
-			Size = 60,
-			Brightness = 80,
-			Softness = 70,
+			Size = 55,
+			Brightness = 70,
+			Softness = 65,
 		}
 		local st = self._glowState
 		if opts.Enabled ~= nil then st.Enabled = opts.Enabled == true end
@@ -289,73 +286,82 @@ do
 		local sizeT = st.Size / 100
 		local bright = st.Brightness / 100
 		local softN = st.Softness / 100
-		-- smooth brightness so it stays faded, not neon-solid
-		local intensity = bright * bright * (3 - 2 * bright)
+		local intensity = bright * bright * (3 - 2 * bright) -- smoothstep
 
-		-- 5 soft layers: inner (tighter/brighter) → outer (wider/fainter)
-		-- pad grows with Size; Softness pushes more energy into outer layers
-		local layers = {
-			{ name = "Glow1", pad = 4  + sizeT * 8,  weight = 0.55 - softN * 0.15 },
-			{ name = "Glow2", pad = 10 + sizeT * 14, weight = 0.40 - softN * 0.05 },
-			{ name = "Glow3", pad = 18 + sizeT * 22, weight = 0.28 + softN * 0.05 },
-			{ name = "Glow4", pad = 28 + sizeT * 32, weight = 0.18 + softN * 0.10 },
-			{ name = "Glow5", pad = 40 + sizeT * 48, weight = 0.10 + softN * 0.12 },
+		-- Filled rounded layers (not 9-slice borders) — outer more transparent
+		-- Softness spreads weight to outer layers for a hazier falloff
+		local specs = {
+			{ name = "GlowFill1", padMul = 0.12, baseT = 0.78 },
+			{ name = "GlowFill2", padMul = 0.28, baseT = 0.86 },
+			{ name = "GlowFill3", padMul = 0.48, baseT = 0.91 },
+			{ name = "GlowFill4", padMul = 0.72, baseT = 0.95 },
+			{ name = "GlowFill5", padMul = 1.00, baseT = 0.97 },
 		}
+		local maxPad = 8 + sizeT * 36 -- ~8..44 px outward
 
-		local function ensureLayer(parent, name)
+		local function ensureFill(parent, name, corner)
 			if not parent then return nil end
 			local g = parent:FindFirstChild(name)
 			if not g then
-				g = Instance.new("ImageLabel")
+				g = Instance.new("Frame")
 				g.Name = name
-				g.BackgroundTransparency = 1
 				g.BorderSizePixel = 0
 				g.ZIndex = 0
-				g.Image = "rbxassetid://5028857084"
-				g.ScaleType = Enum.ScaleType.Slice
-				g.SliceCenter = Rect.new(24, 24, 276, 276)
+				g.BackgroundColor3 = st.Color
+				local c = Instance.new("UICorner")
+				c.Name = "Corner"
+				c.CornerRadius = UDim.new(0, corner or 10)
+				c.Parent = g
 				g.Parent = parent
 			end
 			return g
 		end
 
-		local function apply(parent, isWatermark)
-			if not parent then return end
-
-			-- kill hard border stroke — real glow is soft bloom only
-			local strokeParent = isWatermark and (parent:FindFirstChild("Body") or parent) or parent
-			local stroke = strokeParent and strokeParent:FindFirstChild("OutlineGlow")
+		local function hideLegacy(parent)
+			for _, n in ipairs({
+				"Glow", "GlowOuter", "Glow1", "Glow2", "Glow3", "Glow4", "Glow5",
+			}) do
+				local old = parent:FindFirstChild(n)
+				if old then old.Visible = false end
+			end
+			local strokeParent = parent:FindFirstChild("Body") or parent
+			local stroke = strokeParent:FindFirstChild("OutlineGlow")
 			if stroke and stroke:IsA("UIStroke") then
 				stroke.Enabled = false
 				stroke.Transparency = 1
 			end
-			-- hide legacy single-layer names
-			for _, legacy in ipairs({ "Glow", "GlowOuter" }) do
-				local old = parent:FindFirstChild(legacy)
-				if old then old.Visible = false end
-			end
+		end
 
-			for _, layer in ipairs(layers) do
-				local g = ensureLayer(parent, layer.name)
+		local function apply(parent, corner)
+			if not parent then return end
+			hideLegacy(parent)
+
+			for i, spec in ipairs(specs) do
+				local g = ensureFill(parent, spec.name, corner + math.floor(spec.padMul * maxPad * 0.35))
 				if g then
-					local pad = math.floor(layer.pad + 0.5)
-					-- transparency: lower weight + softness → more faded
-					local baseT = 1 - (layer.weight * intensity)
-					-- keep a floor so even max brightness stays slightly soft
-					local t = st.Enabled and math.clamp(baseT, 0.15, 0.97) or 1
+					local pad = math.floor(spec.padMul * maxPad + 0.5)
+					-- higher softness → outer layers a bit more visible, inner softer
+					local softBoost = (i / #specs) * softN * 0.08
+					local t = spec.baseT - intensity * (0.22 - softBoost)
+					t = math.clamp(t, 0.55, 0.985)
+					if not st.Enabled then t = 1 end
 					g.Visible = st.Enabled
-					g.ImageColor3 = st.Color
-					g.ImageTransparency = t
+					g.BackgroundColor3 = st.Color
+					g.BackgroundTransparency = t
 					g.Position = UDim2.new(0, -pad, 0, -pad)
 					g.Size = UDim2.new(1, pad * 2, 1, pad * 2)
+					local c = g:FindFirstChild("Corner")
+					if c then
+						c.CornerRadius = UDim.new(0, corner + math.floor(pad * 0.35))
+					end
 				end
 			end
 		end
 
 		local main = self.container and self.container:FindFirstChild("Main")
-		apply(main, false)
+		apply(main, 8)
 		if self.watermark then
-			apply(self.watermark:FindFirstChild("Watermark"), true)
+			apply(self.watermark:FindFirstChild("Watermark"), 8)
 		end
 	end
 
@@ -534,66 +540,71 @@ do
 				ScaleType = Enum.ScaleType.Slice,
 				SliceCenter = Rect.new(4, 4, 296, 296)
 			}, {
-				-- Soft multi-layer bloom behind panel (no hard border)
-				utilityCreate("ImageLabel", {
-					Name = "Glow1",
-					BackgroundTransparency = 1,
+				-- Filled faded glow behind panel
+				utilityCreate("Frame", {
+					Name = "GlowFill1",
+					BackgroundColor3 = themes.Glow,
+					BackgroundTransparency = 0.82,
+					BorderSizePixel = 0,
 					Position = UDim2.new(0, -6, 0, -6),
 					Size = UDim2.new(1, 12, 1, 12),
 					ZIndex = 0,
-					Image = "rbxassetid://5028857084",
-					ImageColor3 = themes.Glow,
-					ImageTransparency = 0.55,
-					ScaleType = Enum.ScaleType.Slice,
-					SliceCenter = Rect.new(24, 24, 276, 276)
+				}, {
+					utilityCreate("UICorner", {
+						CornerRadius = UDim.new(0, 10)
+					})
 				}),
-				utilityCreate("ImageLabel", {
-					Name = "Glow2",
-					BackgroundTransparency = 1,
+				utilityCreate("Frame", {
+					Name = "GlowFill2",
+					BackgroundColor3 = themes.Glow,
+					BackgroundTransparency = 0.88,
+					BorderSizePixel = 0,
 					Position = UDim2.new(0, -14, 0, -14),
 					Size = UDim2.new(1, 28, 1, 28),
 					ZIndex = 0,
-					Image = "rbxassetid://5028857084",
-					ImageColor3 = themes.Glow,
-					ImageTransparency = 0.68,
-					ScaleType = Enum.ScaleType.Slice,
-					SliceCenter = Rect.new(24, 24, 276, 276)
+				}, {
+					utilityCreate("UICorner", {
+						CornerRadius = UDim.new(0, 12)
+					})
 				}),
-				utilityCreate("ImageLabel", {
-					Name = "Glow3",
-					BackgroundTransparency = 1,
+				utilityCreate("Frame", {
+					Name = "GlowFill3",
+					BackgroundColor3 = themes.Glow,
+					BackgroundTransparency = 0.92,
+					BorderSizePixel = 0,
 					Position = UDim2.new(0, -24, 0, -24),
 					Size = UDim2.new(1, 48, 1, 48),
 					ZIndex = 0,
-					Image = "rbxassetid://5028857084",
-					ImageColor3 = themes.Glow,
-					ImageTransparency = 0.78,
-					ScaleType = Enum.ScaleType.Slice,
-					SliceCenter = Rect.new(24, 24, 276, 276)
+				}, {
+					utilityCreate("UICorner", {
+						CornerRadius = UDim.new(0, 16)
+					})
 				}),
-				utilityCreate("ImageLabel", {
-					Name = "Glow4",
-					BackgroundTransparency = 1,
-					Position = UDim2.new(0, -36, 0, -36),
-					Size = UDim2.new(1, 72, 1, 72),
+				utilityCreate("Frame", {
+					Name = "GlowFill4",
+					BackgroundColor3 = themes.Glow,
+					BackgroundTransparency = 0.95,
+					BorderSizePixel = 0,
+					Position = UDim2.new(0, -34, 0, -34),
+					Size = UDim2.new(1, 68, 1, 68),
 					ZIndex = 0,
-					Image = "rbxassetid://5028857084",
-					ImageColor3 = themes.Glow,
-					ImageTransparency = 0.86,
-					ScaleType = Enum.ScaleType.Slice,
-					SliceCenter = Rect.new(24, 24, 276, 276)
+				}, {
+					utilityCreate("UICorner", {
+						CornerRadius = UDim.new(0, 19)
+					})
 				}),
-				utilityCreate("ImageLabel", {
-					Name = "Glow5",
-					BackgroundTransparency = 1,
-					Position = UDim2.new(0, -52, 0, -52),
-					Size = UDim2.new(1, 104, 1, 104),
+				utilityCreate("Frame", {
+					Name = "GlowFill5",
+					BackgroundColor3 = themes.Glow,
+					BackgroundTransparency = 0.975,
+					BorderSizePixel = 0,
+					Position = UDim2.new(0, -46, 0, -46),
+					Size = UDim2.new(1, 92, 1, 92),
 					ZIndex = 0,
-					Image = "rbxassetid://5028857084",
-					ImageColor3 = themes.Glow,
-					ImageTransparency = 0.92,
-					ScaleType = Enum.ScaleType.Slice,
-					SliceCenter = Rect.new(24, 24, 276, 276)
+				}, {
+					utilityCreate("UICorner", {
+						CornerRadius = UDim.new(0, 23)
+					})
 				}),
 				utilityCreate("UIStroke", {
 					Name = "OutlineGlow",
@@ -703,70 +714,84 @@ do
 			Size = watermarkSize,
 			ZIndex = 2
 		}, {
-			utilityCreate("ImageLabel", {
-				Name = "Glow1",
-				BackgroundTransparency = 1,
-				Position = UDim2.new(0, -5, 0, -5),
-				Size = UDim2.new(1, 10, 1, 10),
+			-- Filled faded glow behind panel
+			utilityCreate("Frame", {
+				Name = "GlowFill1",
+				BackgroundColor3 = watermarkGlow,
+				BackgroundTransparency = 0.82,
+				BorderSizePixel = 0,
+				Position = UDim2.new(0, -6, 0, -6),
+				Size = UDim2.new(1, 12, 1, 12),
 				ZIndex = 0,
 				Visible = watermarkShowGlow,
-				Image = "rbxassetid://5028857084",
-				ImageColor3 = watermarkGlow,
-				ImageTransparency = 0.55,
-				ScaleType = Enum.ScaleType.Slice,
-				SliceCenter = Rect.new(24, 24, 276, 276)
+			}, {
+				utilityCreate("UICorner", {
+					CornerRadius = UDim.new(0, 10)
+				})
 			}),
-			utilityCreate("ImageLabel", {
-				Name = "Glow2",
-				BackgroundTransparency = 1,
-				Position = UDim2.new(0, -12, 0, -12),
-				Size = UDim2.new(1, 24, 1, 24),
+			utilityCreate("Frame", {
+				Name = "GlowFill2",
+				BackgroundColor3 = watermarkGlow,
+				BackgroundTransparency = 0.88,
+				BorderSizePixel = 0,
+				Position = UDim2.new(0, -14, 0, -14),
+				Size = UDim2.new(1, 28, 1, 28),
 				ZIndex = 0,
 				Visible = watermarkShowGlow,
-				Image = "rbxassetid://5028857084",
-				ImageColor3 = watermarkGlow,
-				ImageTransparency = 0.68,
-				ScaleType = Enum.ScaleType.Slice,
-				SliceCenter = Rect.new(24, 24, 276, 276)
+			}, {
+				utilityCreate("UICorner", {
+					CornerRadius = UDim.new(0, 12)
+				})
 			}),
-			utilityCreate("ImageLabel", {
-				Name = "Glow3",
-				BackgroundTransparency = 1,
-				Position = UDim2.new(0, -20, 0, -20),
-				Size = UDim2.new(1, 40, 1, 40),
+			utilityCreate("Frame", {
+				Name = "GlowFill3",
+				BackgroundColor3 = watermarkGlow,
+				BackgroundTransparency = 0.92,
+				BorderSizePixel = 0,
+				Position = UDim2.new(0, -24, 0, -24),
+				Size = UDim2.new(1, 48, 1, 48),
 				ZIndex = 0,
 				Visible = watermarkShowGlow,
-				Image = "rbxassetid://5028857084",
-				ImageColor3 = watermarkGlow,
-				ImageTransparency = 0.78,
-				ScaleType = Enum.ScaleType.Slice,
-				SliceCenter = Rect.new(24, 24, 276, 276)
+			}, {
+				utilityCreate("UICorner", {
+					CornerRadius = UDim.new(0, 16)
+				})
 			}),
-			utilityCreate("ImageLabel", {
-				Name = "Glow4",
-				BackgroundTransparency = 1,
-				Position = UDim2.new(0, -30, 0, -30),
-				Size = UDim2.new(1, 60, 1, 60),
+			utilityCreate("Frame", {
+				Name = "GlowFill4",
+				BackgroundColor3 = watermarkGlow,
+				BackgroundTransparency = 0.95,
+				BorderSizePixel = 0,
+				Position = UDim2.new(0, -34, 0, -34),
+				Size = UDim2.new(1, 68, 1, 68),
 				ZIndex = 0,
 				Visible = watermarkShowGlow,
-				Image = "rbxassetid://5028857084",
-				ImageColor3 = watermarkGlow,
-				ImageTransparency = 0.86,
-				ScaleType = Enum.ScaleType.Slice,
-				SliceCenter = Rect.new(24, 24, 276, 276)
+			}, {
+				utilityCreate("UICorner", {
+					CornerRadius = UDim.new(0, 19)
+				})
 			}),
-			utilityCreate("ImageLabel", {
-				Name = "Glow5",
-				BackgroundTransparency = 1,
-				Position = UDim2.new(0, -42, 0, -42),
-				Size = UDim2.new(1, 84, 1, 84),
+			utilityCreate("Frame", {
+				Name = "GlowFill5",
+				BackgroundColor3 = watermarkGlow,
+				BackgroundTransparency = 0.975,
+				BorderSizePixel = 0,
+				Position = UDim2.new(0, -46, 0, -46),
+				Size = UDim2.new(1, 92, 1, 92),
 				ZIndex = 0,
 				Visible = watermarkShowGlow,
-				Image = "rbxassetid://5028857084",
-				ImageColor3 = watermarkGlow,
-				ImageTransparency = 0.92,
-				ScaleType = Enum.ScaleType.Slice,
-				SliceCenter = Rect.new(24, 24, 276, 276)
+			}, {
+				utilityCreate("UICorner", {
+					CornerRadius = UDim.new(0, 23)
+				})
+			}),
+			utilityCreate("UIStroke", {
+				Name = "OutlineGlow",
+				Color = watermarkGlow,
+				Thickness = 1,
+				Transparency = 1,
+				Enabled = false,
+				ApplyStrokeMode = Enum.ApplyStrokeMode.Border
 			}),
 
 			utilityCreate("CanvasGroup", {
