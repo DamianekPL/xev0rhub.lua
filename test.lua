@@ -256,35 +256,74 @@ do
 	end
 
 	-- Outline glow for main menu + watermark
-	-- enabled: boolean, color: Color3? (optional)
-	function library:SetGlow(enabled, color)
-		local function apply(glow)
-			if not glow then return end
-			if enabled ~= nil then
-				glow.Visible = enabled == true
+	-- SetGlow(enabled, color?)
+	-- SetGlow({ Enabled, Color, Size, Brightness })
+	--   Size 1-100 → how far the glow spreads (default 50)
+	--   Brightness 1-100 → how strong/bright (default 70)
+	function library:SetGlow(enabledOrOpts, color)
+		local opts = {}
+		if type(enabledOrOpts) == "table" then
+			opts = enabledOrOpts
+		else
+			opts.Enabled = enabledOrOpts
+			opts.Color = color
+		end
+
+		self._glowState = self._glowState or {
+			Enabled = true,
+			Color = themes.Glow,
+			Size = 50,
+			Brightness = 70,
+		}
+		local st = self._glowState
+		if opts.Enabled ~= nil then st.Enabled = opts.Enabled == true end
+		if typeof(opts.Color) == "Color3" then st.Color = opts.Color end
+		if tonumber(opts.Size) then st.Size = math.clamp(tonumber(opts.Size), 1, 100) end
+		if tonumber(opts.Brightness) then st.Brightness = math.clamp(tonumber(opts.Brightness), 1, 100) end
+
+		-- Size: base expand in pixels scales with Size%
+		local sizeMul = st.Size / 50
+		local innerPad = math.floor(18 * sizeMul + 0.5)
+		local outerPad = math.floor(36 * sizeMul + 0.5)
+		local wmInner = math.floor(12 * sizeMul + 0.5)
+		local wmOuter = math.floor(22 * sizeMul + 0.5)
+
+		-- Brightness 100 → transparency ~0, 1 → almost invisible
+		local bright = st.Brightness / 100
+		local innerT = math.clamp(1 - bright, 0, 0.95)
+		local outerT = math.clamp(1 - bright * 0.55, 0.2, 0.92)
+
+		local function applyPair(parent, innerName, outerName, iPad, oPad)
+			if not parent then return end
+			local inner = parent:FindFirstChild(innerName)
+			local outer = parent:FindFirstChild(outerName)
+			for _, g in ipairs({ inner, outer }) do
+				if g then
+					g.Visible = st.Enabled
+					g.ImageColor3 = st.Color
+				end
 			end
-			if typeof(color) == "Color3" then
-				glow.ImageColor3 = color
+			if inner then
+				inner.Position = UDim2.new(0, -iPad, 0, -iPad)
+				inner.Size = UDim2.new(1, iPad * 2, 1, iPad * 2)
+				inner.ImageTransparency = innerT
+			end
+			if outer then
+				outer.Position = UDim2.new(0, -oPad, 0, -oPad)
+				outer.Size = UDim2.new(1, oPad * 2, 1, oPad * 2)
+				outer.ImageTransparency = outerT
 			end
 		end
 
-		-- Main menu
 		local main = self.container and self.container:FindFirstChild("Main")
-		if main then
-			apply(main:FindFirstChild("Glow"))
-		end
+		applyPair(main, "Glow", "GlowOuter", innerPad, outerPad)
 
-		-- Watermark
 		if self.watermark then
 			local shell = self.watermark:FindFirstChild("Watermark")
-			if shell then
-				apply(shell:FindFirstChild("Glow"))
-			end
+			applyPair(shell, "Glow", "GlowOuter", wmInner, wmOuter)
 		end
 
-		if typeof(color) == "Color3" then
-			themes.Glow = color
-		end
+		themes.Glow = st.Color
 	end
 
 	-- Updates only the supplied watermark values, so it is safe to call from
@@ -349,9 +388,17 @@ do
 		if glow then
 			if style.Glow ~= nil then
 				glow.Visible = style.Glow == true
+				local glowOuter = watermarkFrame:FindFirstChild("GlowOuter")
+				if glowOuter then
+					glowOuter.Visible = style.Glow == true
+				end
 			end
 			if typeof(style.GlowColor) == "Color3" then
 				glow.ImageColor3 = style.GlowColor
+				local glowOuter = watermarkFrame:FindFirstChild("GlowOuter")
+				if glowOuter then
+					glowOuter.ImageColor3 = style.GlowColor
+				end
 			end
 		end
 		if accentLine then
@@ -464,15 +511,29 @@ do
 				ScaleType = Enum.ScaleType.Slice,
 				SliceCenter = Rect.new(4, 4, 296, 296)
 			}, {
+				-- Outer soft bloom
 				utilityCreate("ImageLabel", {
-					Name = "Glow",
+					Name = "GlowOuter",
 					BackgroundTransparency = 1,
-					Position = UDim2.new(0, -22, 0, -22),
-					Size = UDim2.new(1, 44, 1, 44),
+					Position = UDim2.new(0, -36, 0, -36),
+					Size = UDim2.new(1, 72, 1, 72),
 					ZIndex = 0,
 					Image = "rbxassetid://5028857084",
 					ImageColor3 = themes.Glow,
-					ImageTransparency = 0.15,
+					ImageTransparency = 0.45,
+					ScaleType = Enum.ScaleType.Slice,
+					SliceCenter = Rect.new(24, 24, 276, 276)
+				}),
+				-- Inner tighter outline
+				utilityCreate("ImageLabel", {
+					Name = "Glow",
+					BackgroundTransparency = 1,
+					Position = UDim2.new(0, -18, 0, -18),
+					Size = UDim2.new(1, 36, 1, 36),
+					ZIndex = 0,
+					Image = "rbxassetid://5028857084",
+					ImageColor3 = themes.Glow,
+					ImageTransparency = 0.05,
 					ScaleType = Enum.ScaleType.Slice,
 					SliceCenter = Rect.new(24, 24, 276, 276)
 				}),
@@ -577,15 +638,28 @@ do
 			ZIndex = 2
 		}, {
 			utilityCreate("ImageLabel", {
+				Name = "GlowOuter",
+				BackgroundTransparency = 1,
+				Position = UDim2.new(0, -22, 0, -22),
+				Size = UDim2.new(1, 44, 1, 44),
+				ZIndex = 0,
+				Visible = watermarkShowGlow,
+				Image = "rbxassetid://5028857084",
+				ImageColor3 = watermarkGlow,
+				ImageTransparency = 0.5,
+				ScaleType = Enum.ScaleType.Slice,
+				SliceCenter = Rect.new(24, 24, 276, 276)
+			}),
+			utilityCreate("ImageLabel", {
 				Name = "Glow",
 				BackgroundTransparency = 1,
-				Position = UDim2.new(0, -14, 0, -14),
-				Size = UDim2.new(1, 28, 1, 28),
+				Position = UDim2.new(0, -12, 0, -12),
+				Size = UDim2.new(1, 24, 1, 24),
 				ZIndex = 1,
 				Visible = watermarkShowGlow,
 				Image = "rbxassetid://5028857084",
 				ImageColor3 = watermarkGlow,
-				ImageTransparency = 0.15,
+				ImageTransparency = 0.1,
 				ScaleType = Enum.ScaleType.Slice,
 				SliceCenter = Rect.new(24, 24, 276, 276)
 			}),
