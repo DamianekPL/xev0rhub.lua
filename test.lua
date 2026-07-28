@@ -283,7 +283,7 @@ do
 		-- Position = UDim2.new(0, -15, 0, -15)
 		-- Size     = UDim2.new(1, 30, 1, 30)
 
-		local function apply(parent)
+		local function apply(parent, rounded)
 			if not parent then return end
 			local g = parent:FindFirstChild("Glow")
 			if not g then
@@ -303,12 +303,21 @@ do
 			g.ImageTransparency = 0
 			g.Position = UDim2.new(0, -15, 0, -15)
 			g.Size = UDim2.new(1, 30, 1, 30)
+			-- Watermark body uses UICorner 8 — round glow slightly more so it hugs corners
+			if rounded then
+				local c = g:FindFirstChildOfClass("UICorner")
+				if not c then
+					c = Instance.new("UICorner")
+					c.Parent = g
+				end
+				c.CornerRadius = UDim.new(0, 12)
+			end
 		end
 
 		local main = self.container and self.container:FindFirstChild("Main")
-		apply(main)
+		apply(main, false)
 		if self.watermark then
-			apply(self.watermark:FindFirstChild("Watermark"))
+			apply(self.watermark:FindFirstChild("Watermark"), true)
 		end
 	end
 
@@ -578,7 +587,7 @@ do
 			Size = watermarkSize,
 			ZIndex = 2
 		}, {
-			-- Glow (exact source library)
+			-- Glow (source asset + rounded to match watermark body)
 			utilityCreate("ImageLabel", {
 				Name = "Glow",
 				BackgroundTransparency = 1,
@@ -589,6 +598,10 @@ do
 				ImageColor3 = themes.Glow,
 				ScaleType = Enum.ScaleType.Slice,
 				SliceCenter = Rect.new(24, 24, 276, 276)
+			}, {
+				utilityCreate("UICorner", {
+					CornerRadius = UDim.new(0, 12) -- follows Body corner (8) with soft outer edge
+				})
 			}),
 			utilityCreate("CanvasGroup", {
 				Name = "Body",
