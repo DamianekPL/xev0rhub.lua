@@ -259,7 +259,11 @@ do
 	-- SetGlow(enabled, color?)
 	-- SetGlow({ Enabled, Color, Size, Brightness })
 	--   Size 1-100      → how far the glow spreads (pad)
-	--   Brightness 1-100 → visibility (ImageTransparency)
+	-- Glow from source library (single ImageLabel rbxassetid://5028857084).
+	-- SetGlow(enabled, color?)
+	-- SetGlow({ Enabled, Color, Size, Brightness })
+	--   Size 1-100 → pad around panel (35 ≈ original -15 / +30)
+	--   Brightness 1-100 → ImageTransparency (100 = fully visible like source)
 	function library:SetGlow(enabledOrOpts, color)
 		local opts = {}
 		if type(enabledOrOpts) == "table" then
@@ -280,39 +284,32 @@ do
 		if typeof(opts.Color) == "Color3" then st.Color = opts.Color end
 		if tonumber(opts.Size) then st.Size = math.clamp(tonumber(opts.Size), 1, 100) end
 		if tonumber(opts.Brightness) then st.Brightness = math.clamp(tonumber(opts.Brightness), 1, 100) end
-		-- Softness kept for API compat but unused on classic glow
-		if tonumber(opts.Softness) then st.Softness = math.clamp(tonumber(opts.Softness), 1, 100) end
 
 		themes.Glow = st.Color
 
-		-- pad ~15 at mid size (matches original -15 / +30)
-		-- Size: 35 ≈ original pad 15 (Position -15, Size +30)
-		-- Range ~8..28 so it stays a soft edge, not huge boxes
-		local pad = math.floor(8 + (st.Size / 100) * 20 + 0.5) -- 8..28
-		local bright = st.Brightness / 100
-		-- Stronger visibility (~40% boost); at 100% nearly fully opaque glow image
-		local boosted = math.clamp(bright * 1.4, 0, 1.2)
-		local imageT = st.Enabled and math.clamp(1 - boosted, 0, 0.75) or 1
+		-- Source: Position -15, Size +30  →  pad = 15 at Size 35
+		local pad = math.floor((st.Size / 35) * 15 + 0.5)
+		pad = math.clamp(pad, 4, 40)
+		-- Source has ImageTransparency = 0; Brightness scales it
+		local imageT = st.Enabled and math.clamp(1 - (st.Brightness / 100), 0, 1) or 1
 
-		local function hideExtras(parent)
+		local function apply(parent)
 			if not parent then return end
+			-- remove any non-source glow layers
 			for _, n in ipairs({
 				"GlowOuter", "Glow1", "Glow2", "Glow3", "Glow4", "Glow5",
 				"GlowFill1", "GlowFill2", "GlowFill3", "GlowFill4", "GlowFill5",
 			}) do
 				local old = parent:FindFirstChild(n)
-				if old then old.Visible = false end
+				if old then old:Destroy() end
 			end
 			local strokeParent = parent:FindFirstChild("Body") or parent
 			local stroke = strokeParent and strokeParent:FindFirstChild("OutlineGlow")
-			if stroke and stroke:IsA("UIStroke") then
+			if stroke then
 				stroke.Enabled = false
 				stroke.Transparency = 1
 			end
-		end
 
-		local function ensureGlow(parent)
-			if not parent then return nil end
 			local g = parent:FindFirstChild("Glow")
 			if not g then
 				g = Instance.new("ImageLabel")
@@ -325,20 +322,11 @@ do
 				g.SliceCenter = Rect.new(24, 24, 276, 276)
 				g.Parent = parent
 			end
-			return g
-		end
-
-		local function apply(parent)
-			if not parent then return end
-			hideExtras(parent)
-			local g = ensureGlow(parent)
-			if g then
-				g.Visible = st.Enabled
-				g.ImageColor3 = st.Color
-				g.ImageTransparency = imageT
-				g.Position = UDim2.new(0, -pad, 0, -pad)
-				g.Size = UDim2.new(1, pad * 2, 1, pad * 2)
-			end
+			g.Visible = st.Enabled
+			g.ImageColor3 = st.Color
+			g.ImageTransparency = imageT
+			g.Position = UDim2.new(0, -pad, 0, -pad)
+			g.Size = UDim2.new(1, pad * 2, 1, pad * 2)
 		end
 
 		local main = self.container and self.container:FindFirstChild("Main")
@@ -523,7 +511,7 @@ do
 				ScaleType = Enum.ScaleType.Slice,
 				SliceCenter = Rect.new(4, 4, 296, 296)
 			}, {
-				-- Classic soft glow (source library style)
+				-- Glow (exact source library)
 				utilityCreate("ImageLabel", {
 					Name = "Glow",
 					BackgroundTransparency = 1,
@@ -635,7 +623,7 @@ do
 			Size = watermarkSize,
 			ZIndex = 2
 		}, {
-			-- Classic soft glow (source library style)
+			-- Glow (exact source library)
 			utilityCreate("ImageLabel", {
 				Name = "Glow",
 				BackgroundTransparency = 1,
