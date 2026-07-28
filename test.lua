@@ -23,7 +23,7 @@ local ACCENT_PURPLE = Color3.fromRGB(180, 50, 255)
 local objects = {}
 local themes = {
 	Background = Color3.fromRGB(24, 24, 24), 
-	Glow = Color3.fromRGB(0, 0, 0), -- source library soft shadow glow 
+	Glow = Color3.fromRGB(140, 40, 200), -- outline glow (visible behind menu/watermark) 
 	Accent = Color3.fromRGB(10, 10, 10), 
 	LightContrast = Color3.fromRGB(20, 20, 20), 
 	DarkContrast = Color3.fromRGB(14, 14, 14),  
@@ -255,21 +255,11 @@ do
 		end
 	end
 
-	-- Classic soft glow (from source library) — single ImageLabel behind panel.
+	-- Soft multi-layer bloom glow for main menu + watermark.
 	-- SetGlow(enabled, color?)
 	-- SetGlow({ Enabled, Color, Size, Brightness })
-	--   Size 1-100      → how far the glow spreads (pad)
-	-- Glow from source library (single ImageLabel rbxassetid://5028857084).
-	-- SetGlow(enabled, color?)
-	-- SetGlow({ Enabled, Color, Size, Brightness })
-	--   Size 1-100 → pad around panel (35 ≈ original -15 / +30)
-	-- Glow from source library (exact):
-	--   ImageLabel Name=Glow, Image=rbxassetid://5028857084
-	--   Position -15, Size +30, ZIndex 0, SliceCenter 24,24,276,276
-	--   ImageColor3 = themes.Glow (default black), ImageTransparency = 0
-	-- SetGlow(enabled, color?)
-	-- SetGlow({ Enabled, Color, Size })
-	--   Size 1-100 → pad (35 = original 15px)
+	--   Size 1-100 → how far the glow spreads (shine distance)
+	--   Brightness 1-100 → intensity
 	function library:SetGlow(enabledOrOpts, color)
 		local opts = {}
 		if type(enabledOrOpts) == "table" then
@@ -282,64 +272,66 @@ do
 		self._glowState = self._glowState or {
 			Enabled = true,
 			Color = themes.Glow,
-			Size = 35,
+			Size = 50,
+			Brightness = 70,
 		}
 		local st = self._glowState
 		if opts.Enabled ~= nil then st.Enabled = opts.Enabled == true end
 		if typeof(opts.Color) == "Color3" then st.Color = opts.Color end
 		if tonumber(opts.Size) then st.Size = math.clamp(tonumber(opts.Size), 1, 100) end
-		-- Brightness ignored — source glow is always fully visible (transparency 0)
+		if tonumber(opts.Brightness) then st.Brightness = math.clamp(tonumber(opts.Brightness), 1, 100) end
 
 		themes.Glow = st.Color
 
-		-- Source pad = 15 at default; scale with Size (35 → 15)
-		local pad = math.floor((st.Size / 35) * 15 + 0.5)
-		pad = math.clamp(pad, 4, 40)
+		-- Build N soft layers. Size controls max pad; Brightness controls opacity curve.
+		local layers = 6
+		local maxPad = 12 + (st.Size / 100) * 70 -- 12px .. 82px spread
+		local bright = st.Brightness / 100
 
-		local function apply(parent)
+		local function rebuildBloom(parent)
 			if not parent then return end
-			for _, n in ipairs({
-				"GlowOuter", "Glow1", "Glow2", "Glow3", "Glow4", "Glow5",
-				"GlowFill1", "GlowFill2", "GlowFill3", "GlowFill4", "GlowFill5",
-				"OutlineGlow",
-			}) do
-				local old = parent:FindFirstChild(n, true)
-				if old and old.Name ~= "Glow" then
-					if old:IsA("UIStroke") then
-						old.Enabled = false
-						old.Transparency = 1
-					else
-						old.Visible = false
-					end
-				end
-			end
+			local bloom = parent:FindFirstChild("GlowBloom")
+			if not bloom then return end
 
-			local g = parent:FindFirstChild("Glow")
-			if not g then
-				g = Instance.new("ImageLabel")
-				g.Name = "Glow"
-				g.BackgroundTransparency = 1
-				g.BorderSizePixel = 0
-				g.ZIndex = 0
-				g.Image = "rbxassetid://5028857084"
-				g.ScaleType = Enum.ScaleType.Slice
-				g.SliceCenter = Rect.new(24, 24, 276, 276)
-				g.Parent = parent
+			bloom.Visible = st.Enabled
+			for _, child in ipairs(bloom:GetChildren()) do
+				child:Destroy()
 			end
-			-- Exact source look: full opacity, color from themes.Glow
-			g.Visible = st.Enabled
-			g.ImageColor3 = st.Color
-			g.ImageTransparency = 0
-			g.Position = UDim2.new(0, -pad, 0, -pad)
-			g.Size = UDim2.new(1, pad * 2, 1, pad * 2)
+			if not st.Enabled then return end
+
+			for i = 1, layers do
+				local t = i / layers
+				-- farther layers = larger pad, more transparent
+				local pad = math.floor(maxPad * t + 0.5)
+				-- inner layers brighter, outer very soft
+				local baseT = 0.15 + t * 0.7
+				local transparency = math.clamp(1 - (1 - baseT) * bright, 0.05, 0.95)
+
+				local layer = Instance.new("ImageLabel")
+				layer.Name = "GlowLayer" .. i
+				layer.BackgroundTransparency = 1
+				layer.BorderSizePixel = 0
+				layer.Position = UDim2.new(0, -pad, 0, -pad)
+				layer.Size = UDim2.new(1, pad * 2, 1, pad * 2)
+				layer.ZIndex = 0
+				layer.Image = "rbxassetid://5028857084"
+				layer.ImageColor3 = st.Color
+				layer.ImageTransparency = transparency
+				layer.ScaleType = Enum.ScaleType.Slice
+				layer.SliceCenter = Rect.new(24, 24, 276, 276)
+				layer.Parent = bloom
+			end
 		end
 
 		local main = self.container and self.container:FindFirstChild("Main")
-		apply(main)
+		rebuildBloom(main)
+
 		if self.watermark then
-			apply(self.watermark:FindFirstChild("Watermark"))
+			local shell = self.watermark:FindFirstChild("Watermark")
+			rebuildBloom(shell)
 		end
 	end
+
 
 	-- Updates only the supplied watermark values, so it is safe to call from
 	-- sliders and color-picker callbacks while the hub is open.
@@ -400,11 +392,15 @@ do
 				status.BackgroundColor3 = style.StatusColor
 			end
 		end
-		if style.Glow ~= nil or typeof(style.GlowColor) == "Color3" then
-			local gOpts = {}
-			if style.Glow ~= nil then gOpts.Enabled = style.Glow == true end
-			if typeof(style.GlowColor) == "Color3" then gOpts.Color = style.GlowColor end
-			self:SetGlow(gOpts)
+		local glowBloom = watermarkFrame:FindFirstChild("GlowBloom")
+		if glowBloom then
+			if style.Glow ~= nil or typeof(style.GlowColor) == "Color3" then
+				-- Route through SetGlow so bloom layers stay in sync
+				local gOpts = {}
+				if style.Glow ~= nil then gOpts.Enabled = style.Glow == true end
+				if typeof(style.GlowColor) == "Color3" then gOpts.Color = style.GlowColor end
+				self:SetGlow(gOpts)
+			end
 		end
 		if accentLine then
 			if style.AccentLine ~= nil then
@@ -516,17 +512,12 @@ do
 				ScaleType = Enum.ScaleType.Slice,
 				SliceCenter = Rect.new(4, 4, 296, 296)
 			}, {
-				-- Glow (exact source library)
-				utilityCreate("ImageLabel", {
-					Name = "Glow",
+				-- Multi-layer bloom (soft glow that spreads outward)
+				utilityCreate("Frame", {
+					Name = "GlowBloom",
 					BackgroundTransparency = 1,
-					Position = UDim2.new(0, -15, 0, -15),
-					Size = UDim2.new(1, 30, 1, 30),
-					ZIndex = 0,
-					Image = "rbxassetid://5028857084",
-					ImageColor3 = themes.Glow,
-					ScaleType = Enum.ScaleType.Slice,
-					SliceCenter = Rect.new(24, 24, 276, 276)
+					Size = UDim2.new(1, 0, 1, 0),
+					ZIndex = 0
 				}),
 				utilityCreate("ImageLabel", {
 				Name = "Pages",
@@ -628,20 +619,13 @@ do
 			Size = watermarkSize,
 			ZIndex = 2
 		}, {
-			-- Glow (exact source library)
-			utilityCreate("ImageLabel", {
-				Name = "Glow",
+			utilityCreate("Frame", {
+				Name = "GlowBloom",
 				BackgroundTransparency = 1,
-				Position = UDim2.new(0, -15, 0, -15),
-				Size = UDim2.new(1, 30, 1, 30),
+				Size = UDim2.new(1, 0, 1, 0),
 				ZIndex = 0,
-				Visible = watermarkShowGlow,
-				Image = "rbxassetid://5028857084",
-				ImageColor3 = watermarkGlow,
-				ScaleType = Enum.ScaleType.Slice,
-				SliceCenter = Rect.new(24, 24, 276, 276)
+				Visible = watermarkShowGlow
 			}),
-
 			utilityCreate("CanvasGroup", {
 				Name = "Body",
 				BackgroundColor3 = watermarkBackground,
@@ -652,14 +636,6 @@ do
 			}, {
 				utilityCreate("UICorner", {
 					CornerRadius = UDim.new(0, 8)
-				}),
-				utilityCreate("UIStroke", {
-					Name = "OutlineGlow",
-					Color = watermarkGlow,
-					Thickness = 1,
-					Transparency = 1,
-					Enabled = false,
-					ApplyStrokeMode = Enum.ApplyStrokeMode.Border
 				}),
 				-- Title bar (XEVOR + expand) — also drag handle
 				utilityCreate("Frame", {
@@ -746,6 +722,14 @@ do
 					Visible = false
 				}, {
 					utilityCreate("Frame", {
+						Name = "AccentBar",
+						BackgroundColor3 = watermarkAccentPurple,
+						BorderSizePixel = 0,
+						Position = UDim2.new(0, 0, 0, 0),
+						Size = UDim2.new(0, 3, 1, 0),
+						ZIndex = 6
+					}),
+					utilityCreate("Frame", {
 						Name = "Divider",
 						BackgroundColor3 = Color3.fromRGB(36, 36, 42),
 						BorderSizePixel = 0,
@@ -756,8 +740,8 @@ do
 					utilityCreate("TextLabel", {
 						Name = "Title",
 						BackgroundTransparency = 1,
-						Position = UDim2.new(0, 12, 0, 6),
-						Size = UDim2.new(1, -24, 0, 14),
+						Position = UDim2.new(0, 14, 0, 6),
+						Size = UDim2.new(1, -26, 0, 14),
 						ZIndex = 5,
 						Font = Enum.Font.GothamBold,
 						Text = "Notification",
@@ -769,8 +753,8 @@ do
 					utilityCreate("TextLabel", {
 						Name = "Body",
 						BackgroundTransparency = 1,
-						Position = UDim2.new(0, 12, 0, 22),
-						Size = UDim2.new(1, -24, 0, 28),
+						Position = UDim2.new(0, 14, 0, 22),
+						Size = UDim2.new(1, -26, 0, 28),
 						ZIndex = 5,
 						Font = Enum.Font.Gotham,
 						Text = "",
@@ -920,8 +904,6 @@ do
 		window:SetGlow({
 			Enabled = watermarkShowGlow ~= false,
 			Color = themes.Glow,
-			Size = 35,
-			Brightness = 100,
 			Size = 55,
 			Brightness = 75,
 		})
@@ -1182,6 +1164,10 @@ do
 				setWatermarkExpanded(false)
 			end
 
+			local accentBar = notifyPanel:FindFirstChild("AccentBar")
+			if accentBar then
+				accentBar.BackgroundColor3 = accent
+			end
 			notifyPanel.Title.Text = tostring(title or "Notification")
 			notifyPanel.Title.TextColor3 = accent
 			notifyPanel.Body.Text = tostring(text or "")
@@ -1825,7 +1811,7 @@ do
 				Size = UDim2.new(0, 40, 0, 14),
 				ZIndex = 2,
 				Image = "rbxassetid://5028857472",
-				ImageColor3 = default or Color3.fromRGB(255, 255, 255),
+				ImageColor3 = Color3.fromRGB(255, 255, 255),
 				ScaleType = Enum.ScaleType.Slice,
 				SliceCenter = Rect.new(2, 2, 298, 298)
 			})
@@ -2095,21 +2081,6 @@ do
 		
 		utilityDraggingEnabled(tab)
 		table.insert(self.modules, colorpicker)
-		-- Prevent theme system from overwriting the color swatch
-		do
-			local swatch = colorpicker:FindFirstChild("Button")
-			if swatch then
-				for themeName, props in pairs(objects) do
-					for prop, list in pairs(props) do
-						for i = #list, 1, -1 do
-							if list[i] == swatch then
-								table.remove(list, i)
-							end
-						end
-					end
-				end
-			end
-		end
 		--self:Resize()
 		
 		local allowed = {
@@ -2319,17 +2290,11 @@ do
 		colorpicker.MouseButton1Click:Connect(toggleTab)
 		
 		tab.Container.Button.MouseButton1Click:Connect(function()
-			-- Commit current selection
-			lastColor = Color3.fromHSV(hue, sat, brightness)
-			self:UpdateColorPicker(colorpicker, nil, lastColor)
-			fireCallback(lastColor)
 			animate()
 		end)
 		
 		tab.Close.MouseButton1Click:Connect(function()
-			-- Revert to color from when the picker was opened
 			self:UpdateColorPicker(colorpicker, nil, lastColor)
-			fireCallback(lastColor)
 			animate()
 		end)
 		
@@ -2825,8 +2790,8 @@ do
 		colorpicker = self:GetModule(colorpicker)
 		
 		local picker = self.colorpickers[colorpicker]
-		if not picker then return end
 		local tab = picker.tab
+		local callback = picker.callback
 		
 		if title then
 			colorpicker.Title.Text = title
@@ -2836,7 +2801,7 @@ do
 		local color3
 		local hue, sat, brightness
 		
-		if type(color) == "table" then
+		if type(color) == "table" then -- roblox is literally retarded x2
 			hue, sat, brightness = unpack(color)
 			color3 = Color3.fromHSV(hue, sat, brightness)
 		else
@@ -2844,24 +2809,18 @@ do
 			hue, sat, brightness = Color3.toHSV(color3)
 		end
 		
-		-- Force swatch color immediately so it never desyncs from the real value
-		local swatch = colorpicker:FindFirstChild("Button")
-		if swatch then
-			swatch.ImageColor3 = color3
-		end
-		
+		utilityTween(colorpicker.Button, {ImageColor3 = color3}, 0.5)
 		utilityTween(tab.Container.Color.Select, {Position = UDim2.new(hue, 0, 0, 0)}, 0.1)
+		
 		utilityTween(tab.Container.Canvas, {ImageColor3 = Color3.fromHSV(hue, 1, 1)}, 0.5)
 		utilityTween(tab.Container.Canvas.Cursor, {Position = UDim2.new(sat, 0, 1 - brightness)}, 0.5)
 		
-		for _, container in pairs(tab.Container.Inputs:GetChildren()) do
+		for i, container in pairs(tab.Container.Inputs:GetChildren()) do
 			if container:IsA("ImageLabel") then
-				local channel = container.Name -- "R" / "G" / "B"
-				local value = math.clamp(color3[channel], 0, 1) * 255
-				local box = container:FindFirstChild("Textbox")
-				if box then
-					box.Text = tostring(math.floor(value + 0.5))
-				end
+				local value = math.clamp(color3[container.Name], 0, 1) * 255
+				
+				container.Textbox.Text = math.floor(value)
+				--callback(container.Name:lower(), value)
 			end
 		end
 	end
