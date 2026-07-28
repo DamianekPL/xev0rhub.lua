@@ -17,6 +17,9 @@ local tweeninfo = TweenInfo.new
 local utility = {}
 
 -- themes
+-- Accent purple matches the watermark (title, line, labels, etc.)
+local ACCENT_PURPLE = Color3.fromRGB(180, 50, 255)
+
 local objects = {}
 local themes = {
 	Background = Color3.fromRGB(24, 24, 24), 
@@ -24,7 +27,8 @@ local themes = {
 	Accent = Color3.fromRGB(10, 10, 10), 
 	LightContrast = Color3.fromRGB(20, 20, 20), 
 	DarkContrast = Color3.fromRGB(14, 14, 14),  
-	TextColor = Color3.fromRGB(255, 255, 255)
+	-- Titles, labels, toggle knobs, slider fills, dropdown text → same purple as watermark
+	TextColor = ACCENT_PURPLE
 }
 
 do
@@ -388,7 +392,7 @@ do
 		local watermarkEnabled = watermarkOptions.Enabled ~= false
 		local watermarkAnchor = typeof(watermarkOptions.AnchorPoint) == "Vector2" and watermarkOptions.AnchorPoint or Vector2.new(1, 0)
 		local watermarkPosition = typeof(watermarkOptions.Position) == "UDim2" and watermarkOptions.Position or UDim2.new(1, -16, 0, 16)
-		local watermarkAccentPurple = typeof(watermarkOptions.AccentPurple) == "Color3" and watermarkOptions.AccentPurple or Color3.fromRGB(180, 50, 255)
+		local watermarkAccentPurple = typeof(watermarkOptions.AccentPurple) == "Color3" and watermarkOptions.AccentPurple or ACCENT_PURPLE
 		-- One solid black for the whole watermark so no gray strip shows under panels
 		local watermarkPanelBlack = Color3.fromRGB(14, 14, 14)
 		local watermarkBackground = typeof(watermarkOptions.BackgroundColor) == "Color3" and watermarkOptions.BackgroundColor or watermarkPanelBlack
