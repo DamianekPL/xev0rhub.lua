@@ -23,7 +23,7 @@ local ACCENT_PURPLE = Color3.fromRGB(180, 50, 255)
 local objects = {}
 local themes = {
 	Background = Color3.fromRGB(24, 24, 24), 
-	Glow = Color3.fromRGB(0, 0, 0), 
+	Glow = Color3.fromRGB(0, 0, 0), -- source library soft shadow glow 
 	Accent = Color3.fromRGB(10, 10, 10), 
 	LightContrast = Color3.fromRGB(20, 20, 20), 
 	DarkContrast = Color3.fromRGB(14, 14, 14),  
@@ -255,6 +255,63 @@ do
 		end
 	end
 
+	-- Glow from source library (exact ImageLabel).
+	-- SetGlow(enabled, color?)
+	-- SetGlow({ Enabled, Color })  -- size fixed to source (-15 / +30)
+	function library:SetGlow(enabledOrOpts, color)
+		local opts = {}
+		if type(enabledOrOpts) == "table" then
+			opts = enabledOrOpts
+		else
+			opts.Enabled = enabledOrOpts
+			opts.Color = color
+		end
+
+		self._glowState = self._glowState or {
+			Enabled = true,
+			Color = themes.Glow,
+		}
+		local st = self._glowState
+		if opts.Enabled ~= nil then st.Enabled = opts.Enabled == true end
+		if typeof(opts.Color) == "Color3" then
+			st.Color = opts.Color
+			-- Source-style: update theme so all Glow objects refresh
+			self:SetTheme("Glow", opts.Color)
+		end
+
+		-- Exact source size (not configurable):
+		-- Position = UDim2.new(0, -15, 0, -15)
+		-- Size     = UDim2.new(1, 30, 1, 30)
+
+		local function apply(parent)
+			if not parent then return end
+			local g = parent:FindFirstChild("Glow")
+			if not g then
+				g = Instance.new("ImageLabel")
+				g.Name = "Glow"
+				g.BackgroundTransparency = 1
+				g.BorderSizePixel = 0
+				g.ZIndex = 0
+				g.Image = "rbxassetid://5028857084"
+				g.ScaleType = Enum.ScaleType.Slice
+				g.SliceCenter = Rect.new(24, 24, 276, 276)
+				g.ImageColor3 = themes.Glow
+				g.Parent = parent
+			end
+			g.Visible = st.Enabled
+			g.ImageColor3 = themes.Glow
+			g.ImageTransparency = 0
+			g.Position = UDim2.new(0, -15, 0, -15)
+			g.Size = UDim2.new(1, 30, 1, 30)
+		end
+
+		local main = self.container and self.container:FindFirstChild("Main")
+		apply(main)
+		if self.watermark then
+			apply(self.watermark:FindFirstChild("Watermark"))
+		end
+	end
+
 	-- Updates only the supplied watermark values, so it is safe to call from
 	-- sliders and color-picker callbacks while the hub is open.
 	function library:SetWatermarkStyle(style)
@@ -268,7 +325,6 @@ do
 		end
 
 		local body = watermarkFrame:FindFirstChild("Body") or watermarkFrame
-		local glow = watermarkFrame:FindFirstChild("Glow")
 		local accentLine = body:FindFirstChild("AccentLine") or watermarkFrame:FindFirstChild("AccentLine")
 		local topBar = body:FindFirstChild("TopBar") or watermarkFrame:FindFirstChild("TopBar")
 		local status = body:FindFirstChild("Status") or watermarkFrame:FindFirstChild("Status")
@@ -312,14 +368,6 @@ do
 				status.ImageColor3 = style.StatusColor
 			else
 				status.BackgroundColor3 = style.StatusColor
-			end
-		end
-		if glow then
-			if style.Glow ~= nil then
-				glow.Visible = style.Glow == true
-			end
-			if typeof(style.GlowColor) == "Color3" then
-				glow.ImageColor3 = style.GlowColor
 			end
 		end
 		if accentLine then
@@ -397,7 +445,6 @@ do
 		local watermarkBackground = typeof(watermarkOptions.BackgroundColor) == "Color3" and watermarkOptions.BackgroundColor or watermarkPanelBlack
 		local watermarkTopBar = typeof(watermarkOptions.TopBarColor) == "Color3" and watermarkOptions.TopBarColor or watermarkPanelBlack
 		local watermarkStatus = typeof(watermarkOptions.StatusColor) == "Color3" and watermarkOptions.StatusColor or watermarkPanelBlack
-		local watermarkGlow = typeof(watermarkOptions.GlowColor) == "Color3" and watermarkOptions.GlowColor or themes.Glow
 		local watermarkAccent = typeof(watermarkOptions.AccentColor) == "Color3" and watermarkOptions.AccentColor or themes.LightContrast
 		local watermarkText = typeof(watermarkOptions.TextColor) == "Color3" and watermarkOptions.TextColor or themes.TextColor
 		local watermarkTextSize = tonumber(watermarkOptions.TextSize) or 12
@@ -410,7 +457,6 @@ do
 		local watermarkSize = typeof(watermarkOptions.Size) == "UDim2" and watermarkOptions.Size or UDim2.new(0, 268, 0, watermarkCollapsedHeight)
 		-- Force height to our calculated layout even if a custom Size is passed
 		watermarkSize = UDim2.new(watermarkSize.X.Scale, watermarkSize.X.Offset, 0, watermarkCollapsedHeight)
-		local watermarkShowGlow = watermarkOptions.Glow ~= false
 		local watermarkShowAccent = watermarkOptions.AccentLine ~= false
 		local watermarkDisplayOrder = tonumber(watermarkOptions.DisplayOrder) or 100
 
@@ -432,17 +478,6 @@ do
 				ScaleType = Enum.ScaleType.Slice,
 				SliceCenter = Rect.new(4, 4, 296, 296)
 			}, {
-				utilityCreate("ImageLabel", {
-					Name = "Glow",
-					BackgroundTransparency = 1,
-					Position = UDim2.new(0, -15, 0, -15),
-					Size = UDim2.new(1, 30, 1, 30),
-					ZIndex = 0,
-					Image = "rbxassetid://5028857084",
-					ImageColor3 = themes.Glow,
-					ScaleType = Enum.ScaleType.Slice,
-					SliceCenter = Rect.new(24, 24, 276, 276)
-				}),
 				utilityCreate("ImageLabel", {
 				Name = "Pages",
 				BackgroundTransparency = 1,
@@ -543,15 +578,15 @@ do
 			Size = watermarkSize,
 			ZIndex = 2
 		}, {
+			-- Glow (exact source library)
 			utilityCreate("ImageLabel", {
 				Name = "Glow",
 				BackgroundTransparency = 1,
-				Position = UDim2.new(0, -7, 0, -7),
-				Size = UDim2.new(1, 14, 1, 14),
-				ZIndex = 1,
-				Visible = watermarkShowGlow,
+				Position = UDim2.new(0, -15, 0, -15),
+				Size = UDim2.new(1, 30, 1, 30),
+				ZIndex = 0,
 				Image = "rbxassetid://5028857084",
-				ImageColor3 = watermarkGlow,
+				ImageColor3 = themes.Glow,
 				ScaleType = Enum.ScaleType.Slice,
 				SliceCenter = Rect.new(24, 24, 276, 276)
 			}),
@@ -636,6 +671,54 @@ do
 						TextTruncate = Enum.TextTruncate.AtEnd,
 						TextXAlignment = Enum.TextXAlignment.Left,
 						TextYAlignment = Enum.TextYAlignment.Center
+					})
+				}),
+				-- Notification strip (roll-down from watermark)
+				utilityCreate("Frame", {
+					Name = "NotifyPanel",
+					BackgroundColor3 = watermarkStatus,
+					BackgroundTransparency = 0,
+					BorderSizePixel = 0,
+					Position = UDim2.new(0, 0, 0, watermarkCollapsedHeight),
+					Size = UDim2.new(1, 0, 0, 0),
+					ZIndex = 4,
+					ClipsDescendants = true,
+					Visible = false
+				}, {
+					utilityCreate("Frame", {
+						Name = "Divider",
+						BackgroundColor3 = Color3.fromRGB(36, 36, 42),
+						BorderSizePixel = 0,
+						Position = UDim2.new(0, 10, 0, 0),
+						Size = UDim2.new(1, -20, 0, 1),
+						ZIndex = 5
+					}),
+					utilityCreate("TextLabel", {
+						Name = "Title",
+						BackgroundTransparency = 1,
+						Position = UDim2.new(0, 12, 0, 6),
+						Size = UDim2.new(1, -24, 0, 14),
+						ZIndex = 5,
+						Font = Enum.Font.GothamBold,
+						Text = "Notification",
+						TextColor3 = watermarkAccentPurple,
+						TextSize = 11,
+						TextXAlignment = Enum.TextXAlignment.Left,
+						TextTruncate = Enum.TextTruncate.AtEnd
+					}),
+					utilityCreate("TextLabel", {
+						Name = "Body",
+						BackgroundTransparency = 1,
+						Position = UDim2.new(0, 12, 0, 22),
+						Size = UDim2.new(1, -24, 0, 28),
+						ZIndex = 5,
+						Font = Enum.Font.Gotham,
+						Text = "",
+						TextColor3 = watermarkText,
+						TextSize = 11,
+						TextWrapped = true,
+						TextXAlignment = Enum.TextXAlignment.Left,
+						TextYAlignment = Enum.TextYAlignment.Top
 					})
 				}),
 				-- Expandable details panel
@@ -773,6 +856,7 @@ do
 		}, library)
 
 		window:SetToggleKey(options.ToggleKey or Enum.KeyCode.RightShift)
+		-- Build initial soft bloom layers
 
 		local sessionStart = os.clock()
 		local placeName = game.Name
@@ -964,6 +1048,102 @@ do
 			window:Destroy()
 		end)
 		
+
+		-- Watermark notification roll-down
+		local notifyPanel = body:FindFirstChild("NotifyPanel")
+		local notifyToken = 0
+		local notifyHeight = 54
+
+		local NOTIFY_STYLES = {
+			success = {
+				color = watermarkAccentPurple,
+				sound = "rbxassetid://4590657391", -- soft UI chime
+			},
+			good = {
+				color = watermarkAccentPurple,
+				sound = "rbxassetid://4590657391",
+			},
+			warning = {
+				color = Color3.fromRGB(255, 196, 48),
+				sound = "rbxassetid://4590658115",
+			},
+			warn = {
+				color = Color3.fromRGB(255, 196, 48),
+				sound = "rbxassetid://4590658115",
+			},
+			error = {
+				color = Color3.fromRGB(255, 72, 72),
+				sound = "rbxassetid://4590659233",
+			},
+		}
+
+		local function playNotifySound(soundId)
+			pcall(function()
+				local s = Instance.new("Sound")
+				s.Name = "XEVOR_NotifySound"
+				s.SoundId = soundId
+				s.Volume = 0.55
+				s.PlaybackSpeed = 1
+				s.Parent = watermark -- plays even if menu is hidden
+				s:Play()
+				s.Ended:Connect(function()
+					s:Destroy()
+				end)
+				task.delay(4, function()
+					if s and s.Parent then s:Destroy() end
+				end)
+			end)
+		end
+
+		window._showWatermarkNotify = function(title, text, duration, callback, kind)
+			if not notifyPanel then
+				if callback then task.defer(callback, true) end
+				return
+			end
+
+			kind = string.lower(tostring(kind or "success"))
+			local style = NOTIFY_STYLES[kind] or NOTIFY_STYLES.success
+			local accent = style.color
+
+			notifyToken = notifyToken + 1
+			local token = notifyToken
+			duration = tonumber(duration) or 3
+
+			-- Hide details dropdown while showing notify
+			if watermarkExpanded then
+				setWatermarkExpanded(false)
+			end
+
+			notifyPanel.Title.Text = tostring(title or "Notification")
+			notifyPanel.Title.TextColor3 = accent
+			notifyPanel.Body.Text = tostring(text or "")
+			notifyPanel.Visible = true
+			notifyPanel.Position = UDim2.new(0, 0, 0, watermarkCollapsedHeight)
+
+			playNotifySound(style.sound)
+
+			utilityTween(notifyPanel, {Size = UDim2.new(1, 0, 0, notifyHeight)}, 0.18)
+			utilityTween(watermarkFrame, {
+				Size = UDim2.new(collapsedSize.X.Scale, collapsedSize.X.Offset, 0, watermarkCollapsedHeight + notifyHeight)
+			}, 0.18)
+
+			task.delay(duration, function()
+				if token ~= notifyToken then
+					return -- superseded by a newer notify
+				end
+				utilityTween(notifyPanel, {Size = UDim2.new(1, 0, 0, 0)}, 0.15)
+				utilityTween(watermarkFrame, {Size = collapsedSize}, 0.18)
+				task.delay(0.18, function()
+					if token == notifyToken then
+						notifyPanel.Visible = false
+						if callback then
+							pcall(callback, true)
+						end
+					end
+				end)
+			end)
+		end
+
 		return window
 	end
 	
@@ -1111,11 +1291,13 @@ do
 	
 	function library:SetTheme(theme, color3)
 		themes[theme] = color3
-		
-		for property, objects in pairs(objects[theme]) do
-			for i, object in pairs(objects) do
+		if not objects[theme] then
+			return
+		end
+		for property, list in pairs(objects[theme]) do
+			for i, object in pairs(list) do
 				if not object.Parent or (object.Name == "Button" and object.Parent.Name == "ColorPicker") then
-					objects[i] = nil -- i can do this because weak tables D
+					list[i] = nil
 				else
 					object[property] = color3
 				end
@@ -1167,166 +1349,35 @@ do
 	
 	-- new modules
 	
-	function library:Notify(title, text, callback)
-	
-		-- overwrite last notification
-		if self.activeNotification then
-			self.activeNotification = self.activeNotification()
-		end
-		
-		-- standard create
-		local notification = utilityCreate("ImageLabel", {
-			Name = "Notification",
-			Parent = self.container,
-			BackgroundTransparency = 1,
-			Size = UDim2.new(0, 200, 0, 60),
-			Image = "rbxassetid://5028857472",
-			ImageColor3 = themes.Background,
-			ScaleType = Enum.ScaleType.Slice,
-			SliceCenter = Rect.new(4, 4, 296, 296),
-			ZIndex = 3,
-			ClipsDescendants = true
-		}, {
-			utilityCreate("ImageLabel", {
-				Name = "Flash",
-				Size = UDim2.new(1, 0, 1, 0),
-				BackgroundTransparency = 1,
-				Image = "rbxassetid://4641149554",
-				ImageColor3 = themes.TextColor,
-				ZIndex = 5
-			}),
-			utilityCreate("ImageLabel", {
-				Name = "Glow",
-				BackgroundTransparency = 1,
-				Position = UDim2.new(0, -15, 0, -15),
-				Size = UDim2.new(1, 30, 1, 30),
-				ZIndex = 2,
-				Image = "rbxassetid://5028857084",
-				ImageColor3 = themes.Glow,
-				ScaleType = Enum.ScaleType.Slice,
-				SliceCenter = Rect.new(24, 24, 276, 276)
-			}),
-			utilityCreate("TextLabel", {
-				Name = "Title",
-				BackgroundTransparency = 1,
-				Position = UDim2.new(0, 10, 0, 8),
-				Size = UDim2.new(1, -40, 0, 16),
-				ZIndex = 4,
-				Font = Enum.Font.GothamSemibold,
-				TextColor3 = themes.TextColor,
-				TextSize = 14.000,
-				TextXAlignment = Enum.TextXAlignment.Left
-			}),
-			utilityCreate("TextLabel", {
-				Name = "Text",
-				BackgroundTransparency = 1,
-				Position = UDim2.new(0, 10, 1, -24),
-				Size = UDim2.new(1, -40, 0, 16),
-				ZIndex = 4,
-				Font = Enum.Font.Gotham,
-				TextColor3 = themes.TextColor,
-				TextSize = 12.000,
-				TextXAlignment = Enum.TextXAlignment.Left
-			}),
-			utilityCreate("ImageButton", {
-				Name = "Accept",
-				BackgroundTransparency = 1,
-				Position = UDim2.new(1, -26, 0, 8),
-				Size = UDim2.new(0, 16, 0, 16),
-				Image = "rbxassetid://5012538259",
-				ImageColor3 = themes.TextColor,
-				ZIndex = 4
-			}),
-			utilityCreate("ImageButton", {
-				Name = "Decline",
-				BackgroundTransparency = 1,
-				Position = UDim2.new(1, -26, 1, -24),
-				Size = UDim2.new(0, 16, 0, 16),
-				Image = "rbxassetid://5012538583",
-				ImageColor3 = themes.TextColor,
-				ZIndex = 4
-			})
-		})
-		
-		-- dragging
-		utilityDraggingEnabled(notification)
-		
-		-- position and size
+	function library:Notify(title, text, callbackOrKind, kind)
+		-- Watermark roll-down notification with type + sound.
+		-- Usage:
+		--   Window:Notify("Title", "Message")
+		--   Window:Notify("Title", "Message", "warning")
+		--   Window:Notify("Title", "Message", "error")
+		--   Window:Notify("Title", "Message", callback, "success")
 		title = title or "Notification"
 		text = text or ""
-		
-		notification.Title.Text = title
-		notification.Text.Text = text
-		
-		local padding = 10
-		local textSize = game:GetService("TextService"):GetTextSize(text, 12, Enum.Font.Gotham, Vector2.new(math.huge, 16))
-		
-		notification.Position = library.lastNotification or UDim2.new(0, padding, 1, -(notification.AbsoluteSize.Y + padding))
-		notification.Size = UDim2.new(0, 0, 0, 60)
-		
-		utilityTween(notification, {Size = UDim2.new(0, textSize.X + 70, 0, 60)}, 0.2)
-		wait(0.2)
-		
-		notification.ClipsDescendants = false
-		utilityTween(notification.Flash, {
-			Size = UDim2.new(0, 0, 0, 60),
-			Position = UDim2.new(1, 0, 0, 0)
-		}, 0.2)
-		
-		-- callbacks
-		local active = true
-		local close = function()
-		
-			if not active then
-				return
+		local callback
+		local notifyKind = "success"
+		if typeof(callbackOrKind) == "function" then
+			callback = callbackOrKind
+			if typeof(kind) == "string" then
+				notifyKind = kind
 			end
-			
-			active = false
-			notification.ClipsDescendants = true
-			
-			library.lastNotification = notification.Position
-			notification.Flash.Position = UDim2.new(0, 0, 0, 0)
-			utilityTween(notification.Flash, {Size = UDim2.new(1, 0, 1, 0)}, 0.2)
-			
-			wait(0.2)
-			utilityTween(notification, {
-				Size = UDim2.new(0, 0, 0, 60),
-				Position = notification.Position + UDim2.new(0, textSize.X + 70, 0, 0)
-			}, 0.2)
-			
-			wait(0.2)
-			notification:Destroy()
+		elseif typeof(callbackOrKind) == "string" then
+			notifyKind = callbackOrKind
 		end
-		
-		self.activeNotification = close
-		
-		notification.Accept.MouseButton1Click:Connect(function()
-		
-			if not active then 
-				return
-			end
-			
+		if self._showWatermarkNotify then
+			self._showWatermarkNotify(title, text, 3, callback, notifyKind)
+		else
+			warn("[XEVOR]", title, text)
 			if callback then
-				callback(true)
+				task.defer(callback, true)
 			end
-			
-			close()
-		end)
-		
-		notification.Decline.MouseButton1Click:Connect(function()
-		
-			if not active then 
-				return
-			end
-			
-			if callback then
-				callback(false)
-			end
-			
-			close()
-		end)
+		end
 	end
-	
+
 	function section:AddButton(title, callback)
 		local button = utilityCreate("ImageButton", {
 			Name = "Button",
@@ -1708,7 +1759,7 @@ do
 				Size = UDim2.new(0, 40, 0, 14),
 				ZIndex = 2,
 				Image = "rbxassetid://5028857472",
-				ImageColor3 = Color3.fromRGB(255, 255, 255),
+				ImageColor3 = default or Color3.fromRGB(255, 255, 255),
 				ScaleType = Enum.ScaleType.Slice,
 				SliceCenter = Rect.new(2, 2, 298, 298)
 			})
@@ -1978,6 +2029,21 @@ do
 		
 		utilityDraggingEnabled(tab)
 		table.insert(self.modules, colorpicker)
+		-- Prevent theme system from overwriting the color swatch
+		do
+			local swatch = colorpicker:FindFirstChild("Button")
+			if swatch then
+				for themeName, props in pairs(objects) do
+					for prop, list in pairs(props) do
+						for i = #list, 1, -1 do
+							if list[i] == swatch then
+								table.remove(list, i)
+							end
+						end
+					end
+				end
+			end
+		end
 		--self:Resize()
 		
 		local allowed = {
@@ -2187,11 +2253,17 @@ do
 		colorpicker.MouseButton1Click:Connect(toggleTab)
 		
 		tab.Container.Button.MouseButton1Click:Connect(function()
+			-- Commit current selection
+			lastColor = Color3.fromHSV(hue, sat, brightness)
+			self:UpdateColorPicker(colorpicker, nil, lastColor)
+			fireCallback(lastColor)
 			animate()
 		end)
 		
 		tab.Close.MouseButton1Click:Connect(function()
+			-- Revert to color from when the picker was opened
 			self:UpdateColorPicker(colorpicker, nil, lastColor)
+			fireCallback(lastColor)
 			animate()
 		end)
 		
@@ -2373,7 +2445,7 @@ do
 				ScaleType = Enum.ScaleType.Slice,
 				SliceCenter = Rect.new(2, 2, 298, 298)
 			}, {
-				utilityCreate("TextBox", {
+				utilityCreate("TextLabel", {
 					Name = "TextBox",
 					AnchorPoint = Vector2.new(0, 0.5),
 					BackgroundTransparency = 1,
@@ -2436,7 +2508,6 @@ do
 		--self:Resize()
 		
 		local search = dropdown.Search
-		local focused
 		
 		list = list or {}
 		
@@ -2448,26 +2519,7 @@ do
 			end
 		end)
 		
-		search.TextBox.Focused:Connect(function()
-			if search.Button.Rotation == 0 then
-				self:UpdateDropdown(dropdown, nil, list, callback)
-			end
-			
-			focused = true
-		end)
-		
-		search.TextBox.FocusLost:Connect(function()
-			focused = false
-		end)
-		
-		search.TextBox:GetPropertyChangedSignal("Text"):Connect(function()
-			if focused then
-				local list = utilitySort(search.TextBox.Text, list)
-				list = #list ~= 0 and list 
-				
-				self:UpdateDropdown(dropdown, nil, list, callback)
-			end
-		end)
+		-- typing/search disabled on dropdowns
 		
 		dropdown:GetPropertyChangedSignal("Size"):Connect(function()
 			self:Resize()
@@ -2707,8 +2759,8 @@ do
 		colorpicker = self:GetModule(colorpicker)
 		
 		local picker = self.colorpickers[colorpicker]
+		if not picker then return end
 		local tab = picker.tab
-		local callback = picker.callback
 		
 		if title then
 			colorpicker.Title.Text = title
@@ -2718,7 +2770,7 @@ do
 		local color3
 		local hue, sat, brightness
 		
-		if type(color) == "table" then -- roblox is literally retarded x2
+		if type(color) == "table" then
 			hue, sat, brightness = unpack(color)
 			color3 = Color3.fromHSV(hue, sat, brightness)
 		else
@@ -2726,18 +2778,24 @@ do
 			hue, sat, brightness = Color3.toHSV(color3)
 		end
 		
-		utilityTween(colorpicker.Button, {ImageColor3 = color3}, 0.5)
-		utilityTween(tab.Container.Color.Select, {Position = UDim2.new(hue, 0, 0, 0)}, 0.1)
+		-- Force swatch color immediately so it never desyncs from the real value
+		local swatch = colorpicker:FindFirstChild("Button")
+		if swatch then
+			swatch.ImageColor3 = color3
+		end
 		
+		utilityTween(tab.Container.Color.Select, {Position = UDim2.new(hue, 0, 0, 0)}, 0.1)
 		utilityTween(tab.Container.Canvas, {ImageColor3 = Color3.fromHSV(hue, 1, 1)}, 0.5)
 		utilityTween(tab.Container.Canvas.Cursor, {Position = UDim2.new(sat, 0, 1 - brightness)}, 0.5)
 		
-		for i, container in pairs(tab.Container.Inputs:GetChildren()) do
+		for _, container in pairs(tab.Container.Inputs:GetChildren()) do
 			if container:IsA("ImageLabel") then
-				local value = math.clamp(color3[container.Name], 0, 1) * 255
-				
-				container.Textbox.Text = math.floor(value)
-				--callback(container.Name:lower(), value)
+				local channel = container.Name -- "R" / "G" / "B"
+				local value = math.clamp(color3[channel], 0, 1) * 255
+				local box = container:FindFirstChild("Textbox")
+				if box then
+					box.Text = tostring(math.floor(value + 0.5))
+				end
 			end
 		end
 	end
