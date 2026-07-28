@@ -255,11 +255,11 @@ do
 		end
 	end
 
-	-- Classic soft glow (from source library) — single ImageLabel behind panel.
+	-- Single outline glow (UIStroke only) on main menu + watermark.
 	-- SetGlow(enabled, color?)
 	-- SetGlow({ Enabled, Color, Size, Brightness })
-	--   Size 1-100      → how far the glow spreads (pad)
-	--   Brightness 1-100 → visibility (ImageTransparency)
+	--   Size 1-100 → stroke thickness
+	--   Brightness 1-100 → how visible (soft fade, never fully solid)
 	function library:SetGlow(enabledOrOpts, color)
 		local opts = {}
 		if type(enabledOrOpts) == "table" then
@@ -272,76 +272,52 @@ do
 		self._glowState = self._glowState or {
 			Enabled = true,
 			Color = themes.Glow,
-			Size = 50,
-			Brightness = 100,
+			Size = 40,
+			Brightness = 70,
 		}
 		local st = self._glowState
 		if opts.Enabled ~= nil then st.Enabled = opts.Enabled == true end
 		if typeof(opts.Color) == "Color3" then st.Color = opts.Color end
 		if tonumber(opts.Size) then st.Size = math.clamp(tonumber(opts.Size), 1, 100) end
 		if tonumber(opts.Brightness) then st.Brightness = math.clamp(tonumber(opts.Brightness), 1, 100) end
-		-- Softness kept for API compat but unused on classic glow
-		if tonumber(opts.Softness) then st.Softness = math.clamp(tonumber(opts.Softness), 1, 100) end
 
 		themes.Glow = st.Color
 
-		-- pad ~15 at mid size (matches original -15 / +30)
-		local pad = math.floor(6 + (st.Size / 100) * 24 + 0.5) -- 6..30
+		-- One line only: thickness from Size, soft transparency from Brightness
+		local thickness = 1 + (st.Size / 100) * 2.5 -- ~1 to 3.5
 		local bright = st.Brightness / 100
-		-- original glow has no transparency field (opaque image); we fade with brightness
-		local imageT = st.Enabled and math.clamp(1 - bright, 0, 0.92) or 1
+		local soft = bright * bright * (3 - 2 * bright) -- smoothstep
+		local strokeT = st.Enabled and math.clamp(0.85 - soft * 0.55, 0.2, 0.85) or 1
 
-		local function hideExtras(parent)
+		local function applyStroke(parent)
 			if not parent then return end
-			for _, n in ipairs({
-				"GlowOuter", "Glow1", "Glow2", "Glow3", "Glow4", "Glow5",
-				"GlowFill1", "GlowFill2", "GlowFill3", "GlowFill4", "GlowFill5",
-			}) do
-				local old = parent:FindFirstChild(n)
-				if old then old.Visible = false end
+			-- hide any legacy image glow so only one outline shows
+			local glow = parent:FindFirstChild("Glow")
+			if glow then
+				glow.Visible = false
 			end
-			local strokeParent = parent:FindFirstChild("Body") or parent
-			local stroke = strokeParent and strokeParent:FindFirstChild("OutlineGlow")
+			local stroke = parent:FindFirstChild("OutlineGlow")
+			if not stroke then
+				local body = parent:FindFirstChild("Body")
+				if body then stroke = body:FindFirstChild("OutlineGlow") end
+			end
 			if stroke and stroke:IsA("UIStroke") then
-				stroke.Enabled = false
-				stroke.Transparency = 1
-			end
-		end
-
-		local function ensureGlow(parent)
-			if not parent then return nil end
-			local g = parent:FindFirstChild("Glow")
-			if not g then
-				g = Instance.new("ImageLabel")
-				g.Name = "Glow"
-				g.BackgroundTransparency = 1
-				g.BorderSizePixel = 0
-				g.ZIndex = 0
-				g.Image = "rbxassetid://5028857084"
-				g.ScaleType = Enum.ScaleType.Slice
-				g.SliceCenter = Rect.new(24, 24, 276, 276)
-				g.Parent = parent
-			end
-			return g
-		end
-
-		local function apply(parent)
-			if not parent then return end
-			hideExtras(parent)
-			local g = ensureGlow(parent)
-			if g then
-				g.Visible = st.Enabled
-				g.ImageColor3 = st.Color
-				g.ImageTransparency = imageT
-				g.Position = UDim2.new(0, -pad, 0, -pad)
-				g.Size = UDim2.new(1, pad * 2, 1, pad * 2)
+				stroke.Enabled = st.Enabled
+				stroke.Color = st.Color
+				stroke.Thickness = thickness
+				stroke.Transparency = strokeT
 			end
 		end
 
 		local main = self.container and self.container:FindFirstChild("Main")
-		apply(main)
+		applyStroke(main)
 		if self.watermark then
-			apply(self.watermark:FindFirstChild("Watermark"))
+			local wm = self.watermark:FindFirstChild("Watermark")
+			if wm then
+				applyStroke(wm)
+				local body = wm:FindFirstChild("Body")
+				if body then applyStroke(body) end
+			end
 		end
 	end
 
@@ -520,17 +496,13 @@ do
 				ScaleType = Enum.ScaleType.Slice,
 				SliceCenter = Rect.new(4, 4, 296, 296)
 			}, {
-				-- Classic soft glow (source library style)
-				utilityCreate("ImageLabel", {
-					Name = "Glow",
-					BackgroundTransparency = 1,
-					Position = UDim2.new(0, -15, 0, -15),
-					Size = UDim2.new(1, 30, 1, 30),
-					ZIndex = 0,
-					Image = "rbxassetid://5028857084",
-					ImageColor3 = themes.Glow,
-					ScaleType = Enum.ScaleType.Slice,
-					SliceCenter = Rect.new(24, 24, 276, 276)
+				-- Single outline glow (one line, follows rounded corners)
+				utilityCreate("UIStroke", {
+					Name = "OutlineGlow",
+					Color = themes.Glow,
+					Thickness = 1.5,
+					Transparency = 0.4,
+					ApplyStrokeMode = Enum.ApplyStrokeMode.Border
 				}),
 				utilityCreate("ImageLabel", {
 				Name = "Pages",
@@ -632,20 +604,6 @@ do
 			Size = watermarkSize,
 			ZIndex = 2
 		}, {
-			-- Classic soft glow (source library style)
-			utilityCreate("ImageLabel", {
-				Name = "Glow",
-				BackgroundTransparency = 1,
-				Position = UDim2.new(0, -15, 0, -15),
-				Size = UDim2.new(1, 30, 1, 30),
-				ZIndex = 0,
-				Visible = watermarkShowGlow,
-				Image = "rbxassetid://5028857084",
-				ImageColor3 = watermarkGlow,
-				ScaleType = Enum.ScaleType.Slice,
-				SliceCenter = Rect.new(24, 24, 276, 276)
-			}),
-
 			utilityCreate("CanvasGroup", {
 				Name = "Body",
 				BackgroundColor3 = watermarkBackground,
@@ -660,9 +618,8 @@ do
 				utilityCreate("UIStroke", {
 					Name = "OutlineGlow",
 					Color = watermarkGlow,
-					Thickness = 1,
-					Transparency = 1,
-					Enabled = false,
+					Thickness = 1.2,
+					Transparency = watermarkShowGlow and 0.45 or 1,
 					ApplyStrokeMode = Enum.ApplyStrokeMode.Border
 				}),
 				-- Title bar (XEVOR + expand) — also drag handle
