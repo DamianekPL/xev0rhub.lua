@@ -255,11 +255,11 @@ do
 		end
 	end
 
-	-- Soft multi-layer bloom glow for main menu + watermark.
+	-- Tight outline glow behind main menu + watermark (hugs edges only).
 	-- SetGlow(enabled, color?)
 	-- SetGlow({ Enabled, Color, Size, Brightness })
-	--   Size 1-100 → how far the glow spreads (shine distance)
-	--   Brightness 1-100 → intensity
+	--   Size 1-100 → outline strength (stays close to panel, never rings far out)
+	--   Brightness 1-100 → visibility
 	function library:SetGlow(enabledOrOpts, color)
 		local opts = {}
 		if type(enabledOrOpts) == "table" then
@@ -272,7 +272,7 @@ do
 		self._glowState = self._glowState or {
 			Enabled = true,
 			Color = themes.Glow,
-			Size = 50,
+			Size = 40,
 			Brightness = 70,
 		}
 		local st = self._glowState
@@ -283,55 +283,39 @@ do
 
 		themes.Glow = st.Color
 
-		-- Build N soft layers. Size controls max pad; Brightness controls opacity curve.
-		local layers = 6
-		local maxPad = 12 + (st.Size / 100) * 70 -- 12px .. 82px spread
+		-- Keep glow tight to the panel (4-12px only)
+		local pad = math.floor(4 + (st.Size / 100) * 8 + 0.5)
+		local thickness = 1 + (st.Size / 100) * 1.5
 		local bright = st.Brightness / 100
+		local glowT = st.Enabled and math.clamp(1 - bright * 0.7, 0.1, 0.85) or 1
+		local strokeT = st.Enabled and math.clamp(1 - bright * 0.85, 0.05, 0.8) or 1
 
-		local function rebuildBloom(parent)
+		local function apply(parent, isWatermark)
 			if not parent then return end
-			local bloom = parent:FindFirstChild("GlowBloom")
-			if not bloom then return end
-
-			bloom.Visible = st.Enabled
-			for _, child in ipairs(bloom:GetChildren()) do
-				child:Destroy()
+			local glow = parent:FindFirstChild("Glow")
+			if glow then
+				glow.Visible = st.Enabled
+				glow.ImageColor3 = st.Color
+				glow.ImageTransparency = glowT
+				glow.Position = UDim2.new(0, -pad, 0, -pad)
+				glow.Size = UDim2.new(1, pad * 2, 1, pad * 2)
 			end
-			if not st.Enabled then return end
-
-			for i = 1, layers do
-				local t = i / layers
-				-- farther layers = larger pad, more transparent
-				local pad = math.floor(maxPad * t + 0.5)
-				-- inner layers brighter, outer very soft
-				local baseT = 0.15 + t * 0.7
-				local transparency = math.clamp(1 - (1 - baseT) * bright, 0.05, 0.95)
-
-				local layer = Instance.new("ImageLabel")
-				layer.Name = "GlowLayer" .. i
-				layer.BackgroundTransparency = 1
-				layer.BorderSizePixel = 0
-				layer.Position = UDim2.new(0, -pad, 0, -pad)
-				layer.Size = UDim2.new(1, pad * 2, 1, pad * 2)
-				layer.ZIndex = 0
-				layer.Image = "rbxassetid://5028857084"
-				layer.ImageColor3 = st.Color
-				layer.ImageTransparency = transparency
-				layer.ScaleType = Enum.ScaleType.Slice
-				layer.SliceCenter = Rect.new(24, 24, 276, 276)
-				layer.Parent = bloom
+			local strokeParent = isWatermark and (parent:FindFirstChild("Body") or parent) or parent
+			local stroke = strokeParent and strokeParent:FindFirstChild("OutlineGlow")
+			if stroke and stroke:IsA("UIStroke") then
+				stroke.Enabled = st.Enabled
+				stroke.Color = st.Color
+				stroke.Thickness = thickness
+				stroke.Transparency = strokeT
 			end
 		end
 
 		local main = self.container and self.container:FindFirstChild("Main")
-		rebuildBloom(main)
-
+		apply(main, false)
 		if self.watermark then
-			local shell = self.watermark:FindFirstChild("Watermark")
-			rebuildBloom(shell)
+			apply(self.watermark:FindFirstChild("Watermark"), true)
 		end
 	end
-
 
 	-- Updates only the supplied watermark values, so it is safe to call from
 	-- sliders and color-picker callbacks while the hub is open.
@@ -392,15 +376,11 @@ do
 				status.BackgroundColor3 = style.StatusColor
 			end
 		end
-		local glowBloom = watermarkFrame:FindFirstChild("GlowBloom")
-		if glowBloom then
-			if style.Glow ~= nil or typeof(style.GlowColor) == "Color3" then
-				-- Route through SetGlow so bloom layers stay in sync
-				local gOpts = {}
-				if style.Glow ~= nil then gOpts.Enabled = style.Glow == true end
-				if typeof(style.GlowColor) == "Color3" then gOpts.Color = style.GlowColor end
-				self:SetGlow(gOpts)
-			end
+		if style.Glow ~= nil or typeof(style.GlowColor) == "Color3" then
+			local gOpts = {}
+			if style.Glow ~= nil then gOpts.Enabled = style.Glow == true end
+			if typeof(style.GlowColor) == "Color3" then gOpts.Color = style.GlowColor end
+			self:SetGlow(gOpts)
 		end
 		if accentLine then
 			if style.AccentLine ~= nil then
@@ -512,12 +492,25 @@ do
 				ScaleType = Enum.ScaleType.Slice,
 				SliceCenter = Rect.new(4, 4, 296, 296)
 			}, {
-				-- Multi-layer bloom (soft glow that spreads outward)
-				utilityCreate("Frame", {
-					Name = "GlowBloom",
+				-- Tight outline glow behind panel (hugs rounded edges)
+				utilityCreate("ImageLabel", {
+					Name = "Glow",
 					BackgroundTransparency = 1,
-					Size = UDim2.new(1, 0, 1, 0),
-					ZIndex = 0
+					Position = UDim2.new(0, -8, 0, -8),
+					Size = UDim2.new(1, 16, 1, 16),
+					ZIndex = 0,
+					Image = "rbxassetid://5028857084",
+					ImageColor3 = themes.Glow,
+					ImageTransparency = 0.4,
+					ScaleType = Enum.ScaleType.Slice,
+					SliceCenter = Rect.new(24, 24, 276, 276)
+				}),
+				utilityCreate("UIStroke", {
+					Name = "OutlineGlow",
+					Color = themes.Glow,
+					Thickness = 1.5,
+					Transparency = 0.3,
+					ApplyStrokeMode = Enum.ApplyStrokeMode.Border
 				}),
 				utilityCreate("ImageLabel", {
 				Name = "Pages",
@@ -619,12 +612,18 @@ do
 			Size = watermarkSize,
 			ZIndex = 2
 		}, {
-			utilityCreate("Frame", {
-				Name = "GlowBloom",
+			utilityCreate("ImageLabel", {
+				Name = "Glow",
 				BackgroundTransparency = 1,
-				Size = UDim2.new(1, 0, 1, 0),
+				Position = UDim2.new(0, -8, 0, -8),
+				Size = UDim2.new(1, 16, 1, 16),
 				ZIndex = 0,
-				Visible = watermarkShowGlow
+				Visible = watermarkShowGlow,
+				Image = "rbxassetid://5028857084",
+				ImageColor3 = watermarkGlow,
+				ImageTransparency = 0.4,
+				ScaleType = Enum.ScaleType.Slice,
+				SliceCenter = Rect.new(24, 24, 276, 276)
 			}),
 			utilityCreate("CanvasGroup", {
 				Name = "Body",
@@ -636,6 +635,13 @@ do
 			}, {
 				utilityCreate("UICorner", {
 					CornerRadius = UDim.new(0, 8)
+				}),
+				utilityCreate("UIStroke", {
+					Name = "OutlineGlow",
+					Color = watermarkGlow,
+					Thickness = 1.5,
+					Transparency = watermarkShowGlow and 0.3 or 1,
+					ApplyStrokeMode = Enum.ApplyStrokeMode.Border
 				}),
 				-- Title bar (XEVOR + expand) — also drag handle
 				utilityCreate("Frame", {
