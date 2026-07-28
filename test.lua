@@ -272,7 +272,7 @@ do
 		self._glowState = self._glowState or {
 			Enabled = true,
 			Color = themes.Glow,
-			Size = 35,
+			Size = 50,
 			Brightness = 100,
 		}
 		local st = self._glowState
@@ -286,12 +286,10 @@ do
 		themes.Glow = st.Color
 
 		-- pad ~15 at mid size (matches original -15 / +30)
-		-- Size locked around classic look (default 35 ≈ original -15 pad)
 		local pad = math.floor(6 + (st.Size / 100) * 24 + 0.5) -- 6..30
 		local bright = st.Brightness / 100
-		-- ~40% stronger: map brightness higher so the soft glow reads brighter
-		local boosted = math.clamp(bright * 1.4, 0, 1.15)
-		local imageT = st.Enabled and math.clamp(1 - boosted, 0, 0.85) or 1
+		-- original glow has no transparency field (opaque image); we fade with brightness
+		local imageT = st.Enabled and math.clamp(1 - bright, 0, 0.92) or 1
 
 		local function hideExtras(parent)
 			if not parent then return end
@@ -926,8 +924,6 @@ do
 		window:SetGlow({
 			Enabled = watermarkShowGlow ~= false,
 			Color = themes.Glow,
-			Size = 35,
-			Brightness = 100,
 			Size = 55,
 			Brightness = 75,
 		})
