@@ -651,6 +651,14 @@ do
 					Visible = false
 				}, {
 					utilityCreate("Frame", {
+						Name = "AccentBar",
+						BackgroundColor3 = watermarkAccentPurple,
+						BorderSizePixel = 0,
+						Position = UDim2.new(0, 0, 0, 0),
+						Size = UDim2.new(0, 3, 1, 0),
+						ZIndex = 6
+					}),
+					utilityCreate("Frame", {
 						Name = "Divider",
 						BackgroundColor3 = Color3.fromRGB(36, 36, 42),
 						BorderSizePixel = 0,
@@ -661,8 +669,8 @@ do
 					utilityCreate("TextLabel", {
 						Name = "Title",
 						BackgroundTransparency = 1,
-						Position = UDim2.new(0, 12, 0, 6),
-						Size = UDim2.new(1, -24, 0, 14),
+						Position = UDim2.new(0, 14, 0, 6),
+						Size = UDim2.new(1, -26, 0, 14),
 						ZIndex = 5,
 						Font = Enum.Font.GothamBold,
 						Text = "Notification",
@@ -674,8 +682,8 @@ do
 					utilityCreate("TextLabel", {
 						Name = "Body",
 						BackgroundTransparency = 1,
-						Position = UDim2.new(0, 12, 0, 22),
-						Size = UDim2.new(1, -24, 0, 28),
+						Position = UDim2.new(0, 14, 0, 22),
+						Size = UDim2.new(1, -26, 0, 28),
 						ZIndex = 5,
 						Font = Enum.Font.Gotham,
 						Text = "",
@@ -1018,26 +1026,77 @@ do
 		local notifyToken = 0
 		local notifyHeight = 54
 
-		window._showWatermarkNotify = function(title, text, duration, callback)
+		local NOTIFY_STYLES = {
+			success = {
+				color = watermarkAccentPurple,
+				sound = "rbxassetid://4590657391", -- soft UI chime
+			},
+			good = {
+				color = watermarkAccentPurple,
+				sound = "rbxassetid://4590657391",
+			},
+			warning = {
+				color = Color3.fromRGB(255, 196, 48),
+				sound = "rbxassetid://4590658115",
+			},
+			warn = {
+				color = Color3.fromRGB(255, 196, 48),
+				sound = "rbxassetid://4590658115",
+			},
+			error = {
+				color = Color3.fromRGB(255, 72, 72),
+				sound = "rbxassetid://4590659233",
+			},
+		}
+
+		local function playNotifySound(soundId)
+			pcall(function()
+				local s = Instance.new("Sound")
+				s.Name = "XEVOR_NotifySound"
+				s.SoundId = soundId
+				s.Volume = 0.55
+				s.PlaybackSpeed = 1
+				s.Parent = watermark -- plays even if menu is hidden
+				s:Play()
+				s.Ended:Connect(function()
+					s:Destroy()
+				end)
+				task.delay(4, function()
+					if s and s.Parent then s:Destroy() end
+				end)
+			end)
+		end
+
+		window._showWatermarkNotify = function(title, text, duration, callback, kind)
 			if not notifyPanel then
 				if callback then task.defer(callback, true) end
 				return
 			end
+
+			kind = string.lower(tostring(kind or "success"))
+			local style = NOTIFY_STYLES[kind] or NOTIFY_STYLES.success
+			local accent = style.color
 
 			notifyToken = notifyToken + 1
 			local token = notifyToken
 			duration = tonumber(duration) or 3
 
 			-- Hide details dropdown while showing notify
-			local wasExpanded = watermarkExpanded
-			if wasExpanded then
+			if watermarkExpanded then
 				setWatermarkExpanded(false)
 			end
 
+			local accentBar = notifyPanel:FindFirstChild("AccentBar")
+			if accentBar then
+				accentBar.BackgroundColor3 = accent
+			end
 			notifyPanel.Title.Text = tostring(title or "Notification")
+			notifyPanel.Title.TextColor3 = accent
 			notifyPanel.Body.Text = tostring(text or "")
 			notifyPanel.Visible = true
 			notifyPanel.Position = UDim2.new(0, 0, 0, watermarkCollapsedHeight)
+
+			playNotifySound(style.sound)
 
 			utilityTween(notifyPanel, {Size = UDim2.new(1, 0, 0, notifyHeight)}, 0.18)
 			utilityTween(watermarkFrame, {
@@ -1264,14 +1323,28 @@ do
 	
 	-- new modules
 	
-	function library:Notify(title, text, callback)
-		-- Watermark roll-down notification (no floating popup / typing).
+	function library:Notify(title, text, callbackOrKind, kind)
+		-- Watermark roll-down notification with type + sound.
+		-- Usage:
+		--   Window:Notify("Title", "Message")
+		--   Window:Notify("Title", "Message", "warning")
+		--   Window:Notify("Title", "Message", "error")
+		--   Window:Notify("Title", "Message", callback, "success")
 		title = title or "Notification"
 		text = text or ""
+		local callback
+		local notifyKind = "success"
+		if typeof(callbackOrKind) == "function" then
+			callback = callbackOrKind
+			if typeof(kind) == "string" then
+				notifyKind = kind
+			end
+		elseif typeof(callbackOrKind) == "string" then
+			notifyKind = callbackOrKind
+		end
 		if self._showWatermarkNotify then
-			self._showWatermarkNotify(title, text, 3, callback)
+			self._showWatermarkNotify(title, text, 3, callback, notifyKind)
 		else
-			-- Fallback if watermark missing
 			warn("[XEVOR]", title, text)
 			if callback then
 				task.defer(callback, true)
